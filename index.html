@@ -4,11 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard Lịch Làm Việc</title>
-<!-- Nếu dùng GitHub Pages, tạo file config.js cùng thư mục với nội dung:
-     const CONFIG = { webAppUrl: "https://script.google.com/macros/s/YOUR_ID/exec" };
-     Đừng commit file config.js lên GitHub (thêm vào .gitignore)
--->
-<script src="config.js" onerror="void(0)"></script>
+<script>
+  const CONFIG = {
+    webAppUrl: "https://script.google.com/macros/s/AKfycbxqRQeV5vAc2iCoaOlJrz0U6jw6vsjy2uDWGjLClxJYaDaYF98NHHRU4yp9FBH29OaA/exec"
+  };
+</script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
   :root {
@@ -395,7 +395,10 @@ function getWeekStart(d){
   return day;
 }
 function addDays(d,n){const r=new Date(d);r.setDate(r.getDate()+n);return r;}
-function fmtDate(d){return d.toISOString().split('T')[0];}
+function fmtDate(d){
+  // Use local date to avoid UTC timezone shift
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
 function fmtDisp(d){return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0');}
 
 function getLoaiCaClass(l){
@@ -778,14 +781,10 @@ function hideLoading(){document.getElementById('loadingOverlay').classList.remov
 // INIT
 // ============================================================
 window.addEventListener('load',()=>{
-  // Load URL từ localStorage hoặc config.js
-  try{
-    const saved=localStorage.getItem('llv_url');
-    if(saved)document.getElementById('webAppUrl').value=saved;
-  }catch(e){}
-  // Nếu có config.js với CONFIG.webAppUrl → tự động load
-  if(typeof CONFIG!=='undefined'&&CONFIG.webAppUrl){
-    document.getElementById('webAppUrl').value=CONFIG.webAppUrl;
+  // Luôn dùng URL cố định từ CONFIG
+  const url = (typeof CONFIG!=='undefined'&&CONFIG.webAppUrl) ? CONFIG.webAppUrl : '';
+  if(url) {
+    document.getElementById('webAppUrl').value=url;
     loadData();
   }
   updateWeekLabel();
