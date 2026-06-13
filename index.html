@@ -224,6 +224,7 @@
         <option value="Ca Sáng">Ca Sáng</option>
         <option value="Ca Tối">Ca Tối</option>
         <option value="Ca Lỡ">Ca Lỡ</option>
+        <option value="Ca Giữa">Ca Giữa</option>
         <option value="Trực đêm">Trực đêm</option>
         <option value="OFF">OFF</option>
       </select>
@@ -409,18 +410,21 @@ function getLoaiCaClass(l){
   if(!l||l==='OFF')return'ca-off';
   if(l==='Ca Sáng')return'ca-sang';
   if(l==='Ca Tối')return'ca-toi';
-  if(l==='Ca Lỡ')return'ca-lo';
-  if(l.includes('đêm')||l.includes('Đêm'))return'truc-dem';
-  return'ca-lo';
+  if(l==='Ca Lỡ'||l==='Ca Giữa'||l==='Ca Giua')return'ca-lo';
+  if(l.includes('đêm')||l.includes('Đêm')||l.includes('dem'))return'truc-dem';
+  if(l.includes('Sáng')||l.includes('sang'))return'ca-sang';
+  if(l.includes('Tối')||l.includes('toi'))return'ca-toi';
+  return'ca-lo'; // default màu xanh cho các loại ca khác
 }
 
 function normalizeLoaiCa(loai,caLam){
-  if(typeof loai==='string'&&['Ca Tối','Ca Sáng','OFF','Ca Lỡ'].includes(loai))return loai;
+  // Giữ nguyên giá trị từ sheet nếu là string hợp lệ
+  if(typeof loai==='string'&&loai.trim()!=='')return loai.trim();
   if(caLam==='OFF')return'OFF';
   if(typeof caLam==='string'&&caLam.includes('Trực đêm'))return'Trực đêm';
   const h=parseInt(loai);
   if(!isNaN(h)){if(h<8)return'Ca Sáng';if(h<10)return'Ca Lỡ';return'Ca Tối';}
-  return loai||'Ca Sáng';
+  return'Ca Sáng';
 }
 
 // ============================================================
@@ -570,8 +574,12 @@ function renderKPIs(){
   const today=fmtDate(new Date());
   const ws=currentWeekStart,we=addDays(ws,6);
   const todayR=filteredData.filter(r=>r.date&&fmtDate(r.date)===today);
-  const weEnd2=new Date(we);weEnd2.setHours(23,59,59,999);
-  const weekR=filteredData.filter(r=>r.date&&r.date>=ws&&r.date<=weEnd2);
+  const wsDStr2=fmtDate(ws),weDStr2=fmtDate(we);
+  const weekR=filteredData.filter(r=>{
+    if(!r.date)return false;
+    const ds=fmtDate(r.date);
+    return ds>=wsDStr2&&ds<=weDStr2;
+  });
   document.getElementById('kpi1').textContent=todayR.filter(r=>r.loaiCa!=='OFF').length;
   document.getElementById('kpi2').textContent=todayR.filter(r=>r.loaiCa==='OFF').length;
   document.getElementById('kpi3').textContent=weekR.filter(r=>r.loaiCa==='Ca Sáng').length;
@@ -585,8 +593,12 @@ function renderKPIs(){
 function renderSchedule(){
   const ws=currentWeekStart;
   const days=Array.from({length:7},(_,i)=>addDays(ws,i));
-  const weEnd=new Date(days[6]);weEnd.setHours(23,59,59,999);
-  const weekR=filteredData.filter(r=>r.date&&r.date>=ws&&r.date<=weEnd);
+  const wsDStr=fmtDate(days[0]),weDStr=fmtDate(days[6]);
+  const weekR=filteredData.filter(r=>{
+    if(!r.date)return false;
+    const ds=fmtDate(r.date);
+    return ds>=wsDStr&&ds<=weDStr;
+  });
   if(currentView==='week')renderWeekView(days,weekR);
   else renderMonthView();
 }
@@ -663,8 +675,12 @@ function renderMonthView(){
 // ============================================================
 function renderOfficeSummary(){
   const ws=currentWeekStart,we=addDays(ws,6);
-  const weEnd3=new Date(we);weEnd3.setHours(23,59,59,999);
-  const rows=filteredData.filter(r=>r.date&&r.date>=ws&&r.date<=weEnd3&&r.loaiCa!=='OFF'&&r.boPhan!=='OFF');
+  const wsDStr3=fmtDate(ws),weDStr3=fmtDate(we);
+  const rows=filteredData.filter(r=>{
+    if(!r.date)return false;
+    const ds=fmtDate(r.date);
+    return ds>=wsDStr3&&ds<=weDStr3&&r.loaiCa!=='OFF'&&r.boPhan!=='OFF';
+  });
   const map={};
   rows.forEach(r=>{
     if(!map[r.boPhan])map[r.boPhan]={total:0,sang:0,toi:0,lo:0,dem:0};
