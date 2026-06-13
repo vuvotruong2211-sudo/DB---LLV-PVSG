@@ -396,8 +396,12 @@ function getWeekStart(d){
 }
 function addDays(d,n){const r=new Date(d);r.setDate(r.getDate()+n);return r;}
 function fmtDate(d){
-  // Use local date to avoid UTC timezone shift
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function toLocalNoon(d){
+  // Normalize date to local noon to avoid UTC midnight parse issues
+  const n=new Date(d.getFullYear(),d.getMonth(),d.getDate(),12,0,0);
+  return n;
 }
 function fmtDisp(d){return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0');}
 
@@ -450,7 +454,7 @@ async function loadData(){
     if(json.status!=='ok')throw new Error(json.message||'Apps Script trả về lỗi');
 
     allData=json.data.map(r=>({
-      date: r.date?new Date(r.date):null,
+      date: r.date?(()=>{const p=r.date.split('-');return new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]),12,0,0);})():null,
       thu:  r.thu||'',
       nv:   r.nv||'',
       boPhan: r.boPhan||'',
@@ -498,7 +502,7 @@ function loadDemo(){
         nvList.forEach((nv,i)=>{
           const r=Math.random();
           const ca=r<0.07?caList[8]:r<0.13?caList[7]:caList[Math.floor(Math.random()*7)];
-          allData.push({date:dt,thu:'',nv,boPhan:ca.l==='OFF'?'OFF':offices[i%offices.length],caLam:ca.c,loaiCa:ca.l,thang:m});
+          allData.push({date:new Date(2025,m-1,d,12,0,0),thu:'',nv,boPhan:ca.l==='OFF'?'OFF':offices[i%offices.length],caLam:ca.c,loaiCa:ca.l,thang:m});
         });
       }
     }
