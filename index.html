@@ -391,7 +391,7 @@ function getWeekStart(d){
   const day=new Date(d);
   const dow=day.getDay();
   day.setDate(day.getDate()+(dow===0?-6:1-dow));
-  day.setHours(0,0,0,0);
+  day.setHours(12,0,0,0);
   return day;
 }
 function addDays(d,n){const r=new Date(d);r.setDate(r.getDate()+n);return r;}
@@ -570,7 +570,8 @@ function renderKPIs(){
   const today=fmtDate(new Date());
   const ws=currentWeekStart,we=addDays(ws,6);
   const todayR=filteredData.filter(r=>r.date&&fmtDate(r.date)===today);
-  const weekR=filteredData.filter(r=>r.date&&r.date>=ws&&r.date<=we);
+  const weEnd2=new Date(we);weEnd2.setHours(23,59,59,999);
+  const weekR=filteredData.filter(r=>r.date&&r.date>=ws&&r.date<=weEnd2);
   document.getElementById('kpi1').textContent=todayR.filter(r=>r.loaiCa!=='OFF').length;
   document.getElementById('kpi2').textContent=todayR.filter(r=>r.loaiCa==='OFF').length;
   document.getElementById('kpi3').textContent=weekR.filter(r=>r.loaiCa==='Ca Sáng').length;
@@ -584,7 +585,8 @@ function renderKPIs(){
 function renderSchedule(){
   const ws=currentWeekStart;
   const days=Array.from({length:7},(_,i)=>addDays(ws,i));
-  const weekR=filteredData.filter(r=>r.date&&r.date>=ws&&r.date<=days[6]);
+  const weEnd=new Date(days[6]);weEnd.setHours(23,59,59,999);
+  const weekR=filteredData.filter(r=>r.date&&r.date>=ws&&r.date<=weEnd);
   if(currentView==='week')renderWeekView(days,weekR);
   else renderMonthView();
 }
@@ -661,7 +663,8 @@ function renderMonthView(){
 // ============================================================
 function renderOfficeSummary(){
   const ws=currentWeekStart,we=addDays(ws,6);
-  const rows=filteredData.filter(r=>r.date&&r.date>=ws&&r.date<=we&&r.loaiCa!=='OFF'&&r.boPhan!=='OFF');
+  const weEnd3=new Date(we);weEnd3.setHours(23,59,59,999);
+  const rows=filteredData.filter(r=>r.date&&r.date>=ws&&r.date<=weEnd3&&r.loaiCa!=='OFF'&&r.boPhan!=='OFF');
   const map={};
   rows.forEach(r=>{
     if(!map[r.boPhan])map[r.boPhan]={total:0,sang:0,toi:0,lo:0,dem:0};
