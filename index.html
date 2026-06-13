@@ -83,21 +83,22 @@
   .card-body{padding:16px 18px;}
 
   /* TABLE */
-  .schedule-table{width:100%;border-collapse:collapse;font-size:12px;}
-  .schedule-table th{text-align:left;padding:8px 10px;background:var(--surface2);color:var(--text3);font-weight:500;font-size:11px;border-bottom:1px solid var(--border);position:sticky;top:0;}
-  .schedule-table th:first-child{width:110px;}
-  .schedule-table td{padding:6px 8px;border-bottom:1px solid var(--border);vertical-align:middle;}
+  .schedule-table{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed;}
+  .schedule-table th{text-align:center;padding:8px 4px;background:var(--surface2);color:var(--text3);font-weight:500;font-size:11px;border-bottom:1px solid var(--border);position:sticky;top:0;}
+  .schedule-table th:first-child{text-align:left;width:100px;padding-left:10px;}
+  .schedule-table td{padding:5px 4px;border-bottom:1px solid var(--border);vertical-align:middle;text-align:center;}
+  .schedule-table td:first-child{text-align:left;padding-left:10px;}
   .schedule-table tr:last-child td{border-bottom:none;}
   .schedule-table tr:hover td{background:rgba(79,110,247,.05);}
   .nv-name{font-weight:600;font-size:12px;}
   .nv-office{font-size:10px;color:var(--text3);margin-top:1px;}
-  .ca-badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:600;white-space:nowrap;}
+  .ca-badge{display:inline-block;padding:2px 5px;border-radius:4px;font-size:10px;font-weight:600;white-space:nowrap;max-width:100%;}
   .ca-sang{background:rgba(16,185,129,.15);color:var(--ca-sang);}
   .ca-toi{background:rgba(245,158,11,.15);color:var(--ca-toi);}
   .ca-lo{background:rgba(59,130,246,.15);color:var(--ca-lo);}
   .truc-dem{background:rgba(139,92,246,.15);color:var(--truc-dem);}
   .ca-off{background:rgba(71,85,105,.2);color:var(--off);}
-  .time-text{font-size:11px;color:var(--text2);}
+  .time-text{font-size:10px;color:var(--text2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .day-col{text-align:center;}
   .day-header{font-size:11px;font-weight:600;}
   .day-date{font-size:10px;color:var(--text3);}
@@ -606,10 +607,12 @@ function renderWeekView(days,weekRows){
       if(!r)return`<td style="${bg}"><span style="color:var(--text3);font-size:10px;">—</span></td>`;
       const cls=getLoaiCaClass(r.loaiCa);
       const diffOffice=r.boPhan&&r.boPhan!=='OFF'&&r.boPhan!==mainOff;
-      return`<td style="${bg}" class="day-col">
-        <span class="ca-badge ${cls}">${r.loaiCa}</span>
-        <div class="time-text" style="margin-top:2px;">${r.caLam!=='OFF'?r.caLam:''}</div>
-        ${diffOffice?`<div style="font-size:9px;color:var(--text3);margin-top:1px;">${shortOffice(r.boPhan)}</div>`:''}
+      return`<td style="${bg}">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+          <span class="ca-badge ${cls}">${r.loaiCa}</span>
+          ${r.caLam&&r.caLam!=='OFF'?`<div class="time-text">${r.caLam}</div>`:''}
+          ${diffOffice?`<div style="font-size:9px;color:var(--text3);">${shortOffice(r.boPhan)}</div>`:''}
+        </div>
       </td>`;
     }).join('');
     return`<tr><td><div class="nv-name">${nv}</div><div class="nv-office">${shortOffice(mainOff)}</div></td>${cells}</tr>`;
