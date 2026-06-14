@@ -356,24 +356,24 @@
     </div>
   </div>
 
-  <!-- BOTTOM GRID -->
-  <div class="bottom-grid">
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <div class="card-title">📊 Thống kê theo tháng</div>
-          <div class="card-sub">Tổng lượt ca / tháng</div>
-        </div>
-      </div>
-      <div class="card-body">
-        <div class="chart-wrap" id="monthlyChart">
-          <div class="empty-state" style="padding:30px;"><div class="empty-icon">📊</div>Chờ dữ liệu...</div>
-        </div>
-        <div class="chart-legend"></div>
-        </div>
+  <!-- MONTHLY CHART - FULL WIDTH -->
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-header">
+      <div>
+        <div class="card-title">📊 Thống kê theo tháng</div>
+        <div class="card-sub">Tổng lượt ca / tháng</div>
       </div>
     </div>
+    <div class="card-body">
+      <div class="chart-wrap" id="monthlyChart">
+        <div class="empty-state" style="padding:30px;"><div class="empty-icon">📊</div>Chờ dữ liệu...</div>
+      </div>
+      <div class="chart-legend"></div>
+    </div>
+  </div>
 
+  <!-- BOTTOM GRID -->
+  <div class="bottom-grid">
     <div class="card">
       <div class="card-header">
         <div>
@@ -381,7 +381,7 @@
           <div class="card-sub" id="statSubTitle">Tháng hiện tại</div>
         </div>
       </div>
-      <div class="table-scroll" style="max-height:300px;">
+      <div class="table-scroll" style="max-height:360px;">
         <table class="stat-table">
           <thead>
             <tr>
@@ -400,44 +400,18 @@
         </table>
       </div>
     </div>
-  </div>
 
-  <!-- OFF STATS -->
-  <div class="card" style="margin-top:16px;">
-    <div class="card-header">
-      <div>
-        <div class="card-title">🏖️ Thống kê OFF theo nhân viên</div>
-        <div class="card-sub">Số ngày nghỉ trong khoảng thời gian chọn</div>
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">🏢 So sánh văn phòng theo tháng</div>
+          <div class="card-sub" id="officeMonthSubTitle">Tháng hiện tại</div>
+        </div>
       </div>
-    </div>
-    <div class="card-body">
-      <div class="off-controls">
-        <span class="filter-label">Khoảng:</span>
-        <select class="filter-select" id="offRangeMode" onchange="onOffRangeModeChange()">
-          <option value="month">Theo tháng</option>
-          <option value="custom">Tự chọn ngày</option>
-        </select>
-        <select class="filter-select" id="offMonth"></select>
-        <input type="date" id="offFrom" style="display:none;">
-        <span id="offToLabel" style="display:none;color:var(--text3);font-size:12px;">đến</span>
-        <input type="date" id="offTo" style="display:none;">
-        <button class="off-apply-btn" onclick="renderOffStats()">Áp dụng</button>
-      </div>
-      <div class="table-scroll" style="max-height:360px;">
-        <table class="off-table">
-          <thead>
-            <tr>
-              <th>Nhân viên</th>
-              <th>Văn phòng chính</th>
-              <th>Số ngày OFF</th>
-              <th>Tổng số ngày</th>
-              <th>Tỷ lệ OFF</th>
-            </tr>
-          </thead>
-          <tbody id="offStatBody">
-            <tr><td colspan="5" class="empty-state">Chờ dữ liệu...</td></tr>
-          </tbody>
-        </table>
+      <div class="card-body">
+        <div id="officeMonthChart">
+          <div class="empty-state"><div class="empty-icon">🏢</div>Chờ dữ liệu...</div>
+        </div>
       </div>
     </div>
   </div>
@@ -604,7 +578,7 @@ function loadDemo(){
 // ============================================================
 // PROCESS & RENDER
 // ============================================================
-function processData(){populateFilters();onOffRangeModeChange();applyFilters();}
+function processData(){populateFilters();applyFilters();}
 
 function populateFilters(){
   const offices=[...new Set(allData.map(r=>r.boPhan).filter(o=>o&&o!=='OFF'))].sort();
@@ -630,14 +604,6 @@ function populateFilters(){
 
   const curM=new Date().getMonth()+1;
   if(months.includes(curM))ms.value=curM;
-
-  // OFF stats month dropdown
-  const offM=document.getElementById('offMonth');
-  if(offM){
-    offM.innerHTML='';
-    months.forEach(m=>offM.innerHTML+=`<option value="${m}">Tháng ${m}</option>`);
-    if(months.includes(curM))offM.value=curM;
-  }
 }
 
 // ============================================================
@@ -709,7 +675,7 @@ function renderAll(){
   renderOfficeSummary();
   renderMonthlyChart();
   renderStatTable();
-  renderOffStats();
+  renderOfficeMonthChart();
 }
 
 // ============================================================
@@ -966,101 +932,68 @@ function renderStatTable(){
 }
 
 // ============================================================
-// OFF STATS
+// OFFICE COMPARISON BY MONTH
 // ============================================================
-function onOffRangeModeChange(){
-  const mode=document.getElementById('offRangeMode').value;
-  const monthSel=document.getElementById('offMonth');
-  const from=document.getElementById('offFrom');
-  const to=document.getElementById('offTo');
-  const toLabel=document.getElementById('offToLabel');
-  if(mode==='month'){
-    monthSel.style.display='';
-    from.style.display='none';
-    to.style.display='none';
-    toLabel.style.display='none';
-  }else{
-    monthSel.style.display='none';
-    from.style.display='';
-    to.style.display='';
-    toLabel.style.display='';
-    if(!from.value||!to.value){
-      const ws=fmtDate(currentWeekStart);
-      const we=fmtDate(addDays(currentWeekStart,6));
-      from.value=from.value||ws;
-      to.value=to.value||we;
-    }
-  }
-}
+function renderOfficeMonthChart(){
+  const monthSel=document.getElementById('filterMonth').value;
+  const curM=parseInt(monthSel)||(new Date().getMonth()+1);
+  const subTitle=document.getElementById('officeMonthSubTitle');
+  if(subTitle)subTitle.textContent='Tháng '+curM;
 
-function renderOffStats(){
-  const modeEl=document.getElementById('offRangeMode');
-  if(!modeEl)return; // chưa render UI
+  const mData=filteredData.filter(r=>r.thang===curM&&r.loaiCa!=='OFF'&&r.boPhan&&r.boPhan!=='OFF');
 
-  const mode=modeEl.value;
-  let rangeData, totalDays;
-
-  // Dùng allData (không áp dụng filter Tháng/Văn phòng để không gây nhầm lẫn,
-  // nhưng vẫn áp dụng filter Văn phòng + Nhân viên đã chọn)
-  const office=document.getElementById('filterOffice').value;
-  let baseData=allData.filter(r=>{
-    if(office&&r.boPhan!==office&&r.boPhan!=='OFF')return false;
-    if(selectedNVs.length>0&&!selectedNVs.includes(r.nv))return false;
-    return true;
+  const map={};
+  mData.forEach(r=>{
+    if(!map[r.boPhan])map[r.boPhan]={};
+    map[r.boPhan][r.loaiCa]=(map[r.boPhan][r.loaiCa]||0)+1;
   });
 
-  if(mode==='month'){
-    const m=parseInt(document.getElementById('offMonth').value);
-    if(!m)return;
-    rangeData=baseData.filter(r=>r.thang===m);
-    // tổng số ngày trong tháng (lấy số ngày unique có data)
-    const uniqDates=new Set(rangeData.map(r=>fmtDate(r.date)));
-    totalDays=uniqDates.size;
-  }else{
-    const fromStr=document.getElementById('offFrom').value;
-    const toStr=document.getElementById('offTo').value;
-    if(!fromStr||!toStr)return;
-    rangeData=baseData.filter(r=>{
-      const ds=fmtDate(r.date);
-      return ds>=fromStr&&ds<=toStr;
-    });
-    const uniqDates=new Set(rangeData.map(r=>fmtDate(r.date)));
-    totalDays=uniqDates.size;
-  }
-
-  // Group theo NV
-  const nvMap={};
-  rangeData.forEach(r=>{
-    if(!nvMap[r.nv])nvMap[r.nv]={off:0,total:0,offices:{}};
-    nvMap[r.nv].total++;
-    if(r.loaiCa==='OFF')nvMap[r.nv].off++;
-    if(r.boPhan&&r.boPhan!=='OFF')nvMap[r.nv].offices[r.boPhan]=(nvMap[r.nv].offices[r.boPhan]||0)+1;
+  const offices=Object.keys(map).sort((a,b)=>{
+    const ta=Object.values(map[a]).reduce((s,v)=>s+v,0);
+    const tb=Object.values(map[b]).reduce((s,v)=>s+v,0);
+    return tb-ta;
   });
 
-  const rows=Object.entries(nvMap).map(([nv,d])=>{
-    const mainOff=Object.entries(d.offices).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
-    const pct=d.total>0?(d.off/d.total*100):0;
-    return {nv,off:d.off,total:d.total,mainOff,pct};
-  }).sort((a,b)=>b.off-a.off);
-
-  const body=document.getElementById('offStatBody');
-  if(!body)return;
-  if(!rows.length){
-    body.innerHTML='<tr><td colspan="5" class="empty-state">Không có dữ liệu</td></tr>';
+  const el=document.getElementById('officeMonthChart');
+  if(!offices.length){
+    el.innerHTML='<div class="empty-state"><div class="empty-icon">🏢</div>Không có dữ liệu</div>';
     return;
   }
 
-  body.innerHTML=rows.map(r=>`
-    <tr>
-      <td><div class="nv-name">${r.nv}</div></td>
-      <td><div style="font-size:11px;color:var(--text2)">${shortOffice(r.mainOff)}</div></td>
-      <td>
-        <div style="font-weight:600;color:var(--amber);">${r.off} ngày</div>
-        <div class="off-bar"><div class="off-fill" style="width:${r.pct.toFixed(0)}%"></div></div>
-      </td>
-      <td><div style="color:var(--text2)">${r.total} ngày</div></td>
-      <td><div style="font-weight:600;">${r.pct.toFixed(0)}%</div></td>
-    </tr>`).join('');
+  // Loại ca xuất hiện, theo thứ tự ưu tiên (dùng chung helper màu với chart tháng)
+  const priorityOrder=['Ca Sáng','Ca Lỡ','Ca Giữa','Ca Tối','Trực đêm'];
+  const allCaTypes=[...new Set(mData.map(r=>r.loaiCa))];
+  const caTypes=[
+    ...priorityOrder.filter(c=>allCaTypes.includes(c)),
+    ...allCaTypes.filter(c=>!priorityOrder.includes(c))
+  ];
+  let fallbackIdx=0;
+  const caColors={};
+  caTypes.forEach(c=>{
+    if(CA_COLOR_MAP[c])caColors[c]=CA_COLOR_MAP[c];
+    else{caColors[c]=CA_COLOR_FALLBACK[fallbackIdx%CA_COLOR_FALLBACK.length];fallbackIdx++;}
+  });
+
+  const maxTotal=Math.max(...offices.map(o=>Object.values(map[o]).reduce((s,v)=>s+v,0)));
+
+  el.innerHTML=offices.map(o=>{
+    const total=Object.values(map[o]).reduce((s,v)=>s+v,0);
+    const segs=caTypes.map(c=>{
+      const v=map[o][c]||0;
+      if(!v)return'';
+      const pct=(v/total*100).toFixed(1);
+      return`<div style="height:100%;background:${caColors[c]};width:${pct}%;" title="${c}: ${v}"></div>`;
+    }).join('');
+    const widthPct=maxTotal>0?(total/maxTotal*100):0;
+    return`
+      <div class="office-item">
+        <div class="office-top"><div class="office-name">${shortOffice(o)}</div><div class="office-count">${total} ca</div></div>
+        <div class="office-bar" style="height:8px;width:${widthPct}%;display:flex;overflow:hidden;border-radius:4px;">${segs}</div>
+        <div class="office-breakdown">
+          ${caTypes.filter(c=>map[o][c]).map(c=>`<div class="breakdown-item"><span class="breakdown-dot" style="background:${caColors[c]}"></span>${map[o][c]} ${c}</div>`).join('')}
+        </div>
+      </div>`;
+  }).join('');
 }
 
 // ============================================================
