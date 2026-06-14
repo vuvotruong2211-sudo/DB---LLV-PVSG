@@ -117,14 +117,21 @@
 
   /* BOTTOM */
   .bottom-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
-  .chart-wrap{position:relative;height:160px;}
-  .chart-bars{display:flex;align-items:flex-end;gap:3px;height:100%;padding-top:20px;}
-  .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;height:100%;justify-content:flex-end;}
-  .bar-stack{width:100%;border-radius:3px 3px 0 0;min-height:2px;transition:height .4s;}
-  .bar-label{font-size:9px;color:var(--text3);margin-top:3px;}
-  .chart-legend{display:flex;gap:12px;margin-top:10px;flex-wrap:wrap;}
-  .legend-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text3);}
-  .legend-dot{width:8px;height:8px;border-radius:2px;}
+  .chart-wrap{position:relative;height:200px;}
+  .chart-bars{display:flex;align-items:flex-end;gap:14px;height:100%;padding:20px 4px 0;border-bottom:1px solid var(--border);}
+  .chart-month-group{flex:1;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end;min-width:0;}
+  .chart-month-bars{display:flex;align-items:flex-end;gap:2px;height:100%;width:100%;justify-content:center;}
+  .chart-month-bars .bar-stack{flex:1;max-width:14px;border-radius:3px 3px 0 0;min-height:2px;transition:height .4s;position:relative;}
+  .chart-month-bars .bar-stack:hover::after{
+    content:attr(data-val);position:absolute;bottom:100%;left:50%;transform:translateX(-50%);
+    background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 6px;
+    font-size:10px;color:var(--text);white-space:nowrap;margin-bottom:4px;pointer-events:none;
+  }
+  .bar-label{font-size:10px;color:var(--text3);margin-top:6px;font-weight:500;}
+  .bar-total{font-size:9px;color:var(--text2);margin-top:1px;}
+  .chart-legend{display:flex;gap:12px;margin-top:14px;flex-wrap:wrap;}
+  .legend-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text3);cursor:default;}
+  .legend-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0;}
   .stat-table{width:100%;border-collapse:collapse;font-size:12px;}
   .stat-table th{text-align:left;padding:8px 10px;background:var(--surface2);color:var(--text3);font-size:10px;font-weight:500;border-bottom:1px solid var(--border);}
   .stat-table td{padding:7px 10px;border-bottom:1px solid var(--border);}
@@ -154,6 +161,36 @@
   /* EMPTY */
   .empty-state{text-align:center;padding:40px 20px;color:var(--text3);font-size:13px;}
   .empty-icon{font-size:32px;margin-bottom:10px;}
+
+  /* MULTI-SELECT DROPDOWN */
+  .ms-wrap{position:relative;}
+  .ms-trigger{background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:7px 12px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif;cursor:pointer;display:flex;align-items:center;gap:6px;min-width:130px;justify-content:space-between;}
+  .ms-trigger:hover{border-color:var(--accent);}
+  .ms-trigger.open{border-color:var(--accent);}
+  .ms-count{background:var(--accent);color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:600;}
+  .ms-panel{display:none;position:absolute;top:calc(100% + 4px);left:0;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px;z-index:50;min-width:200px;max-height:280px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.4);}
+  .ms-panel.open{display:block;}
+  .ms-actions{display:flex;gap:6px;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+  .ms-actions button{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:4px 8px;color:var(--text2);font-size:10px;cursor:pointer;}
+  .ms-actions button:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .ms-item{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:5px;cursor:pointer;font-size:12px;}
+  .ms-item:hover{background:var(--surface);}
+  .ms-item input{accent-color:var(--accent);cursor:pointer;}
+
+  /* OFF STATS */
+  .off-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;}
+  .off-controls input[type=date]{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif;outline:none;}
+  .off-controls input[type=date]:focus{border-color:var(--accent);}
+  .off-controls .filter-select{padding:6px 10px;}
+  .off-apply-btn{background:var(--accent);border:none;border-radius:6px;padding:6px 14px;color:#fff;font-size:12px;font-weight:600;cursor:pointer;}
+  .off-apply-btn:hover{opacity:.85;}
+  .off-table{width:100%;border-collapse:collapse;font-size:12px;}
+  .off-table th{text-align:left;padding:8px 10px;background:var(--surface2);color:var(--text3);font-size:10px;font-weight:500;border-bottom:1px solid var(--border);}
+  .off-table td{padding:7px 10px;border-bottom:1px solid var(--border);}
+  .off-table tr:last-child td{border-bottom:none;}
+  .off-table tr:hover td{background:rgba(79,110,247,.05);}
+  .off-bar{height:4px;background:var(--surface2);border-radius:2px;overflow:hidden;margin-top:4px;}
+  .off-fill{height:100%;border-radius:2px;background:var(--amber);}
 
   /* RESPONSIVE */
   @media(max-width:1200px){.kpi-grid{grid-template-columns:repeat(3,1fr);}.main-grid{grid-template-columns:1fr;}.bottom-grid{grid-template-columns:1fr;}}
@@ -213,9 +250,19 @@
     </div>
     <div class="filter-group">
       <span class="filter-label">Nhân viên:</span>
-      <select class="filter-select" id="filterNV" onchange="applyFilters()">
-        <option value="">Tất cả</option>
-      </select>
+      <div class="ms-wrap" id="nvMsWrap">
+        <div class="ms-trigger" id="nvMsTrigger" onclick="toggleNvPanel()">
+          <span id="nvMsLabel">Tất cả</span>
+          <span style="font-size:10px;">▾</span>
+        </div>
+        <div class="ms-panel" id="nvMsPanel">
+          <div class="ms-actions">
+            <button onclick="nvSelectAll()">Chọn tất cả</button>
+            <button onclick="nvClearAll()">Bỏ chọn</button>
+          </div>
+          <div id="nvMsItems"></div>
+        </div>
+      </div>
     </div>
     <div class="filter-group">
       <span class="filter-label">Loại ca:</span>
@@ -322,11 +369,7 @@
         <div class="chart-wrap" id="monthlyChart">
           <div class="empty-state" style="padding:30px;"><div class="empty-icon">📊</div>Chờ dữ liệu...</div>
         </div>
-        <div class="chart-legend">
-          <div class="legend-item"><div class="legend-dot" style="background:var(--ca-sang)"></div>Ca Sáng</div>
-          <div class="legend-item"><div class="legend-dot" style="background:var(--ca-toi)"></div>Ca Tối</div>
-          <div class="legend-item"><div class="legend-dot" style="background:var(--ca-lo)"></div>Ca Lỡ</div>
-          <div class="legend-item"><div class="legend-dot" style="background:var(--truc-dem)"></div>Trực đêm</div>
+        <div class="chart-legend"></div>
         </div>
       </div>
     </div>
@@ -359,6 +402,46 @@
     </div>
   </div>
 
+  <!-- OFF STATS -->
+  <div class="card" style="margin-top:16px;">
+    <div class="card-header">
+      <div>
+        <div class="card-title">🏖️ Thống kê OFF theo nhân viên</div>
+        <div class="card-sub">Số ngày nghỉ trong khoảng thời gian chọn</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="off-controls">
+        <span class="filter-label">Khoảng:</span>
+        <select class="filter-select" id="offRangeMode" onchange="onOffRangeModeChange()">
+          <option value="month">Theo tháng</option>
+          <option value="custom">Tự chọn ngày</option>
+        </select>
+        <select class="filter-select" id="offMonth"></select>
+        <input type="date" id="offFrom" style="display:none;">
+        <span id="offToLabel" style="display:none;color:var(--text3);font-size:12px;">đến</span>
+        <input type="date" id="offTo" style="display:none;">
+        <button class="off-apply-btn" onclick="renderOffStats()">Áp dụng</button>
+      </div>
+      <div class="table-scroll" style="max-height:360px;">
+        <table class="off-table">
+          <thead>
+            <tr>
+              <th>Nhân viên</th>
+              <th>Văn phòng chính</th>
+              <th>Số ngày OFF</th>
+              <th>Tổng số ngày</th>
+              <th>Tỷ lệ OFF</th>
+            </tr>
+          </thead>
+          <tbody id="offStatBody">
+            <tr><td colspan="5" class="empty-state">Chờ dữ liệu...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
 </div><!-- /container -->
 
 <script>
@@ -369,6 +452,7 @@ let allData = [];
 let filteredData = [];
 let currentWeekStart = getWeekStart(new Date());
 let currentView = 'week';
+let selectedNVs = []; // [] = tất cả
 
 const OFFICE_SHORT = {
   '287 Kinh Dương Vương':'287 KDV',
@@ -520,7 +604,7 @@ function loadDemo(){
 // ============================================================
 // PROCESS & RENDER
 // ============================================================
-function processData(){populateFilters();applyFilters();}
+function processData(){populateFilters();onOffRangeModeChange();applyFilters();}
 
 function populateFilters(){
   const offices=[...new Set(allData.map(r=>r.boPhan).filter(o=>o&&o!=='OFF'))].sort();
@@ -531,9 +615,14 @@ function populateFilters(){
   os.innerHTML='<option value="">Tất cả văn phòng</option>';
   offices.forEach(o=>os.innerHTML+=`<option value="${o}">${shortOffice(o)}</option>`);
 
-  const ns=document.getElementById('filterNV');
-  ns.innerHTML='<option value="">Tất cả nhân viên</option>';
-  nvs.forEach(n=>ns.innerHTML+=`<option value="${n}">${n}</option>`);
+  // Multi-select NV
+  const nvItems=document.getElementById('nvMsItems');
+  nvItems.innerHTML=nvs.map(n=>`
+    <label class="ms-item">
+      <input type="checkbox" value="${n}" ${selectedNVs.includes(n)?'checked':''} onchange="onNvCheck(this)">
+      <span>${n}</span>
+    </label>`).join('');
+  updateNvLabel();
 
   const ms=document.getElementById('filterMonth');
   ms.innerHTML='<option value="">Tất cả tháng</option>';
@@ -541,16 +630,71 @@ function populateFilters(){
 
   const curM=new Date().getMonth()+1;
   if(months.includes(curM))ms.value=curM;
+
+  // OFF stats month dropdown
+  const offM=document.getElementById('offMonth');
+  if(offM){
+    offM.innerHTML='';
+    months.forEach(m=>offM.innerHTML+=`<option value="${m}">Tháng ${m}</option>`);
+    if(months.includes(curM))offM.value=curM;
+  }
+}
+
+// ============================================================
+// MULTI-SELECT NHÂN VIÊN
+// ============================================================
+function toggleNvPanel(){
+  document.getElementById('nvMsPanel').classList.toggle('open');
+  document.getElementById('nvMsTrigger').classList.toggle('open');
+}
+document.addEventListener('click',(e)=>{
+  const wrap=document.getElementById('nvMsWrap');
+  if(wrap&&!wrap.contains(e.target)){
+    document.getElementById('nvMsPanel')?.classList.remove('open');
+    document.getElementById('nvMsTrigger')?.classList.remove('open');
+  }
+});
+function onNvCheck(cb){
+  if(cb.checked){
+    if(!selectedNVs.includes(cb.value))selectedNVs.push(cb.value);
+  }else{
+    selectedNVs=selectedNVs.filter(v=>v!==cb.value);
+  }
+  updateNvLabel();
+  applyFilters();
+}
+function nvSelectAll(){
+  const all=[...new Set(allData.map(r=>r.nv))].sort();
+  selectedNVs=[...all];
+  document.querySelectorAll('#nvMsItems input').forEach(cb=>cb.checked=true);
+  updateNvLabel();
+  applyFilters();
+}
+function nvClearAll(){
+  selectedNVs=[];
+  document.querySelectorAll('#nvMsItems input').forEach(cb=>cb.checked=false);
+  updateNvLabel();
+  applyFilters();
+}
+function updateNvLabel(){
+  const lbl=document.getElementById('nvMsLabel');
+  if(!lbl)return;
+  if(selectedNVs.length===0){
+    lbl.textContent='Tất cả';
+  }else if(selectedNVs.length===1){
+    lbl.textContent=selectedNVs[0];
+  }else{
+    lbl.innerHTML=selectedNVs.length+' đã chọn <span class="ms-count">'+selectedNVs.length+'</span>';
+  }
 }
 
 function applyFilters(){
   const office=document.getElementById('filterOffice').value;
-  const nv=document.getElementById('filterNV').value;
   const ca=document.getElementById('filterCa').value;
   const month=document.getElementById('filterMonth').value;
   filteredData=allData.filter(r=>{
     if(office&&r.boPhan!==office)return false;
-    if(nv&&r.nv!==nv)return false;
+    if(selectedNVs.length>0&&!selectedNVs.includes(r.nv))return false;
     if(ca&&r.loaiCa!==ca)return false;
     if(month&&r.thang!==parseInt(month))return false;
     return true;
@@ -565,6 +709,7 @@ function renderAll(){
   renderOfficeSummary();
   renderMonthlyChart();
   renderStatTable();
+  renderOffStats();
 }
 
 // ============================================================
@@ -708,31 +853,80 @@ function renderOfficeSummary(){
 }
 
 // ============================================================
-// MONTHLY CHART
+// MONTHLY CHART - Grouped bars theo loại ca
 // ============================================================
+const CA_COLOR_MAP={
+  'Ca Sáng':'var(--ca-sang)',
+  'Ca Tối':'var(--ca-toi)',
+  'Ca Lỡ':'var(--ca-lo)',
+  'Ca Giữa':'#06b6d4',
+  'Trực đêm':'var(--truc-dem)'
+};
+const CA_COLOR_FALLBACK=['#ec4899','#84cc16','#f97316','#6366f1','#14b8a6','#a855f7'];
+
+function getCaColor(loai, idxInFallback){
+  if(CA_COLOR_MAP[loai])return CA_COLOR_MAP[loai];
+  return CA_COLOR_FALLBACK[idxInFallback % CA_COLOR_FALLBACK.length];
+}
+
 function renderMonthlyChart(){
+  // Thu thập tất cả loại ca thực tế xuất hiện (trừ OFF), giữ thứ tự ưu tiên quen thuộc trước
+  const priorityOrder=['Ca Sáng','Ca Lỡ','Ca Giữa','Ca Tối','Trực đêm'];
+  const allCaTypes=[...new Set(filteredData.map(r=>r.loaiCa).filter(l=>l&&l!=='OFF'))];
+  const caTypes=[
+    ...priorityOrder.filter(c=>allCaTypes.includes(c)),
+    ...allCaTypes.filter(c=>!priorityOrder.includes(c))
+  ];
+
+  // map màu cho từng loại ca (loại ca lạ dùng fallback palette)
+  let fallbackIdx=0;
+  const caColors={};
+  caTypes.forEach(c=>{
+    if(CA_COLOR_MAP[c])caColors[c]=CA_COLOR_MAP[c];
+    else{caColors[c]=CA_COLOR_FALLBACK[fallbackIdx%CA_COLOR_FALLBACK.length];fallbackIdx++;}
+  });
+
+  // Group theo tháng
   const map={};
   filteredData.forEach(r=>{
     if(!r.thang||r.loaiCa==='OFF')return;
-    if(!map[r.thang])map[r.thang]={sang:0,toi:0,lo:0,dem:0};
-    if(r.loaiCa==='Ca Sáng')map[r.thang].sang++;
-    else if(r.loaiCa==='Ca Tối')map[r.thang].toi++;
-    else if(r.loaiCa==='Ca Lỡ')map[r.thang].lo++;
-    else if(r.loaiCa==='Trực đêm')map[r.thang].dem++;
+    if(!map[r.thang])map[r.thang]={};
+    map[r.thang][r.loaiCa]=(map[r.thang][r.loaiCa]||0)+1;
   });
+
   const months=Object.keys(map).map(Number).sort((a,b)=>a-b);
-  if(!months.length)return;
-  const maxT=Math.max(...months.map(m=>map[m].sang+map[m].toi+map[m].lo+map[m].dem));
-  const H=120;
-  document.getElementById('monthlyChart').innerHTML=`<div class="chart-bars">${months.map(m=>{
-    const d=map[m];const total=d.sang+d.toi+d.lo+d.dem;
-    return`<div class="bar-col" title="T${m}: ${total} ca">
-      ${d.dem?`<div class="bar-stack" style="height:${(d.dem/maxT*H).toFixed(0)}px;background:var(--truc-dem)"></div>`:''}
-      ${d.lo?`<div class="bar-stack" style="height:${(d.lo/maxT*H).toFixed(0)}px;background:var(--ca-lo)"></div>`:''}
-      ${d.toi?`<div class="bar-stack" style="height:${(d.toi/maxT*H).toFixed(0)}px;background:var(--ca-toi)"></div>`:''}
-      ${d.sang?`<div class="bar-stack" style="height:${(d.sang/maxT*H).toFixed(0)}px;background:var(--ca-sang)"></div>`:''}
+  const chartEl=document.getElementById('monthlyChart');
+  const legendEl=document.querySelector('.chart-legend');
+
+  if(!months.length||!caTypes.length){
+    chartEl.innerHTML='<div class="empty-state" style="padding:30px;"><div class="empty-icon">📊</div>Không có dữ liệu</div>';
+    if(legendEl)legendEl.innerHTML='';
+    return;
+  }
+
+  const maxVal=Math.max(...months.map(m=>Math.max(...caTypes.map(c=>map[m][c]||0))));
+  const H=150;
+
+  chartEl.innerHTML=`<div class="chart-bars">${months.map(m=>{
+    const total=caTypes.reduce((s,c)=>s+(map[m][c]||0),0);
+    const bars=caTypes.map(c=>{
+      const v=map[m][c]||0;
+      const h=maxVal>0?(v/maxVal*H):0;
+      return`<div class="bar-stack" data-val="${c}: ${v}" style="height:${h.toFixed(0)}px;background:${caColors[c]}"></div>`;
+    }).join('');
+    return`<div class="chart-month-group">
+      <div class="chart-month-bars">${bars}</div>
       <div class="bar-label">T${m}</div>
-    </div>`;}).join('')}</div>`;
+      <div class="bar-total">${total} ca</div>
+    </div>`;
+  }).join('')}</div>`;
+
+  // Render legend động theo loại ca thực tế
+  if(legendEl){
+    legendEl.innerHTML=caTypes.map(c=>`
+      <div class="legend-item"><div class="legend-dot" style="background:${caColors[c]}"></div>${c}</div>
+    `).join('');
+  }
 }
 
 // ============================================================
@@ -768,6 +962,104 @@ function renderStatTable(){
       <td><span class="ca-badge ca-lo" style="font-size:10px">${r.lo+r.dem}</span></td>
       <td><span class="ca-badge ca-off" style="font-size:10px">${r.off}</span></td>
       <td><div style="font-weight:600">${r.total}</div><div class="mini-bar"><div class="mini-fill" style="width:${(r.total/maxT*100).toFixed(0)}%"></div></div></td>
+    </tr>`).join('');
+}
+
+// ============================================================
+// OFF STATS
+// ============================================================
+function onOffRangeModeChange(){
+  const mode=document.getElementById('offRangeMode').value;
+  const monthSel=document.getElementById('offMonth');
+  const from=document.getElementById('offFrom');
+  const to=document.getElementById('offTo');
+  const toLabel=document.getElementById('offToLabel');
+  if(mode==='month'){
+    monthSel.style.display='';
+    from.style.display='none';
+    to.style.display='none';
+    toLabel.style.display='none';
+  }else{
+    monthSel.style.display='none';
+    from.style.display='';
+    to.style.display='';
+    toLabel.style.display='';
+    if(!from.value||!to.value){
+      const ws=fmtDate(currentWeekStart);
+      const we=fmtDate(addDays(currentWeekStart,6));
+      from.value=from.value||ws;
+      to.value=to.value||we;
+    }
+  }
+}
+
+function renderOffStats(){
+  const modeEl=document.getElementById('offRangeMode');
+  if(!modeEl)return; // chưa render UI
+
+  const mode=modeEl.value;
+  let rangeData, totalDays;
+
+  // Dùng allData (không áp dụng filter Tháng/Văn phòng để không gây nhầm lẫn,
+  // nhưng vẫn áp dụng filter Văn phòng + Nhân viên đã chọn)
+  const office=document.getElementById('filterOffice').value;
+  let baseData=allData.filter(r=>{
+    if(office&&r.boPhan!==office&&r.boPhan!=='OFF')return false;
+    if(selectedNVs.length>0&&!selectedNVs.includes(r.nv))return false;
+    return true;
+  });
+
+  if(mode==='month'){
+    const m=parseInt(document.getElementById('offMonth').value);
+    if(!m)return;
+    rangeData=baseData.filter(r=>r.thang===m);
+    // tổng số ngày trong tháng (lấy số ngày unique có data)
+    const uniqDates=new Set(rangeData.map(r=>fmtDate(r.date)));
+    totalDays=uniqDates.size;
+  }else{
+    const fromStr=document.getElementById('offFrom').value;
+    const toStr=document.getElementById('offTo').value;
+    if(!fromStr||!toStr)return;
+    rangeData=baseData.filter(r=>{
+      const ds=fmtDate(r.date);
+      return ds>=fromStr&&ds<=toStr;
+    });
+    const uniqDates=new Set(rangeData.map(r=>fmtDate(r.date)));
+    totalDays=uniqDates.size;
+  }
+
+  // Group theo NV
+  const nvMap={};
+  rangeData.forEach(r=>{
+    if(!nvMap[r.nv])nvMap[r.nv]={off:0,total:0,offices:{}};
+    nvMap[r.nv].total++;
+    if(r.loaiCa==='OFF')nvMap[r.nv].off++;
+    if(r.boPhan&&r.boPhan!=='OFF')nvMap[r.nv].offices[r.boPhan]=(nvMap[r.nv].offices[r.boPhan]||0)+1;
+  });
+
+  const rows=Object.entries(nvMap).map(([nv,d])=>{
+    const mainOff=Object.entries(d.offices).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
+    const pct=d.total>0?(d.off/d.total*100):0;
+    return {nv,off:d.off,total:d.total,mainOff,pct};
+  }).sort((a,b)=>b.off-a.off);
+
+  const body=document.getElementById('offStatBody');
+  if(!body)return;
+  if(!rows.length){
+    body.innerHTML='<tr><td colspan="5" class="empty-state">Không có dữ liệu</td></tr>';
+    return;
+  }
+
+  body.innerHTML=rows.map(r=>`
+    <tr>
+      <td><div class="nv-name">${r.nv}</div></td>
+      <td><div style="font-size:11px;color:var(--text2)">${shortOffice(r.mainOff)}</div></td>
+      <td>
+        <div style="font-weight:600;color:var(--amber);">${r.off} ngày</div>
+        <div class="off-bar"><div class="off-fill" style="width:${r.pct.toFixed(0)}%"></div></div>
+      </td>
+      <td><div style="color:var(--text2)">${r.total} ngày</div></td>
+      <td><div style="font-weight:600;">${r.pct.toFixed(0)}%</div></td>
     </tr>`).join('');
 }
 
