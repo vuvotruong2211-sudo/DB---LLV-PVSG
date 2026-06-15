@@ -294,6 +294,10 @@
     <span>💡 Dán Apps Script URL vào ô trên rồi bấm Tải dữ liệu</span>
     <button class="demo-btn" onclick="loadDemo()">▶ Chạy Demo</button>
   </div>
+  <div id="adminBanner" style="display:none;background:rgba(16,185,129,.12);border:1px solid var(--green);border-radius:8px;padding:8px 14px;margin-bottom:12px;font-size:12px;color:var(--green);font-weight:600;">
+    🔓 Đang ở chế độ Quản lý — xem được lịch đầy đủ 7 ngày trên máy này.
+    <span style="font-weight:400;color:var(--text3);">Bấm "Quản lý" lần nữa để khoá lại.</span>
+  </div>
 
   <!-- FILTERS -->
   <div class="filters">
@@ -471,6 +475,39 @@
     </div>
   </div>
 
+  <!-- OT STATS - CHỈ QUẢN LÝ -->
+  <div class="card" id="otCard" style="display:none;margin-top:16px;">
+    <div class="card-header">
+      <div>
+        <div class="card-title">⏱️ Thống kê OT theo lịch làm việc <span style="font-size:10px;color:var(--text3);font-weight:400;">(Chỉ Quản lý)</span></div>
+        <div class="card-sub" id="otSubTitle">Tháng hiện tại · Chuẩn 8h30/ngày</div>
+      </div>
+    </div>
+    <div class="table-scroll" style="max-height:400px;">
+      <table class="stat-table">
+        <thead>
+          <tr>
+            <th>Nhân viên</th>
+            <th>Văn phòng</th>
+            <th>Số ngày làm</th>
+            <th>Tổng giờ (theo lịch)</th>
+            <th>Giờ chuẩn</th>
+            <th>OT theo lịch</th>
+          </tr>
+        </thead>
+        <tbody id="otStatBody">
+          <tr><td colspan="6" class="empty-state">Chờ dữ liệu...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card-body" style="padding-top:0;">
+      <div style="font-size:11px;color:var(--text3);line-height:1.6;">
+        💡 OT theo lịch = Tổng giờ làm theo Ca đã phân − (Số ngày làm × 8h30 chuẩn). Đây là OT dự kiến theo kế hoạch xếp ca.
+        Khi có dữ liệu chấm công thực tế, dashboard sẽ hiển thị thêm cột "OT thực tế" để đối chiếu.
+      </div>
+    </div>
+  </div>
+
 </div><!-- /container -->
 
 <script>
@@ -507,7 +544,7 @@ function initTheme(){
 }
 
 // ============================================================
-// ADMIN / QUYỀN XEM LỊCH ĐẦY ĐỦ (D+2 LOCK)
+// ADMIN / QUYỀN XEM LỊCH ĐẦY ĐỦ (D+1 LOCK)
 // ============================================================
 const ADMIN_PASSCODE='774994';
 let isAdmin=false;
@@ -518,15 +555,21 @@ function initAdmin(){
 }
 function updateAdminBtn(){
   const btn=document.getElementById('adminBtn');
+  const banner=document.getElementById('adminBanner');
+  const otCard=document.getElementById('otCard');
   if(!btn)return;
   if(isAdmin){
     btn.textContent='🔓 Quản lý (đang mở)';
     btn.classList.add('active');
     btn.title='Bấm để khoá lại (chỉ xem D+1)';
+    if(banner)banner.style.display='block';
+    if(otCard)otCard.style.display='block';
   }else{
     btn.textContent='🔒 Quản lý';
     btn.classList.remove('active');
     btn.title='Đăng nhập để xem lịch đầy đủ';
+    if(banner)banner.style.display='none';
+    if(otCard)otCard.style.display='none';
   }
 }
 function onAdminBtnClick(){
@@ -569,11 +612,11 @@ document.addEventListener('keydown',(e)=>{
   }
 });
 
-// Giới hạn D+2: trả về true nếu ngày d bị khoá (chỉ cho NV thường)
+// Giới hạn D+1: trả về true nếu ngày d bị khoá (chỉ cho NV thường)
 function isDateLocked(d){
   if(isAdmin)return false;
   const today=new Date();today.setHours(0,0,0,0);
-  const limit=addDays(today,2); // D+2
+  const limit=addDays(today,1); // D+1
   const dd=new Date(d);dd.setHours(0,0,0,0);
   return dd>limit;
 }
@@ -826,6 +869,7 @@ function renderAll(){
   renderMonthlyChart();
   renderStatTable();
   renderOfficeMonthChart();
+  renderOtStats();
 }
 
 // ============================================================
@@ -1162,6 +1206,86 @@ function renderOfficeMonthChart(){
         </div>
       </div>`;
   }).join('');
+}
+
+// ============================================================
+// OT THEO LỊCH LÀM VIỆC (CHỈ QUẢN LÝ)
+// ============================================================
+const GIO_CHUAN_NGAY = 8.5; // 8h30 chuẩn/ngày
+
+// Parse "12:00 - 22:00" hoặc "6:00 - 14:30" -> số giờ (float). Trả về null nếu không parse được.
+function parseCaHours(caLam){
+  if(!caLam||typeof caLam!=='string')return null;
+  const parts=caLam.split('-').map(s=>s.trim());
+  if(parts.length!==2)return null;
+  const toMin=(s)=>{
+    const m=s.match(/^(\d{1,2}):(\d{2})/);
+    if(!m)return null;
+    return parseInt(m[1])*60+parseInt(m[2]);
+  };
+  const startMin=toMin(parts[0]);
+  const endMin=toMin(parts[1]);
+  if(startMin===null||endMin===null)return null;
+  let diff=endMin-startMin;
+  if(diff<=0)diff+=24*60; // qua đêm
+  return diff/60; // giờ
+}
+
+function renderOtStats(){
+  if(!isAdmin)return;
+  const body=document.getElementById('otStatBody');
+  const subTitle=document.getElementById('otSubTitle');
+  if(!body)return;
+
+  const curM=parseInt(document.getElementById('filterMonth').value)||(new Date().getMonth()+1);
+  if(subTitle)subTitle.textContent='Tháng '+curM+' · Chuẩn '+GIO_CHUAN_NGAY.toFixed(1).replace('.5',':30').replace('.0','')+'/ngày';
+
+  const mData=filteredData.filter(r=>r.thang===curM&&r.loaiCa!=='OFF');
+
+  const map={};
+  mData.forEach(r=>{
+    if(!map[r.nv])map[r.nv]={days:0,totalHours:0,offices:{}};
+    const h=parseCaHours(r.caLam);
+    if(h!==null){
+      map[r.nv].days++;
+      map[r.nv].totalHours+=h;
+    }
+    if(r.boPhan&&r.boPhan!=='OFF')map[r.nv].offices[r.boPhan]=(map[r.nv].offices[r.boPhan]||0)+1;
+  });
+
+  const rows=Object.entries(map).map(([nv,d])=>{
+    const standardHours=d.days*GIO_CHUAN_NGAY;
+    const ot=d.totalHours-standardHours;
+    const mainOff=Object.entries(d.offices).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
+    return {nv,days:d.days,totalHours:d.totalHours,standardHours,ot,mainOff};
+  }).sort((a,b)=>b.ot-a.ot);
+
+  if(!rows.length){
+    body.innerHTML='<tr><td colspan="6" class="empty-state">Không có dữ liệu</td></tr>';
+    return;
+  }
+
+  const fmtH=(h)=>{
+    const sign=h<0?'-':'';
+    const abs=Math.abs(h);
+    const hh=Math.floor(abs);
+    const mm=Math.round((abs-hh)*60);
+    return `${sign}${hh}h${mm>0?String(mm).padStart(2,'0'):''}`;
+  };
+
+  body.innerHTML=rows.map(r=>`
+    <tr>
+      <td><div class="nv-name">${r.nv}</div></td>
+      <td><div style="font-size:11px;color:var(--text2)">${shortOffice(r.mainOff)}</div></td>
+      <td>${r.days} ngày</td>
+      <td>${fmtH(r.totalHours)}</td>
+      <td style="color:var(--text3)">${fmtH(r.standardHours)}</td>
+      <td>
+        <span style="font-weight:600;color:${r.ot>0?'var(--green)':r.ot<0?'var(--red)':'var(--text2)'}">
+          ${r.ot>0?'+':''}${fmtH(r.ot)}
+        </span>
+      </td>
+    </tr>`).join('');
 }
 
 // ============================================================
