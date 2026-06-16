@@ -6,7 +6,8 @@
 <title>Dashboard Lịch Làm Việc</title>
 <script>
   const CONFIG = {
-    webAppUrl: "https://script.google.com/macros/s/AKfycbxqRQeV5vAc2iCoaOlJrz0U6jw6vsjy2uDWGjLClxJYaDaYF98NHHRU4yp9FBH29OaA/exec"
+    webAppUrl: "https://script.google.com/macros/s/AKfycbxqRQeV5vAc2iCoaOlJrz0U6jw6vsjy2uDWGjLClxJYaDaYF98NHHRU4yp9FBH29OaA/exec",
+    payrollUrl: "https://script.google.com/macros/s/AKfycbz7qGQcPnNoqF5s6-dljlklXiSh8KRs4JlfBjmdEm7Wqexvylrhw2lGG66pYQ1NfoEUwg/exec"
   };
   // Áp dụng theme sớm để tránh nháy màu khi load trang
   (function(){
@@ -69,6 +70,31 @@
   .modal-btn-cancel{background:var(--surface2);color:var(--text2);}
   .modal-btn-confirm{background:var(--accent);color:#fff;}
   .modal-err{color:var(--red);font-size:11px;margin-top:-6px;margin-bottom:10px;display:none;}
+
+  /* PAYROLL */
+  .payroll-btn{display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text2);font-size:11px;font-weight:500;cursor:pointer;transition:all .2s;}
+  .payroll-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .payroll-modal-box{max-width:420px;}
+  .payroll-modal-box select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:10px 12px;color:var(--text);font-size:13px;font-family:'Inter',sans-serif;outline:none;margin-bottom:12px;}
+  .payroll-modal-box select:focus{border-color:var(--accent);}
+  .payroll-content{max-height:75vh;overflow-y:auto;}
+  .payslip-table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px;}
+  .payslip-table td{padding:8px 12px;border-bottom:1px solid var(--border);}
+  .payslip-table td:first-child{color:var(--text2);}
+  .payslip-table td:last-child{text-align:right;font-weight:600;font-family:'Inter',sans-serif;}
+  .payslip-table tr.payslip-header td{background:var(--surface2);font-weight:600;color:var(--text);}
+  .payslip-table tr.payslip-total td{background:var(--accent);color:#fff;font-weight:700;font-size:14px;border-bottom:none;}
+  .payslip-table tr.payslip-total td:first-child{border-radius:8px 0 0 8px;}
+  .payslip-table tr.payslip-total td:last-child{border-radius:0 8px 8px 0;}
+  .payslip-section-title{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px;}
+  .attendance-table{width:100%;border-collapse:collapse;font-size:11px;}
+  .attendance-table th{text-align:left;padding:6px 8px;background:var(--surface2);color:var(--text3);font-size:10px;font-weight:500;border-bottom:1px solid var(--border);}
+  .attendance-table td{padding:6px 8px;border-bottom:1px solid var(--border);}
+  .attendance-table tr:last-child td{border-bottom:none;}
+  .att-warn{color:var(--red);font-weight:600;}
+  .att-ok{color:var(--green);}
+  .back-link{font-size:12px;color:var(--accent);cursor:pointer;margin-bottom:12px;display:inline-block;}
+  .back-link:hover{text-decoration:underline;}
   .sync-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 
@@ -260,6 +286,7 @@
     </button>
     <button class="theme-btn" id="themeBtn" onclick="toggleTheme()" title="Đổi giao diện sáng/tối">🌙</button>
     <button class="admin-btn" id="adminBtn" onclick="onAdminBtnClick()">🔒 Quản lý</button>
+    <button class="payroll-btn" onclick="openPayrollModal()">🔐 Phiếu lương</button>
   </div>
 </div>
 
@@ -273,6 +300,30 @@
     <div class="modal-actions">
       <button class="modal-btn-cancel" onclick="closeAdminModal()">Hủy</button>
       <button class="modal-btn-confirm" onclick="checkAdminPasscode()">Xác nhận</button>
+    </div>
+  </div>
+</div>
+
+<!-- PAYROLL MODAL -->
+<div class="modal-overlay" id="payrollModal">
+  <div class="modal-box payroll-modal-box">
+    <div id="payrollLoginView">
+      <div class="modal-title">🔐 Xem phiếu lương</div>
+      <div class="modal-sub">Chọn tên và nhập passcode cá nhân để xem phiếu lương của bạn</div>
+      <select id="payrollNVSelect"></select>
+      <input type="password" id="payrollPasscodeInput" maxlength="6" inputmode="numeric" placeholder="Passcode 6 số" autocomplete="off">
+      <div class="modal-err" id="payrollErr">Passcode không đúng hoặc chưa có dữ liệu. Vui lòng thử lại.</div>
+      <div class="modal-actions">
+        <button class="modal-btn-cancel" onclick="closePayrollModal()">Hủy</button>
+        <button class="modal-btn-confirm" onclick="submitPayrollLogin()">Xem phiếu lương</button>
+      </div>
+    </div>
+    <div id="payrollContentView" class="payroll-content" style="display:none;">
+      <span class="back-link" onclick="backToPayrollLogin()">‹ Quay lại</span>
+      <div id="payrollContentBody"></div>
+      <div class="modal-actions" style="margin-top:12px;">
+        <button class="modal-btn-cancel" onclick="closePayrollModal()">Đóng</button>
+      </div>
     </div>
   </div>
 </div>
@@ -616,7 +667,7 @@ document.addEventListener('keydown',(e)=>{
 function isDateLocked(d){
   if(isAdmin)return false;
   const today=new Date();today.setHours(0,0,0,0);
-  const limit=addDays(today,2); // D+2
+  const limit=addDays(today,1); // D+1
   const dd=new Date(d);dd.setHours(0,0,0,0);
   return dd>limit;
 }
@@ -1316,6 +1367,207 @@ function setStatus(msg,type){
 }
 function showLoading(msg){document.getElementById('loadingText').textContent=msg||'Đang tải...';document.getElementById('loadingOverlay').classList.add('show');}
 function hideLoading(){document.getElementById('loadingOverlay').classList.remove('show');}
+
+// ============================================================
+// PHIẾU LƯƠNG (Apps Script B - CHECK IN CHECK OUT)
+// ============================================================
+function openPayrollModal(){
+  const sel=document.getElementById('payrollNVSelect');
+  const nvs=[...new Set(allData.map(r=>r.nv))].sort();
+  if(!nvs.length){
+    sel.innerHTML='<option value="">— Đang tải danh sách... thử lại sau —</option>';
+  }else{
+    sel.innerHTML=nvs.map(n=>`<option value="${n}">${n}</option>`).join('');
+  }
+  document.getElementById('payrollPasscodeInput').value='';
+  document.getElementById('payrollErr').style.display='none';
+  document.getElementById('payrollLoginView').style.display='block';
+  document.getElementById('payrollContentView').style.display='none';
+  document.getElementById('payrollModal').classList.add('show');
+  setTimeout(()=>document.getElementById('payrollPasscodeInput').focus(),100);
+}
+function closePayrollModal(){
+  document.getElementById('payrollModal').classList.remove('show');
+}
+function backToPayrollLogin(){
+  document.getElementById('payrollLoginView').style.display='block';
+  document.getElementById('payrollContentView').style.display='none';
+}
+
+async function submitPayrollLogin(){
+  const nv=document.getElementById('payrollNVSelect').value;
+  const passcode=document.getElementById('payrollPasscodeInput').value.trim();
+  const errEl=document.getElementById('payrollErr');
+  errEl.style.display='none';
+
+  if(!nv){
+    errEl.textContent='Danh sách nhân viên chưa tải xong. Vui lòng đóng và thử lại.';
+    errEl.style.display='block';
+    return;
+  }
+  if(!passcode||passcode.length!==6){
+    errEl.textContent='Vui lòng nhập đủ 6 số passcode.';
+    errEl.style.display='block';
+    return;
+  }
+  if(!CONFIG.payrollUrl){
+    errEl.textContent='Chưa cấu hình URL phiếu lương.';
+    errEl.style.display='block';
+    return;
+  }
+
+  const curM=parseInt(document.getElementById('filterMonth').value)||(new Date().getMonth()+1);
+  const curY=allData.find(r=>r.thang===curM)?.date?.getFullYear()||new Date().getFullYear();
+
+  showLoading('Đang tải phiếu lương...');
+  try{
+    const url=CONFIG.payrollUrl+'?action=getPayroll&nv='+encodeURIComponent(nv)+'&passcode='+encodeURIComponent(passcode)+'&thang='+curM+'&nam='+curY;
+    const json=await fetchJSONP(url);
+    if(json.status!=='ok')throw new Error(json.message||'Không lấy được dữ liệu');
+    if(!json.data||!json.data.phieuLuong){
+      errEl.textContent='Passcode đúng nhưng chưa có dữ liệu phiếu lương tháng '+curM+'/'+curY+'.';
+      errEl.style.display='block';
+      hideLoading();
+      return;
+    }
+    renderPayrollContent(json.data, nv, curM, curY);
+    document.getElementById('payrollLoginView').style.display='none';
+    document.getElementById('payrollContentView').style.display='block';
+  }catch(e){
+    errEl.textContent='Lỗi: '+e.message+' (có thể passcode sai hoặc chưa có dữ liệu)';
+    errEl.style.display='block';
+  }
+  hideLoading();
+}
+
+function fmtMoney(v){
+  const n=parseFloat(v)||0;
+  return n.toLocaleString('vi-VN');
+}
+
+// Parse "12:00 - 22:00" -> {startMin, endMin}
+function parseCaLamViecJS(caLam){
+  if(!caLam||typeof caLam!=='string')return null;
+  const parts=caLam.split('-').map(s=>s.trim());
+  if(parts.length<2)return null;
+  const toMin=(s)=>{
+    const m=s.match(/(\d{1,2}):(\d{2})/);
+    if(!m)return null;
+    return parseInt(m[1])*60+parseInt(m[2]);
+  };
+  const startMin=toMin(parts[0]);
+  const endMin=toMin(parts[1]);
+  if(startMin===null)return null;
+  return {startMin,endMin};
+}
+
+function minToHHMM(min){
+  if(min===null||min===undefined)return '—';
+  const h=Math.floor(min/60),m=min%60;
+  return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
+}
+
+function renderPayrollContent(data, nv, m, y){
+  const pl=data.phieuLuong;
+  const body=document.getElementById('payrollContentBody');
+
+  const congItems=[
+    ['Mức lương', pl['Mức lương']],
+    ['Lương cơ bản', pl['Lương cơ bản']],
+    ['Thâm niên', pl['Thâm niên']],
+    ['Trách nhiệm/chuyên cần', pl['Trách nhiệm/chuyên cần']],
+    ['Khác', pl['Khác']],
+    ['Thưởng', pl['Thưởng']],
+    ['Trực đêm', pl['Trực đêm']],
+    ['Phụ cấp cơm', pl['Phụ cấp cơm']],
+    ['Tiền Tăng Ca', pl['Tiền Tăng Ca']],
+  ];
+  const truItems=[
+    ['Bảo hiểm XH', pl['Bảo hiểm XH']],
+    ['Đi trễ/về sớm', pl['Đi trễ/về sớm']],
+    ['Phạt', pl['Phạt']],
+    ['Tạm ứng', pl['Tạm ứng']],
+  ];
+
+  const tongCong=congItems.reduce((s,[,v])=>s+(parseFloat(v)||0),0);
+  const tongTru=truItems.reduce((s,[,v])=>s+Math.abs(parseFloat(v)||0),0);
+  const thucLanhRaw=pl['LƯƠNG THỰC LÃNH'];
+  const thucLanh=(thucLanhRaw!==undefined&&thucLanhRaw!==null&&thucLanhRaw!=='')
+    ? (parseFloat(thucLanhRaw)||0)
+    : (tongCong-tongTru);
+
+  let html=`
+    <div class="modal-title" style="margin-bottom:2px;">Phiếu lương — ${nv}</div>
+    <div class="modal-sub">Tháng ${m}/${y} · ${pl['Chức vụ']||''} · Ngày công: ${pl['Ngày công']||'-'}</div>
+    <table class="payslip-table">
+      <tr class="payslip-header"><td colspan="2">Các khoản cộng</td></tr>`;
+  congItems.forEach(([label,val])=>{
+    if(val===undefined||val===null||val==='')return;
+    html+=`<tr><td>${label}</td><td>${fmtMoney(val)}</td></tr>`;
+  });
+  html+=`<tr><td><strong>Tổng cộng</strong></td><td><strong>${fmtMoney(tongCong)}</strong></td></tr>`;
+
+  html+=`<tr class="payslip-header"><td colspan="2">Các khoản trừ</td></tr>`;
+  truItems.forEach(([label,val])=>{
+    if(val===undefined||val===null||val==='')return;
+    html+=`<tr><td>${label}</td><td>-${fmtMoney(Math.abs(parseFloat(val)||0))}</td></tr>`;
+  });
+  html+=`<tr><td><strong>Tổng trừ</strong></td><td><strong>-${fmtMoney(tongTru)}</strong></td></tr>`;
+  html+=`<tr class="payslip-total"><td>THỰC LÃNH</td><td>${fmtMoney(thucLanh)}</td></tr>`;
+  html+=`</table>`;
+
+  // BẢNG CHẤM CÔNG ĐỐI CHIẾU LỊCH
+  html+=`<div class="payslip-section-title">⏱️ Chấm công thực tế vs Lịch làm việc</div>`;
+
+  const chamCong=data.chamCong||{};
+  const chamCongDates=Object.keys(chamCong).sort();
+
+  if(!chamCongDates.length){
+    html+=`<div class="empty-state" style="padding:16px;font-size:12px;">Chưa có dữ liệu chấm công tháng này.</div>`;
+  }else{
+    html+=`<table class="attendance-table"><thead><tr>
+      <th>Ngày</th><th>Ca lịch</th><th>Vào thực tế</th><th>Ra thực tế</th><th>Đi trễ/sớm</th>
+    </tr></thead><tbody>`;
+
+    chamCongDates.forEach(ds=>{
+      const cc=chamCong[ds];
+      const lichRow=allData.find(r=>r.nv===nv&&r.date&&fmtDate(r.date)===ds);
+      const caLam=lichRow?lichRow.caLam:null;
+      const ca=parseCaLamViecJS(caLam);
+
+      const vaoStr=minToHHMM(cc.vaoMin);
+      const raStr=minToHHMM(cc.raMin);
+
+      let trangThai='—';
+      if(ca&&cc.vaoMin!==null&&cc.vaoMin!==undefined){
+        const tre=cc.vaoMin-ca.startMin;
+        if(tre>0)trangThai=`<span class="att-warn">Trễ ${tre} phút</span>`;
+        else if(tre<0)trangThai=`<span class="att-ok">Sớm ${Math.abs(tre)} phút</span>`;
+        else trangThai=`<span class="att-ok">Đúng giờ</span>`;
+      }
+
+      const [yy,mm,dd]=ds.split('-');
+      html+=`<tr>
+        <td>${dd}/${mm}</td>
+        <td>${caLam||'—'}</td>
+        <td>${vaoStr}</td>
+        <td>${raStr}</td>
+        <td>${trangThai}</td>
+      </tr>`;
+    });
+    html+=`</tbody></table>`;
+  }
+
+  body.innerHTML=html;
+}
+
+// Enter để submit passcode phiếu lương
+document.addEventListener('keydown',(e)=>{
+  if(e.key==='Enter'&&document.getElementById('payrollModal')?.classList.contains('show')
+     &&document.getElementById('payrollLoginView')?.style.display!=='none'){
+    submitPayrollLogin();
+  }
+});
 
 // ============================================================
 // INIT
