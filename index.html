@@ -1558,47 +1558,52 @@ function renderPayrollContent(data, nv, m, y){
     html+=`<div class="empty-state" style="padding:16px;font-size:12px;">Chưa có dữ liệu chấm công tháng này.</div>`;
   }else{
     html+=`<table class="attendance-table"><thead><tr>
-      <th>Ngày</th><th>Ca lịch</th><th>Vào thực tế</th><th>Ra thực tế</th><th>Đi trễ/sớm</th>
+      <th>Ngày</th><th>Ca lịch</th><th>Địa điểm</th><th>Vào thực tế</th><th>Ra thực tế</th><th>Đi trễ/sớm</th>
     </tr></thead><tbody>`;
 
     chamCongDates.forEach(ds=>{
-      const cc=chamCong[ds];
-      // Lấy TẤT CẢ ca trong ngày (có thể >1, vd: ca thường + Trực đêm nối tiếp)
+      // chamCong[ds] giờ là ARRAY các lượt check-in/out trong ngày (có thể nhiều địa điểm/nhiều ca)
+      const entries=Array.isArray(chamCong[ds])?chamCong[ds]:[chamCong[ds]]; // phòng hờ nếu API cũ trả object đơn
+
+      // Lấy TẤT CẢ ca theo lịch trong ngày, sắp theo giờ bắt đầu sớm nhất trước
       const lichRows=allData.filter(r=>r.nv===nv&&r.date&&fmtDate(r.date)===ds&&r.loaiCa!=='OFF');
-
-      let caLamDisplay='—';
-      let ca=null;
-      if(lichRows.length){
-        caLamDisplay=lichRows.map(r=>`${r.caLam||r.loaiCa}`).join(' + ');
-        // Lấy ca có giờ bắt đầu sớm nhất để so giờ vào thực tế
-        const parsedCas=lichRows.map(r=>parseCaLamViecJS(r.caLam)).filter(Boolean);
-        if(parsedCas.length){
-          ca=parsedCas.reduce((earliest,c)=>c.startMin<earliest.startMin?c:earliest, parsedCas[0]);
-        }
-      }
-
-      const vaoStr=minToHHMM(cc.vaoMin);
-      const raStr=minToHHMM(cc.raMin);
-
-      let trangThai='—';
-      if(ca&&cc.vaoMin!==null&&cc.vaoMin!==undefined){
-        const tre=cc.vaoMin-ca.startMin;
-        if(tre>0)trangThai=`<span class="att-warn">Trễ ${tre} phút</span>`;
-        else if(tre<0)trangThai=`<span class="att-ok">Sớm ${Math.abs(tre)} phút</span>`;
-        else trangThai=`<span class="att-ok">Đúng giờ</span>`;
-      }else if(lichRows.length&&!ca){
-        // Có lịch (vd chỉ có Trực đêm, không parse được giờ) nhưng không tính được trễ/sớm
-        trangThai='<span style="color:var(--text3);">Không xác định</span>';
-      }
+      const lichSorted=lichRows.map(r=>({row:r, parsed:parseCaLamViecJS(r.caLam)}))
+        .sort((a,b)=>{
+          const av=a.parsed?a.parsed.startMin:9999;
+          const bv=b.parsed?b.parsed.startMin:9999;
+          return av-bv;
+        });
 
       const [yy,mm,dd]=ds.split('-');
-      html+=`<tr>
-        <td>${dd}/${mm}</td>
-        <td>${caLamDisplay}</td>
-        <td>${vaoStr}</td>
-        <td>${raStr}</td>
-        <td>${trangThai}</td>
-      </tr>`;
+
+      entries.forEach((cc,idx)=>{
+        // Ghép theo thứ tự: lượt chấm công thứ idx <-> ca lịch thứ idx (đã sort cùng theo giờ)
+        const matched=lichSorted[idx]||lichSorted[lichSorted.length-1]||null;
+        const caLamDisplay=matched?(matched.row.caLam||matched.row.loaiCa):'—';
+        const ca=matched?matched.parsed:null;
+
+        const vaoStr=minToHHMM(cc.vaoMin);
+        const raStr=minToHHMM(cc.raMin);
+
+        let trangThai='—';
+        if(ca&&cc.vaoMin!==null&&cc.vaoMin!==undefined){
+          const tre=cc.vaoMin-ca.startMin;
+          if(tre>0)trangThai=`<span class="att-warn">Trễ ${tre} phút</span>`;
+          else if(tre<0)trangThai=`<span class="att-ok">Sớm ${Math.abs(tre)} phút</span>`;
+          else trangThai=`<span class="att-ok">Đúng giờ</span>`;
+        }else if(matched&&!ca){
+          trangThai='<span style="color:var(--text3);">Không xác định</span>';
+        }
+
+        html+=`<tr>
+          <td>${idx===0?dd+'/'+mm:''}</td>
+          <td>${caLamDisplay}</td>
+          <td style="font-size:10px;color:var(--text3);">${cc.diaDiem||'—'}</td>
+          <td>${vaoStr}</td>
+          <td>${raStr}</td>
+          <td>${trangThai}</td>
+        </tr>`;
+      });
     });
     html+=`</tbody></table>`;
   }
