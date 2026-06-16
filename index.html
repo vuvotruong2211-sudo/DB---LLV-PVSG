@@ -309,8 +309,12 @@
   <div class="modal-box payroll-modal-box">
     <div id="payrollLoginView">
       <div class="modal-title">🔐 Xem phiếu lương</div>
-      <div class="modal-sub">Chọn tên và nhập passcode cá nhân để xem phiếu lương của bạn</div>
+      <div class="modal-sub">Chọn tên, tháng và nhập passcode cá nhân để xem phiếu lương</div>
       <select id="payrollNVSelect"></select>
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <select id="payrollMonthSelect" style="flex:1;margin-bottom:0;"></select>
+        <select id="payrollYearSelect" style="flex:1;margin-bottom:0;"></select>
+      </div>
       <input type="password" id="payrollPasscodeInput" maxlength="6" inputmode="numeric" placeholder="Passcode 6 số" autocomplete="off">
       <div class="modal-err" id="payrollErr">Passcode không đúng hoặc chưa có dữ liệu. Vui lòng thử lại.</div>
       <div class="modal-actions">
@@ -1379,6 +1383,23 @@ function openPayrollModal(){
   }else{
     sel.innerHTML=nvs.map(n=>`<option value="${n}">${n}</option>`).join('');
   }
+
+  // Populate tháng 1-12
+  const monthSel=document.getElementById('payrollMonthSelect');
+  monthSel.innerHTML=Array.from({length:12},(_,i)=>i+1).map(m=>`<option value="${m}">Tháng ${m}</option>`).join('');
+
+  // Populate năm — lấy các năm có trong data, mặc định năm hiện tại nếu không có
+  const yearSel=document.getElementById('payrollYearSelect');
+  const yearsInData=[...new Set(allData.map(r=>r.date?.getFullYear()).filter(Boolean))].sort();
+  const years=yearsInData.length?yearsInData:[new Date().getFullYear()];
+  yearSel.innerHTML=years.map(y=>`<option value="${y}">Năm ${y}</option>`).join('');
+
+  // Mặc định: tháng/năm hiện tại trên dashboard (filter đang chọn), fallback tháng/năm hệ thống
+  const curM=parseInt(document.getElementById('filterMonth').value)||(new Date().getMonth()+1);
+  const curY=allData.find(r=>r.thang===curM)?.date?.getFullYear()||years[years.length-1];
+  monthSel.value=curM;
+  yearSel.value=curY;
+
   document.getElementById('payrollPasscodeInput').value='';
   document.getElementById('payrollErr').style.display='none';
   document.getElementById('payrollLoginView').style.display='block';
@@ -1416,8 +1437,8 @@ async function submitPayrollLogin(){
     return;
   }
 
-  const curM=parseInt(document.getElementById('filterMonth').value)||(new Date().getMonth()+1);
-  const curY=allData.find(r=>r.thang===curM)?.date?.getFullYear()||new Date().getFullYear();
+  const curM=parseInt(document.getElementById('payrollMonthSelect').value);
+  const curY=parseInt(document.getElementById('payrollYearSelect').value);
 
   showLoading('Đang tải phiếu lương...');
   try{
