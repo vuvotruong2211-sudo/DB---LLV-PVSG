@@ -7,7 +7,7 @@
 <script>
   const CONFIG = {
     webAppUrl: "https://script.google.com/macros/s/AKfycbxqRQeV5vAc2iCoaOlJrz0U6jw6vsjy2uDWGjLClxJYaDaYF98NHHRU4yp9FBH29OaA/exec",
-    payrollUrl: "https://script.google.com/macros/s/AKfycbx8jCAhbGrqdpy3TTFxKW65wAiG3WLo3bwiYAwIejUpw8KF9qIvTbhlsq4Hz57wh-lc/exec"
+    payrollUrl: "https://script.google.com/macros/s/AKfycbyHkVcX9AvjL8hLSnO4gm3nDEmRzVAFugGOXIVwXA9m/exec"
   };
   // Áp dụng theme sớm để tránh nháy màu khi load trang
   (function(){
@@ -74,7 +74,8 @@
   /* PAYROLL */
   .payroll-btn{display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text2);font-size:11px;font-weight:500;cursor:pointer;transition:all .2s;}
   .payroll-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
-  .payroll-modal-box{max-width:420px;}
+  .payroll-modal-box{max-width:880px;width:92vw;}
+  .payroll-modal-box.login-mode{max-width:420px;width:90vw;}
   .payroll-modal-box select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:10px 12px;color:var(--text);font-size:13px;font-family:'Inter',sans-serif;outline:none;margin-bottom:12px;}
   .payroll-modal-box select:focus{border-color:var(--accent);}
   .payroll-content{max-height:75vh;overflow-y:auto;}
@@ -309,7 +310,7 @@
 
 <!-- PAYROLL MODAL -->
 <div class="modal-overlay" id="payrollModal">
-  <div class="modal-box payroll-modal-box">
+  <div class="modal-box payroll-modal-box login-mode">
     <div id="payrollLoginView">
       <div class="modal-title">🔐 Xem phiếu lương</div>
       <div class="modal-sub">Chọn tên, tháng và nhập passcode cá nhân để xem phiếu lương</div>
@@ -1378,6 +1379,17 @@ function hideLoading(){document.getElementById('loadingOverlay').classList.remov
 // ============================================================
 // PHIẾU LƯƠNG (Apps Script B - CHECK IN CHECK OUT)
 // ============================================================
+function showPayrollLogin(){
+  document.getElementById('payrollLoginView').style.display='block';
+  document.getElementById('payrollContentView').style.display='none';
+  document.querySelector('.payroll-modal-box').classList.add('login-mode');
+}
+function showPayrollContent(){
+  document.getElementById('payrollLoginView').style.display='none';
+  document.getElementById('payrollContentView').style.display='block';
+  document.querySelector('.payroll-modal-box').classList.remove('login-mode');
+}
+
 function openPayrollModal(){
   const sel=document.getElementById('payrollNVSelect');
   const nvs=[...new Set(allData.map(r=>r.nv))].sort();
@@ -1405,8 +1417,7 @@ function openPayrollModal(){
 
   document.getElementById('payrollPasscodeInput').value='';
   document.getElementById('payrollErr').style.display='none';
-  document.getElementById('payrollLoginView').style.display='block';
-  document.getElementById('payrollContentView').style.display='none';
+  showPayrollLogin();
   document.getElementById('payrollModal').classList.add('show');
   setTimeout(()=>document.getElementById('payrollPasscodeInput').focus(),100);
 }
@@ -1414,8 +1425,7 @@ function closePayrollModal(){
   document.getElementById('payrollModal').classList.remove('show');
 }
 function backToPayrollLogin(){
-  document.getElementById('payrollLoginView').style.display='block';
-  document.getElementById('payrollContentView').style.display='none';
+  showPayrollLogin();
 }
 
 async function submitPayrollLogin(){
@@ -1455,8 +1465,7 @@ async function submitPayrollLogin(){
       return;
     }
     renderPayrollContent(json.data, nv, curM, curY);
-    document.getElementById('payrollLoginView').style.display='none';
-    document.getElementById('payrollContentView').style.display='block';
+    showPayrollContent();
   }catch(e){
     errEl.textContent='Lỗi: '+e.message+' (có thể passcode sai hoặc chưa có dữ liệu)';
     errEl.style.display='block';
