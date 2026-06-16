@@ -93,6 +93,9 @@
   .attendance-table tr:last-child td{border-bottom:none;}
   .att-warn{color:var(--red);font-weight:600;}
   .att-ok{color:var(--green);}
+  .att-multishift{background:rgba(245,158,11,.12)!important;}
+  .att-multishift td:first-child{position:relative;}
+  .att-multishift-badge{display:inline-block;background:var(--amber);color:#1a1a1a;font-size:8px;font-weight:700;padding:1px 5px;border-radius:3px;margin-left:4px;vertical-align:middle;}
   .back-link{font-size:12px;color:var(--accent);cursor:pointer;margin-bottom:12px;display:inline-block;}
   .back-link:hover{text-decoration:underline;}
   .sync-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;}
@@ -1521,8 +1524,19 @@ function renderPayrollContent(data, nv, m, y){
     ['Tạm ứng', pick('Tạm ứng')],
   ];
 
-  const tongCong=congItems.reduce((s,[,v])=>s+(parseFloat(v)||0),0);
-  const tongTru=truItems.reduce((s,[,v])=>s+Math.abs(parseFloat(v)||0),0);
+  // Ưu tiên lấy số Tổng đã tính sẵn trong Sheet (nếu có cột tương ứng),
+  // chỉ tự cộng dồn làm fallback khi Sheet không có cột Tổng riêng
+  const tongCongSheet=pick('Tổng phát sinh Nợ','Tổng cộng');
+  const tongTruSheet=pick('Tổng các khoản phát sinh Có','Tổng trừ');
+
+  const tongCong=(tongCongSheet!==undefined&&tongCongSheet!==null&&tongCongSheet!=='')
+    ? (parseFloat(tongCongSheet)||0)
+    : congItems.reduce((s,[,v])=>s+(parseFloat(v)||0),0);
+
+  const tongTru=(tongTruSheet!==undefined&&tongTruSheet!==null&&tongTruSheet!=='')
+    ? Math.abs(parseFloat(tongTruSheet)||0)
+    : truItems.reduce((s,[,v])=>s+Math.abs(parseFloat(v)||0),0);
+
   const thucLanhRaw=pick('Thực lãnh','LƯƠNG THỰC LÃNH');
   const thucLanh=(thucLanhRaw!==undefined&&thucLanhRaw!==null&&thucLanhRaw!=='')
     ? (parseFloat(thucLanhRaw)||0)
@@ -1576,6 +1590,8 @@ function renderPayrollContent(data, nv, m, y){
 
       const [yy,mm,dd]=ds.split('-');
 
+      const isMultiShift=entries.length>1;
+
       entries.forEach((cc,idx)=>{
         // Ghép theo thứ tự: lượt chấm công thứ idx <-> ca lịch thứ idx (đã sort cùng theo giờ)
         const matched=lichSorted[idx]||lichSorted[lichSorted.length-1]||null;
@@ -1595,8 +1611,11 @@ function renderPayrollContent(data, nv, m, y){
           trangThai='<span style="color:var(--text3);">Không xác định</span>';
         }
 
-        html+=`<tr>
-          <td>${idx===0?dd+'/'+mm:''}</td>
+        const rowClass=isMultiShift?'att-multishift':'';
+        const badge=(isMultiShift&&idx===0)?'<span class="att-multishift-badge">2 CA</span>':'';
+
+        html+=`<tr class="${rowClass}">
+          <td>${idx===0?dd+'/'+mm+badge:''}</td>
           <td>${caLamDisplay}</td>
           <td style="font-size:10px;color:var(--text3);">${cc.diaDiem||'—'}</td>
           <td>${vaoStr}</td>
