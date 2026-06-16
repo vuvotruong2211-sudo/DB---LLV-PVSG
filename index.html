@@ -1471,34 +1471,45 @@ function renderPayrollContent(data, nv, m, y){
   const pl=data.phieuLuong;
   const body=document.getElementById('payrollContentBody');
 
+  // Helper: thử nhiều tên cột khả dĩ, trả về giá trị đầu tiên tìm được
+  const pick=(...keys)=>{
+    for(const k of keys){
+      if(pl[k]!==undefined && pl[k]!==null && pl[k]!=='') return pl[k];
+    }
+    return '';
+  };
+
   const congItems=[
-    ['Mức lương', pl['Mức lương']],
-    ['Lương cơ bản', pl['Lương cơ bản']],
-    ['Thâm niên', pl['Thâm niên']],
-    ['Trách nhiệm/chuyên cần', pl['Trách nhiệm/chuyên cần']],
-    ['Khác', pl['Khác']],
-    ['Thưởng', pl['Thưởng']],
-    ['Trực đêm', pl['Trực đêm']],
-    ['Phụ cấp cơm', pl['Phụ cấp cơm']],
-    ['Tiền Tăng Ca', pl['Tiền Tăng Ca']],
+    ['Mức lương', pick('Mức lương')],
+    ['Lương cơ bản', pick('Lương cơ bản','Lươngcơ bản')],
+    ['Thâm niên', pick('Thâm niên')],
+    ['Trách nhiệm/chuyên cần', pick('Trách nhiệm/chuyên cần','Trách nhiệm/ chuyên cần')],
+    ['Khác', pick('Khác')],
+    ['Thưởng', pick('Thưởng')],
+    ['Trực đêm', pick('Trực đêm')],
+    ['Phụ cấp cơm', pick('Phụ cấp cơm','PhụcấpCơm')],
+    ['Ngày nghỉ/làm', pick('Ngày nghỉ/làm','Ngàynghỉ/làm')],
+    ['Tiền 1 ngày Công', pick('Tiền 1 ngày Công','Tiền1 ngàyCông')],
+    ['Tiền Tăng Ca', pick('Tiền Tăng Ca')],
   ];
+
   const truItems=[
-    ['Bảo hiểm XH', pl['Bảo hiểm XH']],
-    ['Đi trễ/về sớm', pl['Đi trễ/về sớm']],
-    ['Phạt', pl['Phạt']],
-    ['Tạm ứng', pl['Tạm ứng']],
+    ['Bảo hiểm XH', pick('Bảo hiểm XH','Cộng BH')],
+    ['Đi trễ/về sớm', pick('Đi trễ/về sớm')],
+    ['Phạt', pick('Phạt')],
+    ['Tạm ứng', pick('Tạm ứng')],
   ];
 
   const tongCong=congItems.reduce((s,[,v])=>s+(parseFloat(v)||0),0);
   const tongTru=truItems.reduce((s,[,v])=>s+Math.abs(parseFloat(v)||0),0);
-  const thucLanhRaw=pl['LƯƠNG THỰC LÃNH'];
+  const thucLanhRaw=pick('Thực lãnh','LƯƠNG THỰC LÃNH');
   const thucLanh=(thucLanhRaw!==undefined&&thucLanhRaw!==null&&thucLanhRaw!=='')
     ? (parseFloat(thucLanhRaw)||0)
     : (tongCong-tongTru);
 
   let html=`
     <div class="modal-title" style="margin-bottom:2px;">Phiếu lương — ${nv}</div>
-    <div class="modal-sub">Tháng ${m}/${y} · ${pl['Chức vụ']||''} · Ngày công: ${pl['Ngày công']||'-'}</div>
+    <div class="modal-sub">Tháng ${m}/${y} · ${pl['Chức vụ']||''} · Ngày công: ${pl['Ngày công chuẩn']||pl['Ngày công']||'-'}</div>
     <table class="payslip-table">
       <tr class="payslip-header"><td colspan="2">Các khoản cộng</td></tr>`;
   congItems.forEach(([label,val])=>{
