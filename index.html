@@ -599,7 +599,7 @@ function initTheme(){
 }
 
 // ============================================================
-// ADMIN / QUYỀN XEM LỊCH ĐẦY ĐỦ (D+1 LOCK)
+// ADMIN / QUYỀN XEM LỊCH ĐẦY ĐỦ (D+2 LOCK)
 // ============================================================
 const ADMIN_PASSCODE='774994';
 let isAdmin=false;
@@ -667,7 +667,7 @@ document.addEventListener('keydown',(e)=>{
   }
 });
 
-// Giới hạn D+1: trả về true nếu ngày d bị khoá (chỉ cho NV thường)
+// Giới hạn D+2: trả về true nếu ngày d bị khoá (chỉ cho NV thường)
 function isDateLocked(d){
   if(isAdmin)return false;
   const today=new Date();today.setHours(0,0,0,0);
@@ -1563,9 +1563,19 @@ function renderPayrollContent(data, nv, m, y){
 
     chamCongDates.forEach(ds=>{
       const cc=chamCong[ds];
-      const lichRow=allData.find(r=>r.nv===nv&&r.date&&fmtDate(r.date)===ds);
-      const caLam=lichRow?lichRow.caLam:null;
-      const ca=parseCaLamViecJS(caLam);
+      // Lấy TẤT CẢ ca trong ngày (có thể >1, vd: ca thường + Trực đêm nối tiếp)
+      const lichRows=allData.filter(r=>r.nv===nv&&r.date&&fmtDate(r.date)===ds&&r.loaiCa!=='OFF');
+
+      let caLamDisplay='—';
+      let ca=null;
+      if(lichRows.length){
+        caLamDisplay=lichRows.map(r=>`${r.caLam||r.loaiCa}`).join(' + ');
+        // Lấy ca có giờ bắt đầu sớm nhất để so giờ vào thực tế
+        const parsedCas=lichRows.map(r=>parseCaLamViecJS(r.caLam)).filter(Boolean);
+        if(parsedCas.length){
+          ca=parsedCas.reduce((earliest,c)=>c.startMin<earliest.startMin?c:earliest, parsedCas[0]);
+        }
+      }
 
       const vaoStr=minToHHMM(cc.vaoMin);
       const raStr=minToHHMM(cc.raMin);
@@ -1576,12 +1586,15 @@ function renderPayrollContent(data, nv, m, y){
         if(tre>0)trangThai=`<span class="att-warn">Trễ ${tre} phút</span>`;
         else if(tre<0)trangThai=`<span class="att-ok">Sớm ${Math.abs(tre)} phút</span>`;
         else trangThai=`<span class="att-ok">Đúng giờ</span>`;
+      }else if(lichRows.length&&!ca){
+        // Có lịch (vd chỉ có Trực đêm, không parse được giờ) nhưng không tính được trễ/sớm
+        trangThai='<span style="color:var(--text3);">Không xác định</span>';
       }
 
       const [yy,mm,dd]=ds.split('-');
       html+=`<tr>
         <td>${dd}/${mm}</td>
-        <td>${caLam||'—'}</td>
+        <td>${caLamDisplay}</td>
         <td>${vaoStr}</td>
         <td>${raStr}</td>
         <td>${trangThai}</td>
