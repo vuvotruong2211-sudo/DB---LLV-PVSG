@@ -1542,9 +1542,9 @@ function renderPayrollContent(data, nv, m, y){
   html+=`<tr class="payslip-header"><td colspan="2">Các khoản trừ</td></tr>`;
   truItems.forEach(([label,val])=>{
     if(val===undefined||val===null||val==='')return;
-    html+=`<tr><td>${label}</td><td>-${fmtMoney(Math.abs(parseFloat(val)||0))}</td></tr>`;
+    html+=`<tr><td>${label}</td><td>(${fmtMoney(Math.abs(parseFloat(val)||0))})</td></tr>`;
   });
-  html+=`<tr><td><strong>Tổng trừ</strong></td><td><strong>-${fmtMoney(tongTru)}</strong></td></tr>`;
+  html+=`<tr><td><strong>Tổng trừ</strong></td><td><strong>(${fmtMoney(tongTru)})</strong></td></tr>`;
   html+=`<tr class="payslip-total"><td>THỰC LÃNH</td><td>${fmtMoney(thucLanh)}</td></tr>`;
   html+=`</table>`;
 
