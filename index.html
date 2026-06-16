@@ -616,7 +616,7 @@ function updateAdminBtn(){
   if(isAdmin){
     btn.textContent='🔓 Quản lý (đang mở)';
     btn.classList.add('active');
-    btn.title='Bấm để khoá lại (chỉ xem D+1)';
+    btn.title='Bấm để khoá lại (chỉ xem D+2)';
     if(banner)banner.style.display='block';
     if(otCard)otCard.style.display='block';
   }else{
@@ -671,7 +671,7 @@ document.addEventListener('keydown',(e)=>{
 function isDateLocked(d){
   if(isAdmin)return false;
   const today=new Date();today.setHours(0,0,0,0);
-  const limit=addDays(today,1); // D+1
+  const limit=addDays(today,2); // D+2
   const dd=new Date(d);dd.setHours(0,0,0,0);
   return dd>limit;
 }
