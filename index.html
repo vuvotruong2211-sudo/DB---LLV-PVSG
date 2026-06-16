@@ -1452,6 +1452,13 @@ async function submitPayrollLogin(){
       return;
     }
     renderPayrollContent(json.data, nv, curM, curY);
+    // DEBUG TẠM: hiện 200 ký tự đầu của chamCong để chẩn đoán — sẽ xoá sau khi fix xong
+    console.log('DEBUG chamCong:', json.data.chamCong);
+    const debugBox=document.createElement('div');
+    debugBox.style='background:#222;color:#0f0;font-size:9px;padding:8px;margin-top:10px;border-radius:6px;white-space:pre-wrap;word-break:break-all;max-height:120px;overflow:auto;';
+    const sampleKey=Object.keys(json.data.chamCong||{})[0];
+    debugBox.textContent='DEBUG — sample key: '+sampleKey+' | value: '+JSON.stringify(json.data.chamCong?.[sampleKey]);
+    document.getElementById('payrollContentBody').appendChild(debugBox);
     document.getElementById('payrollLoginView').style.display='none';
     document.getElementById('payrollContentView').style.display='block';
   }catch(e){
