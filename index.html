@@ -97,6 +97,10 @@
   .att-multishift{background:rgba(245,158,11,.12)!important;}
   .att-multishift td:first-child{position:relative;}
   .att-multishift-badge{display:inline-block;background:var(--amber);color:#1a1a1a;font-size:8px;font-weight:700;padding:1px 5px;border-radius:3px;margin-left:4px;vertical-align:middle;}
+  .att-date-cell{vertical-align:middle;text-align:center;border-right:1px solid rgba(245,158,11,.35);}
+  .att-shift-sep td{border-top:1px dashed rgba(245,158,11,.3);}
+  .att-date-cell{vertical-align:middle;text-align:center;border-right:1px solid rgba(245,158,11,.35);}
+  .att-shift-sep td{border-top:1px dashed rgba(245,158,11,.3);}}
   .back-link{font-size:12px;color:var(--accent);cursor:pointer;margin-bottom:12px;display:inline-block;}
   .back-link:hover{text-decoration:underline;}
   .sync-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;}
@@ -1661,17 +1665,18 @@ function renderPayrollContent(data, nv, m, y){
         }
 
         const rowClass=isMultiShift?'att-multishift':'';
-        const badge=(isMultiShift&&idx===0)?'<span class="att-multishift-badge">2 CA</span>':'';
+        const sepClass=(isMultiShift&&idx>0)?'att-shift-sep':'';
+        const badge=(isMultiShift&&idx===0)?'<span class="att-multishift-badge">'+entries.length+' CA</span>':'';
 
-        html+=`<tr class="${rowClass}">
-          <td>${idx===0?dd+'/'+mm+badge:''}</td>
-          <td>${caLamDisplay}</td>
-          <td style="font-size:10px;color:var(--text3);">${cc.diaDiem||'—'}</td>
-          <td>${vaoStr}</td>
-          <td>${raStr}</td>
-          <td>${trangThai}</td>
-          <td>${veSomOT}</td>
-        </tr>`;
+  html+=`<tr class="${rowClass} ${sepClass}">
+  ${idx===0?`<td class="att-date-cell"${isMultiShift?` rowspan="${entries.length}"`:''}>${dd}/${mm}${badge}</td>`:''}
+  <td>${caLamDisplay}</td>
+  <td style="font-size:10px;color:var(--text3);">${cc.diaDiem||'—'}</td>
+  <td>${vaoStr}</td>
+  <td>${raStr}</td>
+  <td>${trangThai}</td>
+  <td>${veSomOT}</td>
+</tr>`;
       });
     });
     html+=`</tbody></table>`;
