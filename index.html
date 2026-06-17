@@ -7,7 +7,7 @@
 <script>
   const CONFIG = {
     webAppUrl: "https://script.google.com/macros/s/AKfycbxqRQeV5vAc2iCoaOlJrz0U6jw6vsjy2uDWGjLClxJYaDaYF98NHHRU4yp9FBH29OaA/exec",
-    payrollUrl: "https://script.google.com/macros/s/AKfycbxUEs12zPeJTyHQ6x12SswnA8aUCIxPUYL3y8oGPlbfTFJ_1MPTol-mfPiLWt2IWIbVlQ/exec"
+    payrollUrl: "https://script.google.com/macros/s/AKfycbzYSdbSi1xFal2YNLnzjnqrGLSALfQMPCMUthFJ27k-x2Ict_7VUvme5K3BIEdyWLNRKQ/exec"
   };
   // Áp dụng theme sớm để tránh nháy màu khi load trang
   (function(){
@@ -1533,18 +1533,17 @@ function renderPayrollContent(data, nv, m, y){
     ['Tạm ứng', pick('Tạm ứng')],
   ];
 
-  // Ưu tiên lấy số Tổng đã tính sẵn trong Sheet (nếu có cột tương ứng),
-  // chỉ tự cộng dồn làm fallback khi Sheet không có cột Tổng riêng
+  // Ưu tiên lấy số Tổng CỘNG đã tính sẵn trong Sheet (nếu có), fallback tự cộng dồn
   const tongCongSheet=pick('Tổng phát sinh Nợ','Tổng cộng');
-  const tongTruSheet=pick('Tổng các khoản phát sinh Có','Tổng trừ');
-
   const tongCong=(tongCongSheet!==undefined&&tongCongSheet!==null&&tongCongSheet!=='')
     ? (parseFloat(tongCongSheet)||0)
     : congItems.reduce((s,[,v])=>s+(parseFloat(v)||0),0);
 
-  const tongTru=(tongTruSheet!==undefined&&tongTruSheet!==null&&tongTruSheet!=='')
-    ? Math.abs(parseFloat(tongTruSheet)||0)
-    : truItems.reduce((s,[,v])=>s+Math.abs(parseFloat(v)||0),0);
+  // >>> SỬA: Tổng các khoản giảm trừ LUÔN tự cộng dồn từ đúng 4 dòng hiển thị
+  // (Cộng BH/Bảo hiểm XH + Đi trễ/về sớm + Phạt + Tạm ứng), KHÔNG lấy theo cột Tổng
+  // có sẵn trong Sheet nữa — vì cột đó có thể được tính thiếu 1 trong 4 khoản,
+  // dẫn tới số "Tổng trừ" hiển thị không khớp với các dòng liệt kê bên trên.
+  const tongTru=truItems.reduce((s,[,v])=>s+Math.abs(parseFloat(v)||0),0);
 
   const thucLanhRaw=pick('Thực lãnh','LƯƠNG THỰC LÃNH');
   const thucLanh=(thucLanhRaw!==undefined&&thucLanhRaw!==null&&thucLanhRaw!=='')
@@ -1567,7 +1566,7 @@ function renderPayrollContent(data, nv, m, y){
     if(val===undefined||val===null||val==='')return;
     html+=`<tr><td>${label}</td><td>(${fmtMoney(Math.abs(parseFloat(val)||0))})</td></tr>`;
   });
-  html+=`<tr><td><strong>Tổng trừ</strong></td><td><strong>(${fmtMoney(tongTru)})</strong></td></tr>`;
+  html+=`<tr><td><strong>Tổng các khoản giảm trừ</strong></td><td><strong>(${fmtMoney(tongTru)})</strong></td></tr>`;
   html+=`<tr class="payslip-total"><td>THỰC LÃNH</td><td>${fmtMoney(thucLanh)}</td></tr>`;
   html+=`</table>`;
 
@@ -1580,8 +1579,10 @@ function renderPayrollContent(data, nv, m, y){
   if(!chamCongDates.length){
     html+=`<div class="empty-state" style="padding:16px;font-size:12px;">Chưa có dữ liệu chấm công tháng này.</div>`;
   }else{
+    const gioChuanPhut=data.gioChuanPhut||510; // mặc định 8h30 nếu thiếu
+
     html+=`<table class="attendance-table"><thead><tr>
-      <th>Ngày</th><th>Ca lịch</th><th>Địa điểm</th><th>Vào thực tế</th><th>Ra thực tế</th><th>Đi trễ/sớm</th>
+      <th>Ngày</th><th>Ca lịch</th><th>Địa điểm</th><th>Vào thực tế</th><th>Ra thực tế</th><th>Đi trễ/sớm</th><th>Về sớm/OT</th>
     </tr></thead><tbody>`;
 
     chamCongDates.forEach(ds=>{
@@ -1620,6 +1621,23 @@ function renderPayrollContent(data, nv, m, y){
           trangThai='<span style="color:var(--text3);">Không xác định</span>';
         }
 
+        // >>> MỚI: Về sớm / OT — mốc "ra dự kiến" = Vào thực tế + Giờ LV 1 ngày (gioChuanPhut)
+        // - Ra SỚM hơn mốc -> "Về sớm X phút" (đỏ/cảnh báo)
+        // - Ra TRỄ hơn mốc quá 30 phút -> "OT X phút" (tính trọn phần trễ, vd trễ 45' = OT 45')
+        // - Trong khoảng 0-30 phút trễ -> "Đúng giờ" (chưa tính OT)
+        let veSomOT='—';
+        if(cc.vaoMin!==null&&cc.vaoMin!==undefined&&cc.raMin!==null&&cc.raMin!==undefined){
+          const raDuKien=cc.vaoMin+gioChuanPhut;
+          const lech=cc.raMin-raDuKien; // âm = về sớm, dương = về trễ/OT
+          if(lech<0){
+            veSomOT=`<span class="att-warn">Về sớm ${Math.abs(lech)} phút</span>`;
+          }else if(lech>30){
+            veSomOT=`<span class="att-ok">OT ${lech} phút</span>`;
+          }else{
+            veSomOT=`<span class="att-ok">Đúng giờ</span>`;
+          }
+        }
+
         const rowClass=isMultiShift?'att-multishift':'';
         const badge=(isMultiShift&&idx===0)?'<span class="att-multishift-badge">2 CA</span>':'';
 
@@ -1630,6 +1648,7 @@ function renderPayrollContent(data, nv, m, y){
           <td>${vaoStr}</td>
           <td>${raStr}</td>
           <td>${trangThai}</td>
+          <td>${veSomOT}</td>
         </tr>`;
       });
     });
