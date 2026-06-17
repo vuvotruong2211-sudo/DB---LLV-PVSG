@@ -7,7 +7,7 @@
 <script>
   const CONFIG = {
     webAppUrl: "https://script.google.com/macros/s/AKfycbxqRQeV5vAc2iCoaOlJrz0U6jw6vsjy2uDWGjLClxJYaDaYF98NHHRU4yp9FBH29OaA/exec",
-    payrollUrl: "https://script.google.com/macros/s/AKfycbxUEs12zPeJTyHQ6x12SswnA8aUCIxPUYL3y8oGPlbfTFJ_1MPTol-mfPiLWt2IWIbVlQ/exec"
+    payrollUrl: "https://script.google.com/macros/s/AKfycbzYSdbSi1xFal2YNLnzjnqrGLSALfQMPCMUthFJ27k-x2Ict_7VUvme5K3BIEdyWLNRKQ/exec"
   };
   // Áp dụng theme sớm để tránh nháy màu khi load trang
   (function(){
@@ -1478,7 +1478,13 @@ function fmtMoney(v){
   return n.toLocaleString('vi-VN');
 }
 
-// Parse "12:00 - 22:00" -> {startMin, endMin}
+// Parse "12:00 - 22:00" -> {startMin, endMin, khongTinhOT}
+// >>> SỬA:
+// - Ca qua đêm có giờ rõ 2 đầu (vd "22:00-06:00"): endMin <= startMin -> +1440 phút
+// - Ca KHÔNG có giờ kết thúc rõ (vd "16:00 - Trực đêm", "14:30 - Tải ra"):
+//   gán endMin=23:59 CHỈ để tính "Đi trễ" lúc vào (vẫn cần mốc nào đó),
+//   nhưng đánh dấu khongTinhOT=true để cột "Về sớm/OT" tự ẩn — vì các ca này
+//   không có giờ kết thúc thật, ép vào công thức 8h30/ngày sẽ luôn ra số sai.
 function parseCaLamViecJS(caLam){
   if(!caLam||typeof caLam!=='string')return null;
   const parts=caLam.split('-').map(s=>s.trim());
@@ -1489,9 +1495,16 @@ function parseCaLamViecJS(caLam){
     return parseInt(m[1])*60+parseInt(m[2]);
   };
   const startMin=toMin(parts[0]);
-  const endMin=toMin(parts[1]);
+  let endMin=toMin(parts[1]);
+  let khongTinhOT=false;
   if(startMin===null)return null;
-  return {startMin,endMin};
+  if(endMin===null){
+    endMin=23*60+59; // "Trực đêm" / "Tải ra" -> mốc cố định 23:59 (chỉ dùng cho Đi trễ)
+    khongTinhOT=true;
+  }else if(endMin<=startMin){
+    endMin+=24*60; // qua đêm có giờ rõ 2 đầu
+  }
+  return {startMin,endMin,khongTinhOT};
 }
 
 function minToHHMM(min){
@@ -1531,7 +1544,6 @@ function renderPayrollContent(data, nv, m, y){
     ['Đi trễ/về sớm', pick('Đi trễ/về sớm')],
     ['Phạt', pick('Phạt')],
     ['Tạm ứng', pick('Tạm ứng')],
-    ['Truy thu', pick('Truy thu')],
   ];
 
   // Ưu tiên lấy số Tổng CỘNG đã tính sẵn trong Sheet (nếu có), fallback tự cộng dồn
@@ -1622,14 +1634,23 @@ function renderPayrollContent(data, nv, m, y){
           trangThai='<span style="color:var(--text3);">Không xác định</span>';
         }
 
-        // >>> MỚI: Về sớm / OT — mốc "ra dự kiến" = Vào thực tế + Giờ LV 1 ngày (gioChuanPhut)
-        // - Ra SỚM hơn mốc -> "Về sớm X phút" (đỏ/cảnh báo)
-        // - Ra TRỄ hơn mốc quá 30 phút -> "OT X phút" (tính trọn phần trễ, vd trễ 45' = OT 45')
-        // - Trong khoảng 0-30 phút trễ -> "Đúng giờ" (chưa tính OT)
+        // >>> SỬA: Về sớm / OT — theo đúng công thức Excel hiện tại của user:
+        // - Ca Trực đêm / Tải ra (ca.khongTinhOT=true): LUÔN hiện "—", không tính,
+        //   vì các ca này không có giờ kết thúc thật -> ép vào công thức 8h30/ngày sẽ ra số sai.
+        // - Ca thường, ĐI TRỄ (Vào thực tế > Vào theo lịch): mốc = Vào_thực_tế + 8h30
+        // - Ca thường, KHÔNG trễ (vào đúng/sớm giờ): mốc = giờ kết thúc ca theo lịch (ca.endMin)
         let veSomOT='—';
-        if(cc.vaoMin!==null&&cc.vaoMin!==undefined&&cc.raMin!==null&&cc.raMin!==undefined){
-          const raDuKien=cc.vaoMin+gioChuanPhut;
-          const lech=cc.raMin-raDuKien; // âm = về sớm, dương = về trễ/OT
+        if(ca&&!ca.khongTinhOT&&cc.vaoMin!==null&&cc.vaoMin!==undefined&&cc.raMin!==null&&cc.raMin!==undefined){
+          const diTre=cc.vaoMin>ca.startMin;
+          const mocKetThuc=diTre?(cc.vaoMin+gioChuanPhut):ca.endMin;
+
+          // Chuẩn hoá raMin cho trường hợp ra sau nửa đêm: chấm công luôn trả phút-trong-ngày
+          // (0-1439), nhưng nếu mốc kết thúc đã vượt qua 24h (qua đêm) mà raMin lại nhỏ hơn
+          // giờ bắt đầu ca, nghĩa là NV ra vào RẠNG SÁNG ngày sau -> cộng thêm 1440 để so đúng.
+          let raMinAdj=cc.raMin;
+          if(mocKetThuc>=24*60&&raMinAdj<ca.startMin)raMinAdj+=24*60;
+
+          const lech=raMinAdj-mocKetThuc; // âm = về sớm, dương = về trễ/OT
           if(lech<0){
             veSomOT=`<span class="att-warn">Về sớm ${Math.abs(lech)} phút</span>`;
           }else if(lech>30){
