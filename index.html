@@ -101,6 +101,36 @@
   .att-shift-sep td{border-top:1px dashed rgba(245,158,11,.3);}
   .att-date-cell{vertical-align:middle;text-align:center;border-right:1px solid rgba(245,158,11,.35);}
   .att-shift-sep td{border-top:1px dashed rgba(245,158,11,.3);}}
+
+  /* PHẢN HỒI - KHIẾU NẠI PHIẾU LƯƠNG */
+  .feedback-section{margin-top:18px;padding-top:16px;border-top:1px solid var(--border);}
+  .feedback-status{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:8px;font-size:12px;margin-bottom:10px;}
+  .feedback-status.pending{background:rgba(245,158,11,.12);color:var(--amber);}
+  .feedback-status.agreed{background:rgba(16,185,129,.12);color:var(--green);}
+  .feedback-status.disputed{background:rgba(239,68,68,.12);color:var(--red);}
+  .feedback-actions{display:flex;gap:8px;margin-top:10px;}
+  .feedback-actions button{flex:1;border:none;border-radius:7px;padding:10px;font-size:12px;font-weight:600;cursor:pointer;transition:opacity .2s;}
+  .feedback-actions button:hover{opacity:.85;}
+  .feedback-btn-agree{background:var(--green);color:#fff;}
+  .feedback-btn-dispute{background:var(--surface2);color:var(--text);border:1px solid var(--border)!important;}
+  .feedback-form{display:none;margin-top:12px;padding:14px;background:var(--surface2);border-radius:10px;}
+  .feedback-form.show{display:block;}
+  .feedback-form textarea{width:100%;min-height:70px;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:10px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif;outline:none;resize:vertical;margin-bottom:10px;}
+  .feedback-form textarea:focus{border-color:var(--accent);}
+  .signature-label{font-size:11px;color:var(--text3);margin-bottom:6px;}
+  .signature-wrap{position:relative;border:1px dashed var(--border);border-radius:8px;background:var(--surface);margin-bottom:10px;}
+  .signature-wrap canvas{display:block;width:100%;height:120px;cursor:crosshair;touch-action:none;}
+  .signature-clear{position:absolute;top:6px;right:6px;background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:3px 8px;font-size:10px;color:var(--text2);cursor:pointer;}
+  .signature-clear:hover{background:var(--accent);color:#fff;}
+  .feedback-submit-row{display:flex;gap:8px;}
+  .feedback-submit-row button{flex:1;}
+  .feedback-cancel-btn{background:var(--surface);color:var(--text2);border:1px solid var(--border);border-radius:7px;padding:10px;font-size:12px;font-weight:600;cursor:pointer;}
+  .feedback-submit-btn{background:var(--accent);color:#fff;border:none;border-radius:7px;padding:10px;font-size:12px;font-weight:600;cursor:pointer;}
+  .feedback-submit-btn:disabled{opacity:.5;cursor:not-allowed;}
+  .feedback-msg{font-size:11px;margin-top:8px;display:none;}
+  .feedback-msg.success{color:var(--green);display:block;}
+  .feedback-msg.error{color:var(--red);display:block;}
+
   .back-link{font-size:12px;color:var(--accent);cursor:pointer;margin-bottom:12px;display:inline-block;}
   .back-link:hover{text-decoration:underline;}
   .sync-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;}
@@ -333,6 +363,41 @@
     <div id="payrollContentView" class="payroll-content" style="display:none;">
       <span class="back-link" onclick="backToPayrollLogin()">‹ Quay lại</span>
       <div id="payrollContentBody"></div>
+
+      <!-- PHẢN HỒI - KHIẾU NẠI -->
+      <div class="feedback-section" id="feedbackSection">
+        <div class="feedback-status pending" id="feedbackStatusBox">
+          ℹ️ Nếu bạn không phản hồi, hệ thống xem như bạn <strong>đồng ý</strong> với bảng lương và chấm công nêu trên.
+        </div>
+
+        <div id="feedbackChoiceView">
+          <div class="feedback-actions">
+            <button class="feedback-btn-agree" onclick="openFeedbackForm('agree')">✅ Tôi đồng ý</button>
+            <button class="feedback-btn-dispute" onclick="openFeedbackForm('dispute')">⚠️ Phản hồi / Khiếu nại</button>
+          </div>
+        </div>
+
+        <div class="feedback-form" id="feedbackForm">
+          <div id="feedbackFormTitle" style="font-size:12px;font-weight:600;margin-bottom:10px;"></div>
+
+          <div id="feedbackNoiDungWrap">
+            <textarea id="feedbackNoiDung" placeholder="Mô tả chi tiết ý kiến / điểm chưa khớp giữa bảng lương, chấm công thực tế và lịch làm việc..."></textarea>
+          </div>
+
+          <div class="signature-label">✍️ Ký xác nhận (vẽ bằng chuột hoặc chạm tay):</div>
+          <div class="signature-wrap">
+            <canvas id="signatureCanvas"></canvas>
+            <span class="signature-clear" onclick="clearSignature()">Xoá</span>
+          </div>
+
+          <div class="feedback-submit-row">
+            <button class="feedback-cancel-btn" onclick="closeFeedbackForm()">Hủy</button>
+            <button class="feedback-submit-btn" id="feedbackSubmitBtn" onclick="submitFeedback()">Gửi xác nhận</button>
+          </div>
+          <div class="feedback-msg" id="feedbackMsg"></div>
+        </div>
+      </div>
+
       <div class="modal-actions" style="margin-top:12px;">
         <button class="modal-btn-cancel" onclick="closePayrollModal()">Đóng</button>
       </div>
@@ -1521,6 +1586,10 @@ function renderPayrollContent(data, nv, m, y){
   const pl=data.phieuLuong;
   const body=document.getElementById('payrollContentBody');
 
+  // Lưu context hiện tại để dùng khi gửi phản hồi/khiếu nại
+  currentPayrollContext={nv:nv, thang:m, nam:y};
+  resetFeedbackUI();
+
   // Helper: thử nhiều tên cột khả dĩ, trả về giá trị đầu tiên tìm được
   const pick=(...keys)=>{
     for(const k of keys){
@@ -1545,9 +1614,10 @@ function renderPayrollContent(data, nv, m, y){
 
   const truItems=[
     ['Bảo hiểm XH', pick('Bảo hiểm XH','Cộng BH')],
+    ['Tạm ứng', pick('Tạm ứng')],
     ['Đi trễ/về sớm', pick('Đi trễ/về sớm')],
     ['Phạt', pick('Phạt')],
-    ['Tạm ứng', pick('Tạm ứng')],
+    ['Truy thu', pick('Truy thu')],
   ];
 
   // Ưu tiên lấy số Tổng CỘNG đã tính sẵn trong Sheet (nếu có), fallback tự cộng dồn
@@ -1556,10 +1626,10 @@ function renderPayrollContent(data, nv, m, y){
     ? (parseFloat(tongCongSheet)||0)
     : congItems.reduce((s,[,v])=>s+(parseFloat(v)||0),0);
 
-  // >>> SỬA: Tổng các khoản giảm trừ LUÔN tự cộng dồn từ đúng 4 dòng hiển thị
-  // (Cộng BH/Bảo hiểm XH + Đi trễ/về sớm + Phạt + Tạm ứng), KHÔNG lấy theo cột Tổng
-  // có sẵn trong Sheet nữa — vì cột đó có thể được tính thiếu 1 trong 4 khoản,
-  // dẫn tới số "Tổng trừ" hiển thị không khớp với các dòng liệt kê bên trên.
+  // Tổng các khoản giảm trừ LUÔN tự cộng dồn từ đúng 5 dòng hiển thị
+  // (Bảo hiểm XH/Cộng BH + Tạm ứng + Đi trễ/về sớm + Phạt + Truy thu),
+  // KHÔNG lấy theo cột Tổng có sẵn trong Sheet — vì cột đó có thể tính thiếu
+  // 1 trong 5 khoản, dẫn tới số "Tổng trừ" hiển thị không khớp với các dòng liệt kê bên trên.
   const tongTru=truItems.reduce((s,[,v])=>s+Math.abs(parseFloat(v)||0),0);
 
   const thucLanhRaw=pick('Thực lãnh','LƯƠNG THỰC LÃNH');
@@ -1683,6 +1753,229 @@ function renderPayrollContent(data, nv, m, y){
   }
 
   body.innerHTML=html;
+}
+
+// ============================================================
+// PHẢN HỒI - KHIẾU NẠI PHIẾU LƯƠNG (kèm chữ ký canvas)
+// ============================================================
+let currentPayrollContext={nv:'',thang:0,nam:0};
+let currentFeedbackMode=''; // 'agree' | 'dispute'
+let feedbackSubmittedThisSession=false; // true sau khi gửi thành công cho phiếu lương đang xem
+let sigCtx=null, sigDrawing=false, sigHasContent=false, sigLastX=0, sigLastY=0;
+
+// Bỏ dấu tiếng Việt -> dùng cho cột "Họ tên không dấu"
+function removeVietnameseTones(str){
+  if(!str)return'';
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/đ/g,'d').replace(/Đ/g,'D').trim();
+}
+
+function resetFeedbackUI(){
+  feedbackSubmittedThisSession=false;
+  document.getElementById('feedbackForm').classList.remove('show');
+  document.getElementById('feedbackChoiceView').style.display='block';
+  document.getElementById('feedbackNoiDung').value='';
+  const msg=document.getElementById('feedbackMsg');
+  msg.style.display='none';
+  msg.className='feedback-msg';
+  document.getElementById('feedbackSubmitBtn').disabled=false;
+  document.getElementById('feedbackSubmitBtn').textContent='Gửi xác nhận';
+  const statusBox=document.getElementById('feedbackStatusBox');
+  statusBox.className='feedback-status pending';
+  statusBox.innerHTML='ℹ️ Nếu bạn không phản hồi, hệ thống xem như bạn <strong>đồng ý</strong> với bảng lương và chấm công nêu trên.';
+  currentFeedbackMode='';
+}
+
+// Khoá vĩnh viễn khu vực phản hồi sau khi đã gửi thành công cho phiếu lương đang xem
+// (chỉ mở lại khi người dùng xem 1 phiếu lương KHÁC, qua resetFeedbackUI ở renderPayrollContent)
+function lockFeedbackUI(label){
+  feedbackSubmittedThisSession=true;
+  document.getElementById('feedbackForm').classList.remove('show');
+  document.getElementById('feedbackChoiceView').style.display='none';
+  document.getElementById('feedbackSubmitBtn').disabled=true;
+  document.getElementById('feedbackSubmitBtn').textContent=label||'Đã gửi';
+}
+
+function openFeedbackForm(mode){
+  if(feedbackSubmittedThisSession)return; // đã gửi rồi, không cho mở lại
+  currentFeedbackMode=mode;
+  const form=document.getElementById('feedbackForm');
+  const title=document.getElementById('feedbackFormTitle');
+  const noiDungWrap=document.getElementById('feedbackNoiDungWrap');
+
+  if(mode==='agree'){
+    title.textContent='✅ Xác nhận đồng ý với bảng lương và chấm công';
+    noiDungWrap.style.display='none';
+  }else{
+    title.textContent='⚠️ Gửi phản hồi / khiếu nại';
+    noiDungWrap.style.display='block';
+  }
+
+  document.getElementById('feedbackChoiceView').style.display='none';
+  form.classList.add('show');
+
+  // Khởi tạo canvas sau khi form đã hiển thị (để lấy đúng kích thước thật)
+  setTimeout(initSignatureCanvas,50);
+}
+
+function closeFeedbackForm(){
+  resetFeedbackUI();
+}
+
+function initSignatureCanvas(){
+  const canvas=document.getElementById('signatureCanvas');
+  const wrap=canvas.parentElement;
+  const ratio=window.devicePixelRatio||1;
+
+  // Vẽ ở độ phân giải cao cho mượt, nhưng khi XUẤT ảnh sẽ resize nhỏ lại (xem getResizedSignature)
+  const w=wrap.clientWidth||300;
+  const h=120;
+  canvas.width=w*ratio;
+  canvas.height=h*ratio;
+
+  sigCtx=canvas.getContext('2d');
+  sigCtx.scale(ratio,ratio);
+  sigCtx.lineWidth=2;
+  sigCtx.lineCap='round';
+  sigCtx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--text')||'#000';
+  sigHasContent=false;
+
+  // Gỡ listener cũ nếu init lại (tránh gắn trùng)
+  canvas.onpointerdown=startSig;
+  canvas.onpointermove=moveSig;
+  canvas.onpointerup=endSig;
+  canvas.onpointerleave=endSig;
+}
+
+function getSigPos(e,canvas){
+  const rect=canvas.getBoundingClientRect();
+  return {x:e.clientX-rect.left, y:e.clientY-rect.top};
+}
+function startSig(e){
+  e.preventDefault();
+  sigDrawing=true;
+  const p=getSigPos(e,e.target);
+  sigLastX=p.x; sigLastY=p.y;
+}
+function moveSig(e){
+  if(!sigDrawing||!sigCtx)return;
+  e.preventDefault();
+  const p=getSigPos(e,e.target);
+  sigCtx.beginPath();
+  sigCtx.moveTo(sigLastX,sigLastY);
+  sigCtx.lineTo(p.x,p.y);
+  sigCtx.stroke();
+  sigLastX=p.x; sigLastY=p.y;
+  sigHasContent=true;
+}
+function endSig(e){
+  sigDrawing=false;
+}
+
+function clearSignature(){
+  const canvas=document.getElementById('signatureCanvas');
+  if(!sigCtx||!canvas)return;
+  sigCtx.clearRect(0,0,canvas.width,canvas.height);
+  sigHasContent=false;
+}
+
+// Resize chữ ký xuống kích thước nhỏ và xuất JPEG chất lượng thấp vừa đủ nhìn rõ,
+// vì giờ gửi qua JSONP (query string URL) nên cần giữ base64 càng ngắn càng tốt
+// để không vượt giới hạn độ dài URL (~8000 ký tự an toàn).
+function getResizedSignatureBase64(){
+  const canvas=document.getElementById('signatureCanvas');
+  const outW=220, outH=90;
+  const outCanvas=document.createElement('canvas');
+  outCanvas.width=outW;
+  outCanvas.height=outH;
+  const outCtx=outCanvas.getContext('2d');
+  // Nền trắng để chữ ký không bị trong suốt mất nét trên nền tối
+  outCtx.fillStyle='#ffffff';
+  outCtx.fillRect(0,0,outW,outH);
+  outCtx.drawImage(canvas,0,0,outW,outH);
+  return outCanvas.toDataURL('image/jpeg',0.5); // chất lượng 50% -> base64 chỉ còn ~2000-4000 ký tự
+}
+
+async function submitFeedback(){
+  const msg=document.getElementById('feedbackMsg');
+  const submitBtn=document.getElementById('feedbackSubmitBtn');
+  msg.style.display='none';
+  msg.className='feedback-msg';
+
+  if(!sigHasContent){
+    msg.textContent='Vui lòng ký xác nhận trước khi gửi.';
+    msg.className='feedback-msg error';
+    return;
+  }
+
+  const noiDung=currentFeedbackMode==='dispute'
+    ? document.getElementById('feedbackNoiDung').value.trim()
+    : '';
+
+  if(currentFeedbackMode==='dispute'&&!noiDung){
+    msg.textContent='Vui lòng mô tả nội dung phản hồi/khiếu nại.';
+    msg.className='feedback-msg error';
+    return;
+  }
+
+  if(!CONFIG.payrollUrl){
+    msg.textContent='Chưa cấu hình URL phiếu lương.';
+    msg.className='feedback-msg error';
+    return;
+  }
+
+  submitBtn.disabled=true;
+  submitBtn.textContent='Đang gửi...';
+
+  const payload={
+    action:'submitFeedback',
+    nv:currentPayrollContext.nv,
+    hoTenKhongDau:removeVietnameseTones(currentPayrollContext.nv),
+    loaiYKien:currentFeedbackMode==='agree'?'Đồng ý':'Khiếu nại',
+    noiDung:noiDung,
+    thang:currentPayrollContext.thang,
+    nam:currentPayrollContext.nam,
+    chuKyBase64:getResizedSignatureBase64()
+  };
+
+  try{
+    // QUAN TRỌNG: dùng JSONP (giống loadData/getPayroll) thay vì fetch POST.
+    // fetch POST tới Apps Script bị Chrome chặn bởi CORS (Apps Script không trả
+    // header Access-Control-Allow-Origin), nên dù dữ liệu vẫn ghi vào Sheet/Drive,
+    // trình duyệt không đọc được kết quả trả về -> tưởng như "không có gì xảy ra".
+    // JSONP không bị giới hạn này vì nó load qua <script> tag, không phải fetch.
+    const encodedPayload=encodeURIComponent(JSON.stringify(payload));
+    const url=CONFIG.payrollUrl+'?action=submitFeedback&payload='+encodedPayload;
+
+    if(url.length>7500){
+      throw new Error('Chữ ký quá phức tạp, vui lòng bấm "Xoá" và ký lại đơn giản hơn (URL dài '+url.length+' ký tự)');
+    }
+
+    const json=await fetchJSONP(url);
+    if(json.status!=='ok')throw new Error(json.message||'Gửi không thành công');
+
+    msg.textContent='✅ '+json.message;
+    msg.className='feedback-msg success';
+    submitBtn.textContent='Đã gửi';
+
+    setTimeout(()=>{
+      const statusBox=document.getElementById('feedbackStatusBox');
+      if(currentFeedbackMode==='agree'){
+        statusBox.className='feedback-status agreed';
+        statusBox.innerHTML='✅ Bạn đã xác nhận <strong>đồng ý</strong> với bảng lương tháng '+currentPayrollContext.thang+'/'+currentPayrollContext.nam+'.';
+      }else{
+        statusBox.className='feedback-status disputed';
+        statusBox.innerHTML='⚠️ Bạn đã gửi <strong>khiếu nại</strong> cho tháng '+currentPayrollContext.thang+'/'+currentPayrollContext.nam+'. Bộ phận liên quan sẽ phản hồi sớm.';
+      }
+      lockFeedbackUI('Đã gửi — không thể gửi lại');
+    },1200);
+
+  }catch(e){
+    msg.textContent='❌ Lỗi: '+e.message;
+    msg.className='feedback-msg error';
+    submitBtn.disabled=false;
+    submitBtn.textContent='Gửi xác nhận';
+  }
 }
 
 // Enter để submit passcode phiếu lương
