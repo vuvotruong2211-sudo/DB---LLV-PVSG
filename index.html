@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CTT - VPSG - TRANG THÔNG TIN</title>
+<title>Dashboard Lịch Làm Việc</title>
 <script>
   const CONFIG = {
     webAppUrl: "https://script.google.com/macros/s/AKfycbxqRQeV5vAc2iCoaOlJrz0U6jw6vsjy2uDWGjLClxJYaDaYF98NHHRU4yp9FBH29OaA/exec",
@@ -457,8 +457,7 @@
         <option value="">Tất cả</option>
         <option value="Ca Sáng">Ca Sáng</option>
         <option value="Ca Tối">Ca Tối</option>
-        <option value="Ca Lỡ Sáng">Ca Lỡ Sáng</option>
-        <option value="Ca Lỡ Tối">Ca Lỡ Tối</option>
+        <option value="Ca Lỡ">Ca Lỡ</option>
         <option value="Ca Giữa">Ca Giữa</option>
         <option value="Trực đêm">Trực đêm</option>
         <option value="OFF">OFF</option>
@@ -518,6 +517,7 @@
         <div class="tabs">
           <button class="tab active" onclick="switchView('week',this)">Tuần</button>
           <button class="tab" onclick="switchView('month',this)">Tháng</button>
+          <button class="tab" id="tabByShift" onclick="switchView('shift',this)" style="display:none;">Theo Ca</button>
         </div>
       </div>
       <div class="table-scroll">
@@ -604,6 +604,24 @@
     </div>
   </div>
 
+  <!-- OFF THEO NĂM - AI CŨNG XEM ĐƯỢC -->
+  <div class="card" style="margin-top:16px;">
+    <div class="card-header">
+      <div>
+        <div class="card-title">🌴 Thống kê ngày OFF theo năm</div>
+        <div class="card-sub" id="offYearSubTitle">Theo từng tháng trong năm</div>
+      </div>
+    </div>
+    <div class="table-scroll" style="max-height:420px;">
+      <table class="stat-table" id="offYearTable">
+        <thead id="offYearHead"></thead>
+        <tbody id="offYearBody">
+          <tr><td class="empty-state">Chờ dữ liệu...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- OT STATS - CHỈ QUẢN LÝ -->
   <div class="card" id="otCard" style="display:none;margin-top:16px;">
     <div class="card-header">
@@ -686,6 +704,7 @@ function updateAdminBtn(){
   const btn=document.getElementById('adminBtn');
   const banner=document.getElementById('adminBanner');
   const otCard=document.getElementById('otCard');
+  const tabByShift=document.getElementById('tabByShift');
   if(!btn)return;
   if(isAdmin){
     btn.textContent='🔓 Quản lý (đang mở)';
@@ -693,12 +712,20 @@ function updateAdminBtn(){
     btn.title='Bấm để khoá lại (chỉ xem D+2)';
     if(banner)banner.style.display='block';
     if(otCard)otCard.style.display='block';
+    if(tabByShift)tabByShift.style.display='inline-block';
   }else{
     btn.textContent='🔒 Quản lý';
     btn.classList.remove('active');
     btn.title='Đăng nhập để xem lịch đầy đủ';
     if(banner)banner.style.display='none';
     if(otCard)otCard.style.display='none';
+    if(tabByShift)tabByShift.style.display='none';
+    // Nếu đang ở view "Theo Ca" mà bị khoá quyền Quản lý -> tự chuyển về Tuần
+    if(currentView==='shift'){
+      currentView='week';
+      document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+      document.querySelector('.tab[onclick*="\'week\'"]')?.classList.add('active');
+    }
   }
 }
 function onAdminBtnClick(){
@@ -999,6 +1026,7 @@ function renderAll(){
   renderStatTable();
   renderOfficeMonthChart();
   renderOtStats();
+  renderOffYearTable();
 }
 
 // ============================================================
@@ -1033,7 +1061,9 @@ function renderSchedule(){
     const ds=fmtDate(r.date);
     return ds>=wsDStr&&ds<=weDStr;
   });
+  if(currentView==='shift'&&!isAdmin)currentView='week';
   if(currentView==='week')renderWeekView(days,weekR);
+  else if(currentView==='shift')renderShiftView(days,weekR);
   else renderMonthView();
 }
 
@@ -1080,6 +1110,62 @@ function renderWeekView(days,weekRows){
       </td>`;
     }).join('');
     return`<tr><td><div class="nv-name">${nv}</div><div class="nv-office">${shortOffice(mainOff)}</div></td>${cells}</tr>`;
+  }).join('');
+}
+
+// ============================================================
+// SHIFT VIEW (Lịch theo Ca) - mỗi dòng là 1 loại ca, ô liệt kê tên NV
+// ============================================================
+const SHIFT_ORDER=['Ca Sáng','Ca Lỡ','Ca Tối','Trực đêm','OFF'];
+function renderShiftView(days,weekRows){
+  const head=document.getElementById('scheduleHead');
+  const body=document.getElementById('scheduleBody');
+  const empty=document.getElementById('scheduleEmpty');
+  const thu=['T2','T3','T4','T5','T6','T7','CN'];
+  const today=fmtDate(new Date());
+
+  head.innerHTML=`<tr><th style="min-width:90px;">Loại ca</th>${days.map((d,i)=>`<th class="day-col"><div class="day-header">${thu[i]}</div><div class="day-date">${fmtDisp(d)}</div></th>`).join('')}</tr>`;
+
+  if(!weekRows.length){body.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+
+  // Gom các loại ca thực tế xuất hiện trong tuần, giữ đúng thứ tự chuẩn,
+  // và thêm vào cuối nếu sheet có loại ca lạ không nằm trong SHIFT_ORDER
+  const presentShifts=[...new Set(weekRows.map(r=>r.loaiCa).filter(Boolean))];
+  const shiftsToShow=[...SHIFT_ORDER.filter(s=>presentShifts.includes(s)),
+                       ...presentShifts.filter(s=>!SHIFT_ORDER.includes(s))];
+
+  body.innerHTML=shiftsToShow.map(shift=>{
+    const cls=getLoaiCaClass(shift);
+    const cells=days.map(d=>{
+      const isToday=fmtDate(d)===today;
+      const bg=isToday?'background:rgba(79,110,247,.08);':'';
+      const locked=isDateLocked(d);
+      if(locked){
+        return`<td style="${bg}" class="locked-td">
+          <div class="locked-cell"><span class="ca-badge ca-off">···</span></div>
+          <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:14px;">🔒</div>
+        </td>`;
+      }
+      const ds=fmtDate(d);
+      const rowsHere=weekRows.filter(r=>r.date&&fmtDate(r.date)===ds&&r.loaiCa===shift)
+        .sort((a,b)=>a.nv.localeCompare(b.nv,'vi'));
+      if(!rowsHere.length)return`<td style="${bg}"><span style="color:var(--text3);font-size:10px;">—</span></td>`;
+      return`<td style="${bg}vertical-align:top;padding:6px 8px;">
+        <div style="display:flex;flex-direction:column;gap:3px;">
+          ${rowsHere.map(r=>`
+            <div style="display:flex;align-items:center;gap:5px;">
+              <span style="font-size:11px;font-weight:500;">${r.nv}</span>
+              ${r.boPhan&&r.boPhan!=='OFF'?`<span style="font-size:9px;color:var(--text3);">${shortOffice(r.boPhan)}</span>`:''}
+            </div>`).join('')}
+        </div>
+      </td>`;
+    }).join('');
+    const countTotal=weekRows.filter(r=>r.loaiCa===shift).length;
+    return`<tr><td>
+        <span class="ca-badge ${cls}" style="font-size:10px;">${shift}</span>
+        <div style="font-size:9px;color:var(--text3);margin-top:4px;">${countTotal} lượt/tuần</div>
+      </td>${cells}</tr>`;
   }).join('');
 }
 
@@ -1418,8 +1504,37 @@ function renderOtStats(){
 }
 
 // ============================================================
-// WEEK NAV
+// THỐNG KÊ OFF THEO NĂM - mỗi NV 1 dòng, 12 cột tháng
 // ============================================================
+function renderOffYearTable(){
+  const head=document.getElementById('offYearHead');
+  const body=document.getElementById('offYearBody');
+  if(!head||!body)return;
+
+  // Năm hiện hành dựa theo dữ liệu đang có (fallback năm hiện tại)
+  const year=allData.find(r=>r.date)?.date?.getFullYear()||new Date().getFullYear();
+  document.getElementById('offYearSubTitle').textContent='Năm '+year+' · Số ngày OFF mỗi tháng theo nhân viên';
+
+  head.innerHTML=`<tr><th>Nhân viên</th>${Array.from({length:12},(_,i)=>`<th style="text-align:center;min-width:36px;">Th.${i+1}</th>`).join('')}<th style="text-align:center;">Tổng</th></tr>`;
+
+  const nvs=[...new Set(filteredData.map(r=>r.nv))].sort((a,b)=>a.localeCompare(b,'vi'));
+  if(!nvs.length){body.innerHTML='<tr><td class="empty-state">Không có dữ liệu</td></tr>';return;}
+
+  const map={};
+  nvs.forEach(nv=>map[nv]=Array(12).fill(0));
+  filteredData.forEach(r=>{
+    if(r.loaiCa==='OFF'&&r.thang>=1&&r.thang<=12&&map[r.nv])map[r.nv][r.thang-1]++;
+  });
+
+  body.innerHTML=nvs.map(nv=>{
+    const counts=map[nv];
+    const total=counts.reduce((s,c)=>s+c,0);
+    const cells=counts.map(c=>`<td style="text-align:center;">${c?`<span class="ca-badge ca-off" style="font-size:10px;">${c}</span>`:`<span style="color:var(--text3);font-size:10px;">–</span>`}</td>`).join('');
+    return`<tr><td><div class="nv-name">${nv}</div></td>${cells}<td style="text-align:center;font-weight:600;">${total}</td></tr>`;
+  }).join('');
+}
+
+
 function changeWeek(d){currentWeekStart=addDays(currentWeekStart,d*7);renderAll();}
 function goToday(){currentWeekStart=getWeekStart(new Date());renderAll();}
 function updateWeekLabel(){
