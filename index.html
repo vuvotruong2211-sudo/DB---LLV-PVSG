@@ -517,7 +517,19 @@
         <div class="tabs">
           <button class="tab active" onclick="switchView('week',this)">Tuần</button>
           <button class="tab" onclick="switchView('month',this)">Tháng</button>
-          <button class="tab" id="tabByShift" onclick="switchView('shift',this)" style="display:none;">Theo Ca</button>
+          <button class="tab" id="tabByShift" onclick="switchView('shift',this)">Theo Ca</button>
+        </div>
+      </div>
+      <div id="shiftViewControls" style="display:none;padding:10px 18px;border-bottom:1px solid var(--border);align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+        <div style="display:flex;gap:6px;">
+          <button type="button" class="tab" id="shiftSpan1" onclick="setShiftSpan(1)" style="font-size:11px;padding:6px 10px;">1 ngày</button>
+          <button type="button" class="tab" id="shiftSpan3" onclick="setShiftSpan(3)" style="font-size:11px;padding:6px 10px;">3 ngày</button>
+          <button type="button" class="tab active" id="shiftSpan7" onclick="setShiftSpan(7)" style="font-size:11px;padding:6px 10px;">Cả tuần</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button type="button" class="admin-btn" onclick="shiftSpanNav(-1)" style="padding:6px 10px;">◀</button>
+          <div id="shiftSpanLabel" style="font-size:12px;font-weight:600;min-width:120px;text-align:center;">—</div>
+          <button type="button" class="admin-btn" onclick="shiftSpanNav(1)" style="padding:6px 10px;">▶</button>
         </div>
       </div>
       <div class="table-scroll">
@@ -606,10 +618,23 @@
 
   <!-- OFF THEO NĂM - AI CŨNG XEM ĐƯỢC -->
   <div class="card" style="margin-top:16px;">
-    <div class="card-header">
+    <div class="card-header" style="flex-wrap:wrap;gap:10px;">
       <div>
         <div class="card-title">🌴 Thống kê ngày OFF theo năm</div>
         <div class="card-sub" id="offYearSubTitle">Theo từng tháng trong năm</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <select class="filter-select" id="offYearFilterYear" onchange="onOffYearYearChange()" style="min-width:90px;"></select>
+        <div style="position:relative;">
+          <button type="button" class="filter-select" id="offYearMonthBtn" onclick="toggleOffYearMonthDropdown()" style="cursor:pointer;min-width:130px;text-align:left;">Tháng: Cả năm</button>
+          <div id="offYearMonthDropdown" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,.18);min-width:180px;">
+            <div id="offYearMonthChkGrid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:8px;"></div>
+            <div style="display:flex;gap:6px;border-top:1px solid var(--border);padding-top:8px;">
+              <button type="button" class="tab" style="flex:1;font-size:11px;padding:5px 8px;" onclick="setOffYearMonths('all')">Cả năm</button>
+              <button type="button" class="tab" style="flex:1;font-size:11px;padding:5px 8px;" onclick="setOffYearMonths('ytd')">YTD</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
     <div class="table-scroll" style="max-height:420px;">
@@ -704,7 +729,6 @@ function updateAdminBtn(){
   const btn=document.getElementById('adminBtn');
   const banner=document.getElementById('adminBanner');
   const otCard=document.getElementById('otCard');
-  const tabByShift=document.getElementById('tabByShift');
   if(!btn)return;
   if(isAdmin){
     btn.textContent='🔓 Quản lý (đang mở)';
@@ -712,20 +736,12 @@ function updateAdminBtn(){
     btn.title='Bấm để khoá lại (chỉ xem D+2)';
     if(banner)banner.style.display='block';
     if(otCard)otCard.style.display='block';
-    if(tabByShift)tabByShift.style.display='inline-block';
   }else{
     btn.textContent='🔒 Quản lý';
     btn.classList.remove('active');
     btn.title='Đăng nhập để xem lịch đầy đủ';
     if(banner)banner.style.display='none';
     if(otCard)otCard.style.display='none';
-    if(tabByShift)tabByShift.style.display='none';
-    // Nếu đang ở view "Theo Ca" mà bị khoá quyền Quản lý -> tự chuyển về Tuần
-    if(currentView==='shift'){
-      currentView='week';
-      document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-      document.querySelector('.tab[onclick*="\'week\'"]')?.classList.add('active');
-    }
   }
 }
 function onAdminBtnClick(){
@@ -1061,7 +1077,8 @@ function renderSchedule(){
     const ds=fmtDate(r.date);
     return ds>=wsDStr&&ds<=weDStr;
   });
-  if(currentView==='shift'&&!isAdmin)currentView='week';
+  const shiftControls=document.getElementById('shiftViewControls');
+  if(currentView!=='shift'&&shiftControls)shiftControls.style.display='none';
   if(currentView==='week')renderWeekView(days,weekR);
   else if(currentView==='shift')renderShiftView(days,weekR);
   else renderMonthView();
@@ -1117,23 +1134,61 @@ function renderWeekView(days,weekRows){
 // SHIFT VIEW (Lịch theo Ca) - mỗi dòng là 1 loại ca, ô liệt kê tên NV
 // ============================================================
 const SHIFT_ORDER=['Ca Sáng','Ca Lỡ','Ca Tối','Trực đêm','OFF'];
-function renderShiftView(days,weekRows){
+let shiftSpan=7; // số ngày hiển thị cùng lúc: 1, 3 hoặc 7
+let shiftAnchorDate=null; // ngày đầu của block đang xem (null = đồng bộ theo currentWeekStart)
+
+function setShiftSpan(n){
+  shiftSpan=n;
+  ['1','3','7'].forEach(s=>document.getElementById('shiftSpan'+s)?.classList.remove('active'));
+  document.getElementById('shiftSpan'+n)?.classList.add('active');
+  shiftAnchorDate=currentWeekStart; // reset về đầu tuần hiện hành khi đổi độ rộng
+  renderSchedule();
+}
+function shiftSpanNav(dir){
+  const base=shiftAnchorDate||currentWeekStart;
+  shiftAnchorDate=addDays(base,dir*shiftSpan);
+  renderSchedule();
+}
+
+function renderShiftView(weekDays,weekRowsFull){
   const head=document.getElementById('scheduleHead');
   const body=document.getElementById('scheduleBody');
   const empty=document.getElementById('scheduleEmpty');
+  const controls=document.getElementById('shiftViewControls');
+  if(controls)controls.style.display='flex';
+
   const thu=['T2','T3','T4','T5','T6','T7','CN'];
   const today=fmtDate(new Date());
 
-  head.innerHTML=`<tr><th style="min-width:90px;">Loại ca</th>${days.map((d,i)=>`<th class="day-col"><div class="day-header">${thu[i]}</div><div class="day-date">${fmtDisp(d)}</div></th>`).join('')}</tr>`;
+  // Block ngày đang xem: bắt đầu từ shiftAnchorDate (mặc định = đầu tuần), dài shiftSpan ngày
+  if(!shiftAnchorDate)shiftAnchorDate=currentWeekStart;
+  const days=Array.from({length:shiftSpan},(_,i)=>addDays(shiftAnchorDate,i));
+  const wsDStr=fmtDate(days[0]),weDStr=fmtDate(days[days.length-1]);
+  const weekRows=filteredData.filter(r=>{
+    if(!r.date)return false;
+    const ds=fmtDate(r.date);
+    return ds>=wsDStr&&ds<=weDStr;
+  });
+
+  const label=document.getElementById('shiftSpanLabel');
+  if(label)label.textContent=shiftSpan===1?fmtDisp(days[0]):(fmtDisp(days[0])+' → '+fmtDisp(days[days.length-1]));
+
+  // map sang index thứ trong tuần (T2=0...CN=6) để lấy đúng tên thứ
+  const thuOf=(d)=>{const jsDay=d.getDay();return jsDay===0?6:jsDay-1;};
+
+  head.innerHTML=`<tr><th style="min-width:90px;">Loại ca</th>${days.map(d=>`<th class="day-col"><div class="day-header">${thu[thuOf(d)]}</div><div class="day-date">${fmtDisp(d)}</div></th>`).join('')}</tr>`;
 
   if(!weekRows.length){body.innerHTML='';empty.style.display='block';return;}
   empty.style.display='none';
 
-  // Gom các loại ca thực tế xuất hiện trong tuần, giữ đúng thứ tự chuẩn,
+  // Gom các loại ca thực tế xuất hiện trong khoảng đang xem, giữ đúng thứ tự chuẩn,
   // và thêm vào cuối nếu sheet có loại ca lạ không nằm trong SHIFT_ORDER
   const presentShifts=[...new Set(weekRows.map(r=>r.loaiCa).filter(Boolean))];
   const shiftsToShow=[...SHIFT_ORDER.filter(s=>presentShifts.includes(s)),
                        ...presentShifts.filter(s=>!SHIFT_ORDER.includes(s))];
+
+  // Cột rộng hơn khi xem ít ngày để tận dụng không gian, hẹp lại khi xem cả tuần để vẫn fit màn hình
+  const ganttWidth=shiftSpan===1?420:(shiftSpan===3?280:200);
 
   body.innerHTML=shiftsToShow.map(shift=>{
     const cls=getLoaiCaClass(shift);
@@ -1149,24 +1204,66 @@ function renderShiftView(days,weekRows){
       }
       const ds=fmtDate(d);
       const rowsHere=weekRows.filter(r=>r.date&&fmtDate(r.date)===ds&&r.loaiCa===shift)
-        .sort((a,b)=>a.nv.localeCompare(b.nv,'vi'));
+        .sort((a,b)=>{
+          const pa=parseCaLamViecJS(a.caLam),pb=parseCaLamViecJS(b.caLam);
+          const sa=pa?pa.startMin:9999,sb=pb?pb.startMin:9999;
+          return sa-sb||a.nv.localeCompare(b.nv,'vi');
+        });
       if(!rowsHere.length)return`<td style="${bg}"><span style="color:var(--text3);font-size:10px;">—</span></td>`;
-      return`<td style="${bg}vertical-align:top;padding:6px 8px;">
-        <div style="display:flex;flex-direction:column;gap:3px;">
-          ${rowsHere.map(r=>`
-            <div style="display:flex;align-items:center;gap:5px;">
-              <span style="font-size:11px;font-weight:500;">${r.nv}</span>
-              ${r.boPhan&&r.boPhan!=='OFF'?`<span style="font-size:9px;color:var(--text3);">${shortOffice(r.boPhan)}</span>`:''}
-            </div>`).join('')}
-        </div>
-      </td>`;
+      if(shift==='OFF'){
+        return`<td style="${bg}vertical-align:top;padding:6px 8px;">
+          <div style="display:flex;flex-wrap:wrap;gap:4px;">
+            ${rowsHere.map(r=>`<span class="ca-badge ca-off" style="font-size:10px;">${r.nv}</span>`).join('')}
+          </div>
+        </td>`;
+      }
+      return`<td style="${bg}vertical-align:top;padding:4px 6px;">${renderGanttCell(rowsHere,shift,ganttWidth)}</td>`;
     }).join('');
     const countTotal=weekRows.filter(r=>r.loaiCa===shift).length;
     return`<tr><td>
         <span class="ca-badge ${cls}" style="font-size:10px;">${shift}</span>
-        <div style="font-size:9px;color:var(--text3);margin-top:4px;">${countTotal} lượt/tuần</div>
+        <div style="font-size:9px;color:var(--text3);margin-top:4px;">${countTotal} lượt</div>
       </td>${cells}</tr>`;
   }).join('');
+}
+
+const SHIFT_COLOR_VAR={'Ca Sáng':'--ca-sang','Ca Tối':'--ca-toi','Ca Lỡ':'--ca-lo','Trực đêm':'--truc-dem','OFF':'--off'};
+
+// Mini-Gantt: vẽ timeline 0h-24h, mỗi NV 1 thanh ngang đặt đúng vị trí giờ làm
+function renderGanttCell(rowsHere,shift,width){
+  const w=width||220;
+  const barColor=`var(${SHIFT_COLOR_VAR[shift]||'--accent'})`;
+  const axisTicks=[0,6,12,18,24];
+  const axis=`<div style="position:relative;height:10px;margin-bottom:3px;">
+    ${axisTicks.map(h=>`<span style="position:absolute;left:${(h/24*100).toFixed(2)}%;font-size:8px;color:var(--text3);transform:translateX(-50%);">${h}h</span>`).join('')}
+  </div>`;
+  const grid=axisTicks.map(h=>`<div style="position:absolute;left:${(h/24*100).toFixed(2)}%;top:0;bottom:0;width:1px;background:var(--border);"></div>`).join('');
+
+  const bars=rowsHere.map(r=>{
+    const parsed=parseCaLamViecJS(r.caLam);
+    let startMin=parsed?parsed.startMin:0;
+    let endMin=parsed?parsed.endMin:24*60;
+    // Kẹp về thang 0-24h hiển thị (ca qua đêm/không rõ giờ kết thúc -> kéo tới hết 24h)
+    if(endMin>24*60)endMin=24*60;
+    const leftPct=(startMin/(24*60)*100).toFixed(2);
+    const widthPct=Math.max(((endMin-startMin)/(24*60)*100),3).toFixed(2);
+    const noEnd=parsed?parsed.khongTinhOT:false;
+    const officeTag=r.boPhan&&r.boPhan!=='OFF'?shortOffice(r.boPhan):'';
+    const tooltipTime=r.caLam||(parsed?minToHHMM(parsed.startMin)+(noEnd?' → ?':' - '+minToHHMM(parsed.endMin%(24*60))):'');
+    return`<div style="position:relative;height:18px;margin-bottom:2px;">
+      <div title="${r.nv} · ${tooltipTime}${officeTag?' · '+officeTag:''}" style="position:absolute;left:${leftPct}%;width:${widthPct}%;top:1px;bottom:1px;background:${barColor};border-radius:4px;display:flex;align-items:center;padding:0 4px;overflow:hidden;white-space:nowrap;${noEnd?'background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.3) 0,rgba(255,255,255,.3) 4px,transparent 4px,transparent 8px);':''}">
+        <span style="font-size:9px;color:#fff;font-weight:600;text-shadow:0 1px 1px rgba(0,0,0,.35);">${r.nv}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  return`<div style="min-width:${w}px;">
+    ${axis}
+    <div style="position:relative;">
+      ${grid}
+      ${bars}
+    </div>
+  </div>`;
 }
 
 function renderMonthView(){
@@ -1504,39 +1601,106 @@ function renderOtStats(){
 }
 
 // ============================================================
-// THỐNG KÊ OFF THEO NĂM - mỗi NV 1 dòng, 12 cột tháng
+// THỐNG KÊ OFF THEO NĂM - mỗi NV 1 dòng, 12 cột tháng (filter Năm/Tháng riêng)
 // ============================================================
+function initOffYearFilter(){
+  const sel=document.getElementById('offYearFilterYear');
+  if(!sel||sel.dataset.inited)return; // chỉ khởi tạo 1 lần, tránh mất lựa chọn user khi reload data
+  const years=[...new Set(allData.filter(r=>r.date).map(r=>r.date.getFullYear()))].sort((a,b)=>b-a);
+  if(!years.length)years.push(new Date().getFullYear());
+  const curYear=new Date().getFullYear();
+  if(!years.includes(curYear))years.unshift(curYear);
+  sel.innerHTML=years.map(y=>`<option value="${y}">${y}</option>`).join('');
+  // Ưu tiên năm hiện tại nếu có dữ liệu, không thì lấy năm gần nhất có dữ liệu thật
+  const yearsWithData=[...new Set(allData.filter(r=>r.date).map(r=>r.date.getFullYear()))];
+  sel.value=yearsWithData.includes(curYear)?curYear:(yearsWithData.sort((a,b)=>b-a)[0]||curYear);
+
+  const grid=document.getElementById('offYearMonthChkGrid');
+  if(grid){
+    grid.innerHTML=Array.from({length:12},(_,i)=>{
+      const m=i+1;
+      return`<label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;"><input type="checkbox" class="offYearMonthChk" value="${m}" checked onchange="renderOffYearTable()">Th.${m}</label>`;
+    }).join('');
+  }
+  sel.dataset.inited='1';
+}
+
+function toggleOffYearMonthDropdown(){
+  const dd=document.getElementById('offYearMonthDropdown');
+  if(!dd)return;
+  dd.style.display=dd.style.display==='none'?'block':'none';
+}
+// Click ra ngoài thì tự đóng dropdown chọn tháng
+document.addEventListener('click',(e)=>{
+  const dd=document.getElementById('offYearMonthDropdown');
+  const btn=document.getElementById('offYearMonthBtn');
+  if(!dd||dd.style.display==='none')return;
+  if(e.target===btn||dd.contains(e.target))return;
+  dd.style.display='none';
+});
+
+function getOffYearSelectedMonths(){
+  return [...document.querySelectorAll('.offYearMonthChk')].filter(c=>c.checked).map(c=>parseInt(c.value));
+}
+function setOffYearMonths(mode){
+  const year=parseInt(document.getElementById('offYearFilterYear')?.value)||new Date().getFullYear();
+  const now=new Date();
+  const curYear=now.getFullYear(),curMonth=now.getMonth()+1;
+  let upTo=12;
+  if(mode==='ytd')upTo=(year===curYear)?curMonth:12; // năm quá khứ -> YTD = cả năm
+  document.querySelectorAll('.offYearMonthChk').forEach(c=>{
+    c.checked=mode==='all'?true:(parseInt(c.value)<=upTo);
+  });
+  renderOffYearTable();
+}
+function onOffYearYearChange(){
+  renderOffYearTable();
+}
+
 function renderOffYearTable(){
   const head=document.getElementById('offYearHead');
   const body=document.getElementById('offYearBody');
   if(!head||!body)return;
+  initOffYearFilter();
 
-  // Năm hiện hành dựa theo dữ liệu đang có (fallback năm hiện tại)
-  const year=allData.find(r=>r.date)?.date?.getFullYear()||new Date().getFullYear();
-  document.getElementById('offYearSubTitle').textContent='Năm '+year+' · Số ngày OFF mỗi tháng theo nhân viên';
+  const year=parseInt(document.getElementById('offYearFilterYear')?.value)||new Date().getFullYear();
+  const selectedMonths=getOffYearSelectedMonths();
+  const monthBtn=document.getElementById('offYearMonthBtn');
+  if(monthBtn){
+    monthBtn.textContent='Tháng: '+(selectedMonths.length===12?'Cả năm':selectedMonths.length?selectedMonths.sort((a,b)=>a-b).map(m=>'T'+m).join(', '):'Chưa chọn');
+  }
+  document.getElementById('offYearSubTitle').textContent='Năm '+year+' · Số ngày OFF theo tháng đã chọn theo nhân viên';
 
-  head.innerHTML=`<tr><th>Nhân viên</th>${Array.from({length:12},(_,i)=>`<th style="text-align:center;min-width:36px;">Th.${i+1}</th>`).join('')}<th style="text-align:center;">Tổng</th></tr>`;
+  head.innerHTML=`<tr><th>Nhân viên</th>${Array.from({length:12},(_,i)=>{
+    const on=selectedMonths.includes(i+1);
+    return`<th style="text-align:center;min-width:36px;${on?'':'opacity:.35;'}">Th.${i+1}</th>`;
+  }).join('')}<th style="text-align:center;">Tổng${selectedMonths.length<12?' (đã chọn)':''}</th></tr>`;
 
-  const nvs=[...new Set(filteredData.map(r=>r.nv))].sort((a,b)=>a.localeCompare(b,'vi'));
-  if(!nvs.length){body.innerHTML='<tr><td class="empty-state">Không có dữ liệu</td></tr>';return;}
+  const yearData=allData.filter(r=>r.date&&r.date.getFullYear()===year);
+  const nvs=[...new Set(yearData.map(r=>r.nv))].sort((a,b)=>a.localeCompare(b,'vi'));
+  if(!nvs.length){body.innerHTML='<tr><td class="empty-state">Không có dữ liệu cho năm '+year+'</td></tr>';return;}
 
   const map={};
   nvs.forEach(nv=>map[nv]=Array(12).fill(0));
-  filteredData.forEach(r=>{
+  yearData.forEach(r=>{
     if(r.loaiCa==='OFF'&&r.thang>=1&&r.thang<=12&&map[r.nv])map[r.nv][r.thang-1]++;
   });
 
   body.innerHTML=nvs.map(nv=>{
     const counts=map[nv];
-    const total=counts.reduce((s,c)=>s+c,0);
-    const cells=counts.map(c=>`<td style="text-align:center;">${c?`<span class="ca-badge ca-off" style="font-size:10px;">${c}</span>`:`<span style="color:var(--text3);font-size:10px;">–</span>`}</td>`).join('');
+    const total=counts.reduce((s,c,i)=>selectedMonths.includes(i+1)?s+c:s,0);
+    const cells=counts.map((c,i)=>{
+      const on=selectedMonths.includes(i+1);
+      const dim=on?'':'opacity:.35;';
+      return`<td style="text-align:center;${dim}">${c?`<span class="ca-badge ca-off" style="font-size:10px;">${c}</span>`:`<span style="color:var(--text3);font-size:10px;">–</span>`}</td>`;
+    }).join('');
     return`<tr><td><div class="nv-name">${nv}</div></td>${cells}<td style="text-align:center;font-weight:600;">${total}</td></tr>`;
   }).join('');
 }
 
 
-function changeWeek(d){currentWeekStart=addDays(currentWeekStart,d*7);renderAll();}
-function goToday(){currentWeekStart=getWeekStart(new Date());renderAll();}
+function changeWeek(d){currentWeekStart=addDays(currentWeekStart,d*7);shiftAnchorDate=null;renderAll();}
+function goToday(){currentWeekStart=getWeekStart(new Date());shiftAnchorDate=null;renderAll();}
 function updateWeekLabel(){
   const ws=currentWeekStart,we=addDays(ws,6);
   const lbl=fmtDisp(ws)+' – '+fmtDisp(we)+'/'+we.getFullYear();
