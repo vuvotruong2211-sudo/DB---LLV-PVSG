@@ -807,8 +807,8 @@
     <img id="loginLogo" src="" alt="Logo" style="display:block;width:88px;height:88px;object-fit:contain;margin:0 auto 14px;border-radius:50%;">
     <div id="loginWelcomeTitle" style="text-align:center;font-size:16px;font-weight:700;margin-bottom:4px;"></div>
     <div id="loginWelcomeSub" style="text-align:center;font-size:12px;color:var(--text3);margin-bottom:16px;"></div>
-    <div class="modal-title">🔐 Thành công lớn nhất của con người là biến đam mê thành thu nhập</div>
-    <div class="modal-sub">Chọn hoặc nhập tên của bạn. Yêu cầu passcode để bảo mật dữ liệu của chính bạn</div>
+    <div class="modal-title">🔐 Đăng nhập xem lịch làm việc</div>
+    <div class="modal-sub">Chọn tên và nhập passcode cá nhân (dùng chung với phiếu lương)</div>
     <select id="loginNVSelect" style="display:none;"></select>
     <label class="field-label" style="margin-top:0;">Văn phòng / Tên nhân viên</label>
     <div class="nv-picker-row">
@@ -1826,13 +1826,14 @@ async function loadData(){
     if(json.status!=='ok')throw new Error(json.message||'Apps Script trả về lỗi');
 
     allData=json.data.map(r=>({
-      date: r.date?(()=>{const p=r.date.split('-');return new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]),12,0,0);})():null,
-      thu:  r.thu||'',
-      nv:   r.nv||'',
-      boPhan: r.boPhan||'',
-      caLam:  r.caLam||'',
-      loaiCa: r.loaiCa||'',
-      thang:  parseInt(r.thang)||0,
+      date:     r.date?(()=>{const p=r.date.split('-');return new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]),12,0,0);})():null,
+      thu:      r.thu||'',
+      nv:       r.nv||'',
+      boPhan:   r.boPhan||'',   // VP nhỏ (Bà Điểm, Gò Dưa...) — hiển thị trên lịch
+      vanPhong: r.vanPhong||'', // VP lớn (HCM, Quảng Ngãi, Đà Lạt) — dùng phân quyền
+      caLam:    r.caLam||'',
+      loaiCa:   r.loaiCa||'',
+      thang:    parseInt(r.thang)||0,
     })).filter(r=>r.date&&r.nv);
 
     processData();
@@ -1901,15 +1902,19 @@ function populateFilters(){
   const myVP=currentUser?currentUser.boPhan:'';
 
   // squanly: xem tất cả VP | quanly/nhanvien: chỉ VP của mình
+  // Chuẩn hoá tên VP để so sánh không phân biệt hoa thường/khoảng trắng thừa
+  const normVP=(s)=>String(s||'').trim().toLowerCase().replace(/\s+/g,' ');
+  const myVPNorm=normVP(myVP);
+
   const visibleOffices=isSuperManager
     ? allOffices
-    : myVP ? allOffices.filter(o=>o===myVP) : allOffices;
+    : myVPNorm ? allOffices.filter(o=>normVP(o)===myVPNorm) : allOffices;
 
   // NV được hiện trong filter: chỉ NV thuộc VP được phép xem
   const visibleNvs=isSuperManager
     ? allNvs
-    : myVP
-      ? [...new Set(allData.filter(r=>r.boPhan===myVP).map(r=>r.nv))].sort()
+    : myVPNorm
+      ? [...new Set(allData.filter(r=>normVP(r.vanPhong)===myVPNorm).map(r=>r.nv))].sort()
       : allNvs;
 
   // Multi-select Văn phòng
@@ -2047,11 +2052,15 @@ function applyFilters(){
 
   const isSuperManager=currentUser&&currentUser.isSuperManager;
   const myVP=currentUser?currentUser.boPhan:'';
+  // Chuẩn hoá tên VP để so sánh không phân biệt hoa thường/khoảng trắng thừa
+  // vì Apps Script A (lịch) và Apps Script B (Master_NV) có thể ghi tên VP khác định dạng
+  const normVP=(s)=>String(s||'').trim().toLowerCase().replace(/\s+/g,' ');
+  const myVPNorm=normVP(myVP);
 
   filteredData=allData.filter(r=>{
     // Giới hạn theo phân quyền VP — tầng bảo vệ chính
     // squanly: xem tất cả | quanly + nhanvien: chỉ VP mình
-    if(!isSuperManager && myVP && r.boPhan !== myVP) return false;
+    if(!isSuperManager && myVPNorm && normVP(r.vanPhong) !== myVPNorm) return false;
     // Filter tuỳ chọn (multi-select VP/NV — trong phạm vi được phép)
     if(selectedOffices.length>0&&!selectedOffices.includes(r.boPhan))return false;
     if(selectedNVs.length>0&&!selectedNVs.includes(r.nv))return false;
