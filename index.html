@@ -1577,7 +1577,7 @@ function initAuth(){
     hideLoginGate();
     updateUserBadge();
     loadNewsFeed(); // đã đăng nhập sẵn -> tải ngay bảng tin (trang chủ)
-    // loadData() KHÔNG gọi ở đây — window.onload sẽ gọi 1 lần duy nhất sau khi DOM sẵn sàng
+    loadData();     // tải ngay lịch làm việc, không cần bấm nút thủ công
   }else{
     showLoginGate();
   }
@@ -1712,13 +1712,22 @@ document.addEventListener('keydown',(e)=>{
   }
 });
 
-// Giới hạn D+2: trả về true nếu ngày d bị khoá (chỉ cho NV thường, Quản lý luôn xem đủ)
-function isDateLocked(d){
+// isDateLocked: khoá ngày tương lai xa (> D+2) với NV thường để tránh xem lịch chưa xếp
+// NGOẠI LỆ: nếu ngày đó có dữ liệu OFF (nghỉ phép đã được duyệt) thì KHÔNG khoá
+// → NV luôn thấy được ngày nghỉ của mình dù xa tới đâu
+function isDateLocked(d, nvName){
   if(currentUser&&currentUser.isManager)return false;
   const today=new Date();today.setHours(0,0,0,0);
   const limit=addDays(today,2); // D+2
   const dd=new Date(d);dd.setHours(0,0,0,0);
-  return dd>limit;
+  if(dd<=limit)return false; // trong D+2 → không khoá
+  // Nếu có dữ liệu cho ngày này (OFF hoặc ca đã xếp) → không khoá
+  if(nvName){
+    const ds=fmtDate(dd);
+    const hasData=filteredData.some(r=>r.nv===nvName&&r.date&&fmtDate(r.date)===ds);
+    if(hasData)return false;
+  }
+  return true;
 }
 
 const OFFICE_SHORT = {
@@ -1792,47 +1801,37 @@ function normalizeLoaiCa(loai,caLam){
 // ============================================================
 // LOAD TỪ APPS SCRIPT — JSONP (bypass CORS hoàn toàn)
 // ============================================================
-function fetchJSONP(url, timeoutMs){
-  timeoutMs = timeoutMs || 45000; // tăng lên 45s — Apps Script cold-start có thể mất 20-30s
+function fetchJSONP(url){
   return new Promise((resolve,reject)=>{
-    const cb='_cb'+Date.now()+'_'+Math.floor(Math.random()*10000);
+    const cb='_cb'+Date.now();
     const script=document.createElement('script');
     const timer=setTimeout(()=>{
       cleanup();
-      reject(new Error('Timeout — Apps Script chưa phản hồi sau '+Math.round(timeoutMs/1000)+'s'));
-    },timeoutMs);
+      reject(new Error('Timeout 20s — Kiểm tra lại URL hoặc quyền truy cập Apps Script'));
+    },20000);
     window[cb]=(data)=>{clearTimeout(timer);cleanup();resolve(data);};
     script.onerror=()=>{clearTimeout(timer);cleanup();reject(new Error('Không gọi được Apps Script. Kiểm tra URL và quyền "Anyone".'));};
-    function cleanup(){delete window[cb];try{if(script.parentNode)script.parentNode.removeChild(script);}catch(e){}}
-    script.src=url+(url.includes('?')?'&':'?')+'callback='+cb+'&_t='+Date.now();
+    function cleanup(){delete window[cb];if(document.body.contains(script))document.body.removeChild(script);}
+    script.src=url+(url.includes('?')?'&':'?')+'callback='+cb;
     document.body.appendChild(script);
   });
 }
 
-// loadData có retry tự động: thử lần 1 → nếu fail thì đợi 10s → thử lần 2
-let _loadDataRunning=false;
-async function loadDataWithRetry(attempt){
-  attempt=attempt||1;
-  if(_loadDataRunning&&attempt===1)return; // tránh chạy song song
-  _loadDataRunning=true;
-
+async function loadData(){
+  // Ưu tiên đọc URL từ CONFIG (set cứng, luôn có sẵn) thay vì từ ô input
+  // để tránh race condition khi auto-load lúc trang mới mở
   const url=(
     (typeof CONFIG!=='undefined'&&CONFIG.webAppUrl)
     ? CONFIG.webAppUrl
     : (document.getElementById('webAppUrl').value||'').trim()
   );
-  if(!url){setStatus('⚠️ Chưa nhập Apps Script URL','warn');_loadDataRunning=false;return;}
+  if(!url){setStatus('⚠️ Chưa nhập Apps Script URL','warn');return;}
 
-  if(attempt===1){
-    showLoading('Đang kết nối Apps Script...');
-    document.getElementById('loadBtn').disabled=true;
-  }else{
-    showLoading('Kết nối lần '+attempt+'...');
-    setStatus('🔄 Đang thử lại lần '+attempt+'/3...','warn');
-  }
+  showLoading('Đang kết nối Apps Script...');
+  document.getElementById('loadBtn').disabled=true;
 
   try{
-    const json=await fetchJSONP(url, 45000);
+    const json=await fetchJSONP(url);
     if(json.status!=='ok')throw new Error(json.message||'Apps Script trả về lỗi');
 
     allData=json.data.map(r=>({
@@ -1853,26 +1852,16 @@ async function loadDataWithRetry(attempt){
     setStatus('✅ '+allData.length.toLocaleString()+' bản ghi · '+
       [...new Set(allData.map(r=>r.nv))].length+' nhân viên · '+
       [...new Set(allData.map(r=>r.thang).filter(Boolean))].length+' tháng','ok');
-    try{localStorage.setItem('llv_url',url);}catch(e){}
-    _loadDataRunning=false;
 
-  }catch(err){
-    if(attempt<3){
-      const wait=attempt*10; // lần 2 đợi 10s, lần 3 đợi 20s
-      setStatus('⚠️ Lần '+attempt+' thất bại — thử lại sau '+wait+'s... ('+err.message+')','warn');
-      setTimeout(()=>loadDataWithRetry(attempt+1), wait*1000);
-    }else{
-      setStatus('❌ Thất bại sau 3 lần thử — '+err.message,'err');
-      _loadDataRunning=false;
-    }
+    try{localStorage.setItem('llv_url',url);}catch(e){}
+
+  }catch(e){
+    setStatus('❌ '+e.message,'err');
   }
 
   hideLoading();
   document.getElementById('loadBtn').disabled=false;
 }
-
-// loadData = alias của loadDataWithRetry để nút "Đồng bộ" và các chỗ gọi cũ vẫn hoạt động
-function loadData(){ _loadDataRunning=false; loadDataWithRetry(1); }
 
 // ============================================================
 // DEMO DATA
@@ -1919,25 +1908,22 @@ function populateFilters(){
   // Xác định VP và NV được phép xem theo phân quyền
   const isSuperManager=currentUser&&currentUser.isSuperManager;
   const isManager=currentUser&&currentUser.isManager;
-  // vanPhong = VP lớn (HCM/Quảng Ngãi/Đà Lạt) — dùng phân quyền
-  // boPhan   = VP nhỏ (Bà Điểm/Gò Dưa/LHP...) — chỉ dùng hiển thị
-  const myVP=currentUser?(currentUser.vanPhong||currentUser.boPhan):'';
+  const myVP=currentUser?currentUser.boPhan:'';
+
+  // squanly: xem tất cả VP | quanly/nhanvien: chỉ VP của mình
+  // Chuẩn hoá tên VP để so sánh không phân biệt hoa thường/khoảng trắng thừa
   const normVP=(s)=>String(s||'').trim().toLowerCase().replace(/\s+/g,' ');
   const myVPNorm=normVP(myVP);
-  const hasVanPhongData=allData.some(r=>r.vanPhong&&r.vanPhong.trim());
 
-  // visibleOffices = VP nhỏ (boPhan) mà user được phép thấy
   const visibleOffices=isSuperManager
     ? allOffices
-    : myVPNorm && hasVanPhongData
-      ? [...new Set(allData.filter(r=>normVP(r.vanPhong)===myVPNorm).map(r=>r.boPhan).filter(o=>o&&o!=='OFF'))].sort()
-      : allOffices;
+    : myVPNorm ? allOffices.filter(o=>normVP(o)===myVPNorm) : allOffices;
 
-  // visibleNvs = NV thuộc VP lớn của mình
+  // NV được hiện trong filter: chỉ NV thuộc VP được phép xem
   const visibleNvs=isSuperManager
     ? allNvs
-    : myVPNorm && hasVanPhongData
-      ? [...new Set(allData.filter(r=>normVP(r.vanPhong)===myVPNorm).map(r=>r.nv))].sort()
+    : myVPNorm
+      ? [...new Set(allData.filter(r=>{const rvp=normVP(r.vanPhong)||normVP(r.boPhan);return !rvp||rvp===myVPNorm;}).map(r=>r.nv))].sort()
       : allNvs;
 
   // Multi-select Văn phòng
@@ -1959,11 +1945,16 @@ function populateFilters(){
   updateNvLabel();
 
   const ms=document.getElementById('filterMonth');
+  const prevMonth=ms.value; // giữ tháng đang chọn nếu có
   ms.innerHTML='<option value="">Tất cả tháng</option>';
   months.forEach(m=>ms.innerHTML+=`<option value="${m}">Tháng ${m}</option>`);
-
-  const curM=new Date().getMonth()+1;
-  if(months.includes(curM))ms.value=curM;
+  // Khôi phục lựa chọn cũ nếu vẫn còn trong danh sách, không tự force tháng hiện tại
+  // (để NV xem được lịch tháng tương lai khi có OFF đã được duyệt)
+  if(prevMonth&&months.includes(parseInt(prevMonth))){
+    ms.value=prevMonth;
+  }else{
+    ms.value=''; // mặc định: Tất cả tháng
+  }
 }
 
 // ============================================================
@@ -2074,22 +2065,24 @@ function applyFilters(){
   const month=document.getElementById('filterMonth').value;
 
   const isSuperManager=currentUser&&currentUser.isSuperManager;
-  // vanPhong = VP lớn (HCM/Quảng Ngãi/Đà Lạt) — dùng phân quyền lọc dữ liệu
-  // boPhan   = VP nhỏ (Bà Điểm/Gò Dưa/LHP...) — chỉ dùng hiển thị trên lịch
-  const myVP=currentUser?(currentUser.vanPhong||currentUser.boPhan):'';
+  const myVP=currentUser?currentUser.boPhan:'';
+  // Chuẩn hoá tên VP để so sánh không phân biệt hoa thường/khoảng trắng thừa
+  // vì Apps Script A (lịch) và Apps Script B (Master_NV) có thể ghi tên VP khác định dạng
   const normVP=(s)=>String(s||'').trim().toLowerCase().replace(/\s+/g,' ');
   const myVPNorm=normVP(myVP);
 
-  // Chỉ bật filter phân quyền khi cột J (vanPhong) đã có dữ liệu trong sheet
-  const hasVanPhongData=allData.some(r=>r.vanPhong&&r.vanPhong.trim());
+  // Kiểm tra xem vanPhong có đang hoạt động không (cột J đã có dữ liệu)
+  // Nếu TOÀN BỘ allData đều không có vanPhong → cột J chưa điền/chưa authorize
+  // → tạm thời bỏ filter VP để NV vẫn thấy được lịch
+  const hasVanPhongData = allData.some(r => r.vanPhong && r.vanPhong.trim());
 
   filteredData=allData.filter(r=>{
     // Giới hạn theo phân quyền VP — tầng bảo vệ chính
+    // squanly: xem tất cả | quanly + nhanvien: chỉ VP mình
     if(!isSuperManager && myVPNorm && hasVanPhongData){
-      const rvp=normVP(r.vanPhong);
-      // Lọc chặt: dòng có vanPhong khác VP mình → loại
-      // dòng không có vanPhong (rvp="") → cũng loại để tránh lọt
-      if(rvp !== myVPNorm) return false;
+      // Chỉ lọc theo VP khi đã có dữ liệu vanPhong trong cột J
+      const rvp = normVP(r.vanPhong);
+      if(rvp && rvp !== myVPNorm) return false;
     }
     // Filter tuỳ chọn (multi-select VP/NV — trong phạm vi được phép)
     if(selectedOffices.length>0&&!selectedOffices.includes(r.boPhan))return false;
@@ -2173,14 +2166,7 @@ function renderWeekView(days,weekRows){
     const cells=days.map(d=>{
       const isToday=fmtDate(d)===today;
       const bg=isToday?'background:rgba(79,110,247,.08);':'';
-      const locked=isDateLocked(d);
-      if(locked){
-        return`<td style="${bg}" class="locked-td">
-          <div class="locked-cell">
-            <span class="ca-badge ca-off">···</span>
-          </div>
-          <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:14px;">🔒</div>
-        </td>`;
+      const locked=isDateLocked(d, nv);
       }
       const r=lk[nv+'|'+fmtDate(d)];
       if(!r)return`<td style="${bg}"><span style="color:var(--text3);font-size:10px;">—</span></td>`;
@@ -2263,12 +2249,7 @@ function renderShiftView(weekDays,weekRowsFull){
     const cells=days.map(d=>{
       const isToday=fmtDate(d)===today;
       const bg=isToday?'background:rgba(79,110,247,.08);':'';
-      const locked=isDateLocked(d);
-      if(locked){
-        return`<td style="${bg}" class="locked-td">
-          <div class="locked-cell"><span class="ca-badge ca-off">···</span></div>
-          <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:14px;">🔒</div>
-        </td>`;
+      const locked=isDateLocked(d, null); // ShiftView không theo từng NV, dùng null → chỉ lock khi không có data gì
       }
       const ds=fmtDate(d);
       const rowsHere=weekRows.filter(r=>r.date&&fmtDate(r.date)===ds&&r.loaiCa===shift)
@@ -2355,7 +2336,7 @@ function renderMonthView(){
     const cells=dayNums.map(d=>{
       const yearForLock=allData.find(r=>r.thang===month)?.date?.getFullYear()||new Date().getFullYear();
       const cellDateReal=new Date(yearForLock, month-1, d, 12,0,0);
-      const locked=isDateLocked(cellDateReal);
+      const locked=isDateLocked(cellDateReal, nv);
       const r=lk[nv+'|'+d];
       const bg=d===todayD?'background:rgba(79,110,247,.1);':'';
       if(locked){
@@ -3882,54 +3863,78 @@ async function checkNghiPhepQuota(){
   box.textContent='Đang kiểm tra số lượng đã đăng ký...';
 
   try{
+    // 1 call duy nhất — lấy list + isManager + vanPhong cùng lúc
     const url=CONFIG.payrollUrl+'?action=getNghiPhepList&nv='+encodeURIComponent(nghiPhepUser.nv)+'&passcode='+encodeURIComponent(nghiPhepUser.passcode);
-    const json=await fetchJSONP(url);
+    const json=await fetchJSONP(url, 45000);
     if(json.status!=='ok')throw new Error(json.message);
     nghiPhepIsManager=json.data.isManager;
     nghiPhepVanPhong=json.data.vanPhong;
+    nghiPhepLastList=json.data; // cache luôn
     document.getElementById('nghiPhepTabDuyet').style.display=nghiPhepIsManager?'block':'none';
 
     const configUrl=CONFIG.payrollUrl+'?action=getGioiHanOffConfig';
-    const configJson=await fetchJSONP(configUrl);
-    const gioiHan=(configJson.status==='ok'&&configJson.data[nghiPhepVanPhong]!==undefined)?configJson.data[nghiPhepVanPhong]:2;
+    const configJson=await fetchJSONP(configUrl, 45000);
+    const gioiHan=(configJson.status==='ok'&&configJson.data[nghiPhepVanPhong]!==undefined)
+      ? configJson.data[nghiPhepVanPhong] : 2;
 
-    // Đếm số đơn (Chờ duyệt + Đã duyệt) trùng ngày, cùng văn phòng — lấy từ list đầy đủ của Quản lý nếu có quyền,
-    // nếu không thì chỉ ước lượng được dựa trên đơn của chính mình (chặn thật vẫn do backend xử lý khi Gửi)
-    let soLuong=0;
-    if(nghiPhepIsManager){
-      const allUrl=CONFIG.payrollUrl+'?action=getNghiPhepList&nv='+encodeURIComponent(nghiPhepUser.nv)+'&passcode='+encodeURIComponent(nghiPhepUser.passcode);
-      const allJson=await fetchJSONP(allUrl);
-      if(allJson.status==='ok'){
-        soLuong=allJson.data.rows.filter(r=>r.ngayNghi===ngay&&r.vanPhong===nghiPhepVanPhong&&r.trangThai!=='Từ chối').length;
-      }
-    }else{
-      soLuong=null; // NV thường không xem được đơn của người khác -> không ước lượng trước, chỉ biết khi Gửi
-    }
+    // Đếm đơn trùng ngày cùng VP — dùng list vừa load (isManager thấy tất cả VP mình, NV thấy đơn mình)
+    // Backend vẫn là tầng chặn cứng cuối cùng
+    const soLuong=json.data.rows.filter(r=>
+      r.ngayNghi===ngay &&
+      r.vanPhong===nghiPhepVanPhong &&
+      r.trangThai!=='Từ chối'
+    ).length;
 
-    if(soLuong===null){
-      box.textContent='ℹ️ Văn phòng "'+nghiPhepVanPhong+'" cho phép tối đa '+gioiHan+' người nghỉ/ngày. Hệ thống sẽ tự kiểm tra khi bạn gửi đăng ký.';
+    // Kiểm tra NV này đã có đơn ngày đó chưa (chặn trùng phía frontend)
+    const daTuDangKy=json.data.rows.some(r=>
+      r.ngayNghi===ngay &&
+      r.nv===nghiPhepUser.nv &&
+      r.trangThai!=='Từ chối'
+    );
+
+    if(daTuDangKy){
+      box.className='nghiphep-quota-box full';
+      box.textContent='⛔ Bạn đã có đơn đăng ký nghỉ ngày này rồi. Vui lòng chọn ngày khác.';
+      document.getElementById('nghiPhepSubmitBtn').disabled=true;
     }else if(soLuong>=gioiHan){
       box.className='nghiphep-quota-box full';
-      box.textContent='⛔ Ngày này đã đủ '+soLuong+'/'+gioiHan+' người đăng ký tại văn phòng "'+nghiPhepVanPhong+'". Vui lòng chọn ngày khác.';
+      box.textContent='⛔ Ngày này đã đủ '+soLuong+'/'+gioiHan+' người đăng ký tại VP "'+nghiPhepVanPhong+'". Vui lòng chọn ngày khác.';
+      document.getElementById('nghiPhepSubmitBtn').disabled=true;
     }else if(soLuong===gioiHan-1){
       box.className='nghiphep-quota-box warn';
-      box.textContent='⚠️ Còn 1 chỗ cuối: '+soLuong+'/'+gioiHan+' người đã đăng ký tại văn phòng "'+nghiPhepVanPhong+'".';
+      box.textContent='⚠️ Còn 1 chỗ cuối: '+soLuong+'/'+gioiHan+' người đã đăng ký tại VP "'+nghiPhepVanPhong+'".';
+      document.getElementById('nghiPhepSubmitBtn').disabled=false;
     }else{
-      box.textContent='✅ '+soLuong+'/'+gioiHan+' người đã đăng ký tại văn phòng "'+nghiPhepVanPhong+'". Vẫn còn chỗ.';
+      box.textContent='✅ '+soLuong+'/'+gioiHan+' người đã đăng ký tại VP "'+nghiPhepVanPhong+'". Vẫn còn chỗ.';
+      document.getElementById('nghiPhepSubmitBtn').disabled=false;
     }
   }catch(e){
     box.textContent='Không kiểm tra được trước — hệ thống vẫn sẽ tự chặn khi bạn gửi nếu đã đủ chỗ.';
+    document.getElementById('nghiPhepSubmitBtn').disabled=false;
   }
 }
 
 async function submitNghiPhepForm(){
   const msg=document.getElementById('nghiPhepFormMsg');
   msg.style.display='none';
-  if(!nghiPhepUser){msg.textContent='❌ Phiên đăng nhập đã hết, vui lòng mở lại.';msg.className='nghiphep-msg error';return;}
+  if(!nghiPhepUser){msg.textContent='❌ Phiên đăng nhập đã hết, vui lòng mở lại.';msg.className='nghiphep-msg error';msg.style.display='block';return;}
 
   const ngay=document.getElementById('nghiPhepFormNgay').value;
   const lyDo=document.getElementById('nghiPhepFormLyDo').value.trim();
-  if(!ngay){msg.textContent='❌ Vui lòng chọn ngày muốn nghỉ.';msg.className='nghiphep-msg error';return;}
+  if(!ngay){msg.textContent='❌ Vui lòng chọn ngày muốn nghỉ.';msg.className='nghiphep-msg error';msg.style.display='block';return;}
+
+  // Kiểm tra trùng đơn phía frontend trước khi gửi (tầng bảo vệ bổ sung)
+  if(nghiPhepLastList&&nghiPhepLastList.rows){
+    const trung=nghiPhepLastList.rows.some(r=>
+      r.ngayNghi===ngay && r.nv===nghiPhepUser.nv && r.trangThai!=='Từ chối'
+    );
+    if(trung){
+      msg.textContent='❌ Bạn đã có đơn đăng ký nghỉ ngày này rồi. Vui lòng chọn ngày khác.';
+      msg.className='nghiphep-msg error';
+      msg.style.display='block';
+      return;
+    }
+  }
 
   const btn=document.getElementById('nghiPhepSubmitBtn');
   btn.disabled=true;btn.textContent='Đang gửi...';
@@ -3937,17 +3942,20 @@ async function submitNghiPhepForm(){
   try{
     const payload={nv:nghiPhepUser.nv,passcode:nghiPhepUser.passcode,ngayNghi:ngay,lyDo:lyDo};
     const url=CONFIG.payrollUrl+'?action=submitNghiPhep&payload='+encodeURIComponent(JSON.stringify(payload));
-    const json=await fetchJSONP(url);
+    const json=await fetchJSONP(url, 45000);
     if(json.status!=='ok')throw new Error(json.message||'Đăng ký thất bại');
 
     msg.textContent='✅ '+json.message;
     msg.className='nghiphep-msg success';
+    msg.style.display='block';
     document.getElementById('nghiPhepFormLyDo').value='';
+    document.getElementById('nghiPhepFormNgay').value='';
     document.getElementById('nghiPhepQuotaBox').style.display='none';
-    nghiPhepLastList=null; // invalidate cache
+    nghiPhepLastList=null; // invalidate cache để load lại
   }catch(e){
-    msg.textContent='❌ '+e.message; // message từ backend đã có sẵn lời giải thích chi tiết khi bị chặn do trùng/đủ chỗ
+    msg.textContent='❌ '+e.message;
     msg.className='nghiphep-msg error';
+    msg.style.display='block';
   }
   btn.disabled=false;btn.textContent='Gửi đăng ký';
 }
@@ -4330,11 +4338,11 @@ document.addEventListener('keydown',(e)=>{
 // ============================================================
 window.addEventListener('load',()=>{
   initTheme();
-  initAuth(); // initAuth KHÔNG gọi loadData nữa
+  initAuth();
+  // Luôn dùng URL cố định từ CONFIG
   const url = (typeof CONFIG!=='undefined'&&CONFIG.webAppUrl) ? CONFIG.webAppUrl : '';
   if(url) {
     document.getElementById('webAppUrl').value=url;
-    // Gọi loadData 1 lần duy nhất — có retry tự động nếu Apps Script cold-start
     loadData();
   }
   updateWeekLabel();
