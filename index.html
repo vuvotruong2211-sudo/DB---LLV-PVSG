@@ -2167,6 +2167,13 @@ function renderWeekView(days,weekRows){
       const isToday=fmtDate(d)===today;
       const bg=isToday?'background:rgba(79,110,247,.08);':'';
       const locked=isDateLocked(d, nv);
+      if(locked){
+        return`<td style="${bg}" class="locked-td">
+          <div class="locked-cell">
+            <span class="ca-badge ca-off">···</span>
+          </div>
+          <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:14px;">🔒</div>
+        </td>`;
       }
       const r=lk[nv+'|'+fmtDate(d)];
       if(!r)return`<td style="${bg}"><span style="color:var(--text3);font-size:10px;">—</span></td>`;
@@ -2250,6 +2257,11 @@ function renderShiftView(weekDays,weekRowsFull){
       const isToday=fmtDate(d)===today;
       const bg=isToday?'background:rgba(79,110,247,.08);':'';
       const locked=isDateLocked(d, null); // ShiftView không theo từng NV, dùng null → chỉ lock khi không có data gì
+      if(locked){
+        return`<td style="${bg}" class="locked-td">
+          <div class="locked-cell"><span class="ca-badge ca-off">···</span></div>
+          <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:14px;">🔒</div>
+        </td>`;
       }
       const ds=fmtDate(d);
       const rowsHere=weekRows.filter(r=>r.date&&fmtDate(r.date)===ds&&r.loaiCa===shift)
