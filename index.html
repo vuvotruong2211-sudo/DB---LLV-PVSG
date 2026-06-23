@@ -1712,20 +1712,22 @@ document.addEventListener('keydown',(e)=>{
   }
 });
 
-// isDateLocked: khoá ngày tương lai xa (> D+2) với NV thường để tránh xem lịch chưa xếp
-// NGOẠI LỆ: nếu ngày đó có dữ liệu OFF (nghỉ phép đã được duyệt) thì KHÔNG khoá
-// → NV luôn thấy được ngày nghỉ của mình dù xa tới đâu
+// isDateLocked: khoá ngày tương lai xa (> D+2) với NV thường
+// NGOẠI LỆ DUY NHẤT: ngày đó có dòng OFF (nghỉ phép đã duyệt) → hiện OFF, không lock
+// Ca thật tương lai (Ca Sáng/Tối/...) vẫn lock — NV không được xem lịch chưa công bố
 function isDateLocked(d, nvName){
   if(currentUser&&currentUser.isManager)return false;
   const today=new Date();today.setHours(0,0,0,0);
   const limit=addDays(today,2); // D+2
   const dd=new Date(d);dd.setHours(0,0,0,0);
   if(dd<=limit)return false; // trong D+2 → không khoá
-  // Nếu có dữ liệu cho ngày này (OFF hoặc ca đã xếp) → không khoá
+  // Chỉ unlock nếu NV đó có dòng OFF đúng ngày này (nghỉ phép đã được duyệt)
   if(nvName){
     const ds=fmtDate(dd);
-    const hasData=filteredData.some(r=>r.nv===nvName&&r.date&&fmtDate(r.date)===ds);
-    if(hasData)return false;
+    const hasOff=filteredData.some(r=>
+      r.nv===nvName && r.date && fmtDate(r.date)===ds && r.loaiCa==='OFF'
+    );
+    if(hasOff)return false;
   }
   return true;
 }
@@ -2154,7 +2156,11 @@ function renderWeekView(days,weekRows){
 
   head.innerHTML=`<tr><th>Nhân viên</th>${days.map((d,i)=>`<th class="day-col"><div class="day-header">${thu[i]}</div><div class="day-date">${fmtDisp(d)}</div></th>`).join('')}</tr>`;
 
-  const nvs=[...new Set(weekRows.map(r=>r.nv))].sort();
+  const allNvsInWeek=[...new Set(weekRows.map(r=>r.nv))].sort();
+  // NV thường chỉ thấy lịch của chính mình — Quản lý thấy tất cả
+  const isMgr=currentUser&&currentUser.isManager;
+  const myNv=currentUser?currentUser.nv:'';
+  const nvs=isMgr ? allNvsInWeek : allNvsInWeek.filter(n=>n===myNv);
   if(!nvs.length){body.innerHTML='';empty.style.display='block';return;}
   empty.style.display='none';
 
@@ -2331,7 +2337,10 @@ function renderMonthView(){
   const month=parseInt(document.getElementById('filterMonth').value)||(new Date().getMonth()+1);
   const daysInMonth=new Date(2025,month,0).getDate();
   const monthR=filteredData.filter(r=>r.thang===month);
-  const nvs=[...new Set(monthR.map(r=>r.nv))].sort();
+  const allNvsInMonth=[...new Set(monthR.map(r=>r.nv))].sort();
+  const isMgrM=currentUser&&currentUser.isManager;
+  const myNvM=currentUser?currentUser.nv:'';
+  const nvs=isMgrM ? allNvsInMonth : allNvsInMonth.filter(n=>n===myNvM);
   const dayNums=Array.from({length:daysInMonth},(_,i)=>i+1);
   const head=document.getElementById('scheduleHead');
   const body=document.getElementById('scheduleBody');
@@ -3828,13 +3837,19 @@ async function submitNghiPhepLogin(){
 
   showLoading('Đang xác thực...');
   try{
-    const url=CONFIG.payrollUrl+'?action=checkPasscode&nv='+encodeURIComponent(nv)+'&passcode='+encodeURIComponent(passcode);
-    const json=await fetchJSONP(url);
-    if(json.status!=='ok'||!json.data||!json.data.valid)throw new Error('Passcode không đúng.');
+    // Dùng loginSchedule thay checkPasscode để lấy vanPhong + chucVu ngay khi đăng nhập
+    // → nghiPhepVanPhong có giá trị đúng trước khi checkNghiPhepQuota chạy
+    const url=CONFIG.payrollUrl+'?action=loginSchedule&nv='+encodeURIComponent(nv)+'&passcode='+encodeURIComponent(passcode);
+    const json=await fetchJSONP(url,45000);
+    if(json.status!=='ok'||!json.data)throw new Error('Passcode không đúng.');
 
     nghiPhepUser={nv:nv,passcode:passcode};
+    // Lấy vanPhong từ loginSchedule — đây là VP lớn (HCM/Quảng Ngãi/Đà Lạt)
+    nghiPhepVanPhong=json.data.vanPhong||json.data.boPhan||'';
+    nghiPhepIsManager=json.data.isManager||false;
+    document.getElementById('nghiPhepTabDuyet').style.display=nghiPhepIsManager?'block':'none';
 
-    // Ngày mặc định = ngày mai (nghỉ từ hôm nay trở đi)
+    // Ngày mặc định = ngày mai
     document.getElementById('nghiPhepFormNgay').value=fmtDate(addDays(new Date(),1));
     document.getElementById('nghiPhepQuotaBox').style.display='none';
     document.getElementById('nghiPhepFormLyDo').value='';
@@ -3875,56 +3890,69 @@ async function checkNghiPhepQuota(){
   box.textContent='Đang kiểm tra số lượng đã đăng ký...';
 
   try{
-    // 1 call duy nhất — lấy list + isManager + vanPhong cùng lúc
+    // Bước 1: lấy list đơn của NV này (để kiểm tra trùng ngày + lấy vanPhong)
     const url=CONFIG.payrollUrl+'?action=getNghiPhepList&nv='+encodeURIComponent(nghiPhepUser.nv)+'&passcode='+encodeURIComponent(nghiPhepUser.passcode);
     const json=await fetchJSONP(url, 45000);
     if(json.status!=='ok')throw new Error(json.message);
+
     nghiPhepIsManager=json.data.isManager;
-    nghiPhepVanPhong=json.data.vanPhong;
-    nghiPhepLastList=json.data; // cache luôn
+    // Ưu tiên vanPhong từ loginSchedule (đã set khi đăng nhập), fallback từ list
+    if(!nghiPhepVanPhong) nghiPhepVanPhong=json.data.vanPhong||'';
+    nghiPhepLastList=json.data;
     document.getElementById('nghiPhepTabDuyet').style.display=nghiPhepIsManager?'block':'none';
 
+    // Bước 2: lấy cấu hình giới hạn OFF
     const configUrl=CONFIG.payrollUrl+'?action=getGioiHanOffConfig';
     const configJson=await fetchJSONP(configUrl, 45000);
-    const gioiHan=(configJson.status==='ok'&&configJson.data[nghiPhepVanPhong]!==undefined)
+    const gioiHan=(configJson.status==='ok'&&nghiPhepVanPhong&&configJson.data[nghiPhepVanPhong]!==undefined)
       ? configJson.data[nghiPhepVanPhong] : 2;
 
-    // Đếm đơn trùng ngày cùng VP — dùng list vừa load (isManager thấy tất cả VP mình, NV thấy đơn mình)
-    // Backend vẫn là tầng chặn cứng cuối cùng
-    const soLuong=json.data.rows.filter(r=>
-      r.ngayNghi===ngay &&
-      r.vanPhong===nghiPhepVanPhong &&
-      r.trangThai!=='Từ chối'
-    ).length;
-
-    // Kiểm tra NV này đã có đơn ngày đó chưa (chặn trùng phía frontend)
+    // Bước 3: kiểm tra NV này đã đăng ký ngày này chưa
     const daTuDangKy=json.data.rows.some(r=>
-      r.ngayNghi===ngay &&
-      r.nv===nghiPhepUser.nv &&
-      r.trangThai!=='Từ chối'
+      r.ngayNghi===ngay && r.nv===nghiPhepUser.nv && r.trangThai!=='Từ chối'
     );
+
+    // Bước 4: đếm tổng đơn cùng ngày cùng VP
+    // NV thường chỉ thấy đơn mình → dùng backend đếm qua getGioiHanOffConfig + submit để chặn
+    // isManager thấy toàn bộ VP → đếm trực tiếp từ list
+    let soLuong=0;
+    if(nghiPhepIsManager){
+      soLuong=json.data.rows.filter(r=>
+        r.ngayNghi===ngay && r.vanPhong===nghiPhepVanPhong && r.trangThai!=='Từ chối'
+      ).length;
+    }else{
+      // NV thường: đếm số đơn của chính mình + thông báo không biết tổng VP
+      // Backend sẽ chặn cứng nếu đã đủ chỗ khi bấm Gửi
+      soLuong=null;
+    }
 
     if(daTuDangKy){
       box.className='nghiphep-quota-box full';
       box.textContent='⛔ Bạn đã có đơn đăng ký nghỉ ngày này rồi. Vui lòng chọn ngày khác.';
       document.getElementById('nghiPhepSubmitBtn').disabled=true;
-    }else if(soLuong>=gioiHan){
+    }else if(soLuong!==null && soLuong>=gioiHan){
       box.className='nghiphep-quota-box full';
-      box.textContent='⛔ Ngày này đã đủ '+soLuong+'/'+gioiHan+' người đăng ký tại VP "'+nghiPhepVanPhong+'". Vui lòng chọn ngày khác.';
+      box.textContent='⛔ Ngày này đã đủ '+soLuong+'/'+gioiHan+' người tại VP "'+nghiPhepVanPhong+'". Vui lòng chọn ngày khác.';
       document.getElementById('nghiPhepSubmitBtn').disabled=true;
-    }else if(soLuong===gioiHan-1){
+    }else if(soLuong!==null && soLuong===gioiHan-1){
       box.className='nghiphep-quota-box warn';
       box.textContent='⚠️ Còn 1 chỗ cuối: '+soLuong+'/'+gioiHan+' người đã đăng ký tại VP "'+nghiPhepVanPhong+'".';
       document.getElementById('nghiPhepSubmitBtn').disabled=false;
-    }else{
+    }else if(soLuong!==null){
       box.textContent='✅ '+soLuong+'/'+gioiHan+' người đã đăng ký tại VP "'+nghiPhepVanPhong+'". Vẫn còn chỗ.';
+      document.getElementById('nghiPhepSubmitBtn').disabled=false;
+    }else{
+      // NV thường — không biết tổng VP, backend sẽ tự chặn
+      const vpLabel=nghiPhepVanPhong?(' tại VP "'+nghiPhepVanPhong+'"'):'';
+      box.textContent='ℹ️ Tối đa '+gioiHan+' người nghỉ/ngày'+vpLabel+'. Hệ thống sẽ tự kiểm tra khi bạn gửi.';
       document.getElementById('nghiPhepSubmitBtn').disabled=false;
     }
   }catch(e){
-    box.textContent='Không kiểm tra được trước — hệ thống vẫn sẽ tự chặn khi bạn gửi nếu đã đủ chỗ.';
+    box.textContent='Không kiểm tra được — hệ thống vẫn sẽ tự chặn khi bạn gửi nếu đã đủ chỗ.';
     document.getElementById('nghiPhepSubmitBtn').disabled=false;
   }
 }
+
 
 async function submitNghiPhepForm(){
   const msg=document.getElementById('nghiPhepFormMsg');
