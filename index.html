@@ -3888,67 +3888,41 @@ async function checkNghiPhepQuota(){
   box.style.display='flex';
   box.className='nghiphep-quota-box';
   box.textContent='Đang kiểm tra số lượng đã đăng ký...';
+  document.getElementById('nghiPhepSubmitBtn').disabled=true;
 
   try{
-    // Bước 1: lấy list đơn của NV này (để kiểm tra trùng ngày + lấy vanPhong)
-    const url=CONFIG.payrollUrl+'?action=getNghiPhepList&nv='+encodeURIComponent(nghiPhepUser.nv)+'&passcode='+encodeURIComponent(nghiPhepUser.passcode);
+    // Gọi action demOffTheoNgayVP — trả về số đơn cùng ngày cùng VP lớn
+    // Cho phép NV thường gọi, không cần quyền quản lý
+    const url=CONFIG.payrollUrl
+      +'?action=demOffTheoNgayVP'
+      +'&nv='+encodeURIComponent(nghiPhepUser.nv)
+      +'&passcode='+encodeURIComponent(nghiPhepUser.passcode)
+      +'&ngay='+encodeURIComponent(ngay);
     const json=await fetchJSONP(url, 45000);
     if(json.status!=='ok')throw new Error(json.message);
 
-    nghiPhepIsManager=json.data.isManager;
-    // Ưu tiên vanPhong từ loginSchedule (đã set khi đăng nhập), fallback từ list
-    if(!nghiPhepVanPhong) nghiPhepVanPhong=json.data.vanPhong||'';
-    nghiPhepLastList=json.data;
-    document.getElementById('nghiPhepTabDuyet').style.display=nghiPhepIsManager?'block':'none';
+    const d=json.data;
+    // Cập nhật vanPhong từ backend (nguồn chính xác nhất)
+    if(d.vanPhong) nghiPhepVanPhong=d.vanPhong;
 
-    // Bước 2: lấy cấu hình giới hạn OFF
-    const configUrl=CONFIG.payrollUrl+'?action=getGioiHanOffConfig';
-    const configJson=await fetchJSONP(configUrl, 45000);
-    const gioiHan=(configJson.status==='ok'&&nghiPhepVanPhong&&configJson.data[nghiPhepVanPhong]!==undefined)
-      ? configJson.data[nghiPhepVanPhong] : 2;
-
-    // Bước 3: kiểm tra NV này đã đăng ký ngày này chưa
-    const daTuDangKy=json.data.rows.some(r=>
-      r.ngayNghi===ngay && r.nv===nghiPhepUser.nv && r.trangThai!=='Từ chối'
-    );
-
-    // Bước 4: đếm tổng đơn cùng ngày cùng VP
-    // NV thường chỉ thấy đơn mình → dùng backend đếm qua getGioiHanOffConfig + submit để chặn
-    // isManager thấy toàn bộ VP → đếm trực tiếp từ list
-    let soLuong=0;
-    if(nghiPhepIsManager){
-      soLuong=json.data.rows.filter(r=>
-        r.ngayNghi===ngay && r.vanPhong===nghiPhepVanPhong && r.trangThai!=='Từ chối'
-      ).length;
-    }else{
-      // NV thường: đếm số đơn của chính mình + thông báo không biết tổng VP
-      // Backend sẽ chặn cứng nếu đã đủ chỗ khi bấm Gửi
-      soLuong=null;
-    }
-
-    if(daTuDangKy){
+    if(d.daDangKy){
       box.className='nghiphep-quota-box full';
       box.textContent='⛔ Bạn đã có đơn đăng ký nghỉ ngày này rồi. Vui lòng chọn ngày khác.';
       document.getElementById('nghiPhepSubmitBtn').disabled=true;
-    }else if(soLuong!==null && soLuong>=gioiHan){
+    }else if(!d.conCho){
       box.className='nghiphep-quota-box full';
-      box.textContent='⛔ Ngày này đã đủ '+soLuong+'/'+gioiHan+' người tại VP "'+nghiPhepVanPhong+'". Vui lòng chọn ngày khác.';
+      box.textContent='⛔ Ngày này đã đủ '+d.soLuong+'/'+d.gioiHan+' người tại VP "'+d.vanPhong+'". Vui lòng chọn ngày khác.';
       document.getElementById('nghiPhepSubmitBtn').disabled=true;
-    }else if(soLuong!==null && soLuong===gioiHan-1){
+    }else if(d.soLuong===d.gioiHan-1){
       box.className='nghiphep-quota-box warn';
-      box.textContent='⚠️ Còn 1 chỗ cuối: '+soLuong+'/'+gioiHan+' người đã đăng ký tại VP "'+nghiPhepVanPhong+'".';
-      document.getElementById('nghiPhepSubmitBtn').disabled=false;
-    }else if(soLuong!==null){
-      box.textContent='✅ '+soLuong+'/'+gioiHan+' người đã đăng ký tại VP "'+nghiPhepVanPhong+'". Vẫn còn chỗ.';
+      box.textContent='⚠️ Còn 1 chỗ cuối: '+d.soLuong+'/'+d.gioiHan+' người đã đăng ký tại VP "'+d.vanPhong+'".';
       document.getElementById('nghiPhepSubmitBtn').disabled=false;
     }else{
-      // NV thường — không biết tổng VP, backend sẽ tự chặn
-      const vpLabel=nghiPhepVanPhong?(' tại VP "'+nghiPhepVanPhong+'"'):'';
-      box.textContent='ℹ️ Tối đa '+gioiHan+' người nghỉ/ngày'+vpLabel+'. Hệ thống sẽ tự kiểm tra khi bạn gửi.';
+      box.textContent='✅ '+d.soLuong+'/'+d.gioiHan+' người đã đăng ký tại VP "'+d.vanPhong+'". Vẫn còn chỗ.';
       document.getElementById('nghiPhepSubmitBtn').disabled=false;
     }
   }catch(e){
-    box.textContent='Không kiểm tra được — hệ thống vẫn sẽ tự chặn khi bạn gửi nếu đã đủ chỗ.';
+    box.textContent='⚠️ Không kiểm tra được — hệ thống sẽ tự chặn khi bạn gửi nếu đã đủ chỗ.';
     document.getElementById('nghiPhepSubmitBtn').disabled=false;
   }
 }
