@@ -24,11 +24,15 @@
     welcomeTitle: "Chào mừng đến với Tuấn Tú",
     welcomeSub: "Đăng nhập để thực hiện tiện ích"
   };
-  // Áp dụng theme sớm để tránh nháy màu khi load trang
+  // Áp dụng theme + skin sớm để tránh nháy màu khi load trang
   (function(){
     try{
       const t=localStorage.getItem('llv_theme');
       if(t==='light')document.documentElement.setAttribute('data-theme','light');
+    }catch(e){}
+    try{
+      const s=localStorage.getItem('llv_skin');
+      if(s&&s!=='aurora')document.documentElement.setAttribute('data-skin',s);
     }catch(e){}
   })();
 </script>
@@ -69,6 +73,44 @@
     --glass-bg-orb1: rgba(79,110,247,0.18);
     --glass-bg-orb2: rgba(124,58,237,0.14);
     --glass-bg-orb3: rgba(16,185,129,0.12);
+  }
+
+  /* ===== LIQUID GLASS — SKIN (bảng màu) — đổi cảm giác kính mà không đổi cấu trúc =====
+     Aurora = mặc định (không cần data-skin). 3 lựa chọn thêm bên dưới, áp qua [data-skin].
+     Mỗi skin có 1 bản cho nền tối (mặc định) + 1 bản riêng cho [data-theme="light"]
+     vì độ mờ (alpha) cần thấp hơn hẳn trên nền sáng để không bị chói. */
+  [data-skin="sunset"] {
+    --accent:#f97316; --accent2:#ec4899;
+    --glass-bg-orb1: rgba(249,115,22,0.55);
+    --glass-bg-orb2: rgba(236,72,153,0.45);
+    --glass-bg-orb3: rgba(250,204,21,0.30);
+  }
+  [data-theme="light"][data-skin="sunset"] {
+    --glass-bg-orb1: rgba(249,115,22,0.18);
+    --glass-bg-orb2: rgba(236,72,153,0.14);
+    --glass-bg-orb3: rgba(250,204,21,0.12);
+  }
+  [data-skin="ocean"] {
+    --accent:#06b6d4; --accent2:#22c55e;
+    --glass-bg-orb1: rgba(6,182,212,0.55);
+    --glass-bg-orb2: rgba(34,197,94,0.40);
+    --glass-bg-orb3: rgba(59,130,246,0.30);
+  }
+  [data-theme="light"][data-skin="ocean"] {
+    --glass-bg-orb1: rgba(6,182,212,0.18);
+    --glass-bg-orb2: rgba(34,197,94,0.14);
+    --glass-bg-orb3: rgba(59,130,246,0.12);
+  }
+  [data-skin="mono"] {
+    --accent:#64748b; --accent2:#94a3b8;
+    --glass-bg-orb1: rgba(148,163,184,0.35);
+    --glass-bg-orb2: rgba(100,116,139,0.30);
+    --glass-bg-orb3: rgba(203,213,225,0.22);
+  }
+  [data-theme="light"][data-skin="mono"] {
+    --glass-bg-orb1: rgba(148,163,184,0.14);
+    --glass-bg-orb2: rgba(100,116,139,0.10);
+    --glass-bg-orb3: rgba(203,213,225,0.10);
   }
   *{margin:0;padding:0;box-sizing:border-box;}
   html{font-size:14px;}
@@ -793,6 +835,15 @@
       <div class="sync-dot"></div>
       <span>Đồng bộ</span>
     </button>
+    <div style="position:relative;">
+      <button class="theme-btn" id="skinBtn" onclick="toggleSkinPanel()" title="Đổi bảng màu giao diện">🎨</button>
+      <div id="skinPanel" style="display:none;position:absolute;top:120%;right:0;z-index:50;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:8px;gap:6px;box-shadow:0 8px 24px rgba(0,0,0,.25);white-space:nowrap;">
+        <button onclick="setSkin('aurora')" title="Aurora (mặc định)" style="width:22px;height:22px;border-radius:50%;border:2px solid var(--border);background:linear-gradient(135deg,#4f6ef7,#7c3aed);cursor:pointer;margin:0 3px;"></button>
+        <button onclick="setSkin('sunset')" title="Sunset" style="width:22px;height:22px;border-radius:50%;border:2px solid var(--border);background:linear-gradient(135deg,#f97316,#ec4899);cursor:pointer;margin:0 3px;"></button>
+        <button onclick="setSkin('ocean')" title="Ocean" style="width:22px;height:22px;border-radius:50%;border:2px solid var(--border);background:linear-gradient(135deg,#06b6d4,#22c55e);cursor:pointer;margin:0 3px;"></button>
+        <button onclick="setSkin('mono')" title="Mono" style="width:22px;height:22px;border-radius:50%;border:2px solid var(--border);background:linear-gradient(135deg,#64748b,#94a3b8);cursor:pointer;margin:0 3px;"></button>
+      </div>
+    </div>
     <button class="theme-btn" id="themeBtn" onclick="toggleTheme()" title="Đổi giao diện sáng/tối">🌙</button>
     <div id="userBadge" style="display:none;align-items:center;gap:8px;font-size:12px;font-weight:600;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:6px 12px;">
       <span id="userBadgeText"></span>
@@ -1202,11 +1253,12 @@
     <button class="demo-btn" onclick="loadDemo()">▶ Chạy Demo</button>
   </div>
   <div id="adminBanner" style="display:none;background:rgba(16,185,129,.12);border:1px solid var(--green);border-radius:8px;padding:8px 14px;margin-bottom:12px;font-size:12px;color:var(--green);font-weight:600;">
-    🔓 Đang đăng nhập với quyền Quản lý — xem được lịch đầy đủ tất cả văn phòng, không giới hạn ngày.
+    🔓 <span id="adminBannerText">Đang đăng nhập với quyền Quản lý.</span>
   </div>
   <div id="userOfficeBanner" style="display:none;background:rgba(79,110,247,.1);border:1px solid var(--accent);border-radius:8px;padding:8px 14px;margin-bottom:12px;font-size:12px;color:var(--accent);font-weight:600;">
-    👤 Bạn đang xem lịch của tất cả các phòng vé — chỉ xem được tới D+2.
+    👤 <span id="userOfficeBannerText">Bạn đang xem lịch của văn phòng mình — chỉ xem được tới D+2.</span>
   </div>
+
 
   <!-- FILTERS -->
   <div class="filters">
@@ -1561,6 +1613,37 @@ function initTheme(){
 }
 
 // ============================================================
+// SKIN (bảng màu Liquid Glass) — Aurora / Sunset / Ocean / Mono
+// ============================================================
+const SKIN_LIST=['aurora','sunset','ocean','mono'];
+function setSkin(skin){
+  if(!SKIN_LIST.includes(skin))skin='aurora';
+  if(skin==='aurora')document.documentElement.removeAttribute('data-skin');
+  else document.documentElement.setAttribute('data-skin',skin);
+  try{localStorage.setItem('llv_skin',skin);}catch(e){}
+  document.querySelectorAll('#skinPanel button').forEach(b=>b.style.outline='none');
+  toggleSkinPanel(false);
+}
+function initSkin(){
+  let saved='aurora';
+  try{saved=localStorage.getItem('llv_skin')||'aurora';}catch(e){}
+  if(saved!=='aurora')document.documentElement.setAttribute('data-skin',saved);
+}
+function toggleSkinPanel(force){
+  const p=document.getElementById('skinPanel');
+  if(!p)return;
+  const show = force===undefined ? (p.style.display==='none'||!p.style.display) : force;
+  p.style.display = show ? 'flex' : 'none';
+}
+document.addEventListener('click',(e)=>{
+  const panel=document.getElementById('skinPanel');
+  const btn=document.getElementById('skinBtn');
+  if(panel && panel.style.display==='flex' && !panel.contains(e.target) && e.target!==btn){
+    panel.style.display='none';
+  }
+});
+
+// ============================================================
 // ĐĂNG NHẬP CÁ NHÂN — QUYỀN XEM LỊCH THEO VĂN PHÒNG / QUẢN LÝ
 // ============================================================
 // currentUser = {nv, boPhan, chucVu, isManager} sau khi đăng nhập thành công, null nếu chưa đăng nhập
@@ -1695,12 +1778,28 @@ function updateUserBadge(){
   }
 
   if(currentUser.isManager){
-    if(banner)banner.style.display='block';
+    if(banner){
+      banner.style.display='block';
+      const bText=document.getElementById('adminBannerText');
+      if(bText){
+        bText.textContent = currentUser.isSuperManager
+          ? 'Đang đăng nhập với quyền Super quản lý — xem được lịch đầy đủ TẤT CẢ văn phòng, không giới hạn ngày.'
+          : 'Đang đăng nhập với quyền Quản lý văn phòng "'+currentUser.boPhan+'" — chỉ xem được lịch của văn phòng này, không giới hạn ngày.';
+      }
+    }
     if(officeBanner)officeBanner.style.display='none';
     if(otCard)otCard.style.display='block';
   }else{
     if(banner)banner.style.display='none';
-    if(officeBanner)officeBanner.style.display='block';
+    if(officeBanner){
+      officeBanner.style.display='block';
+      const oText=document.getElementById('userOfficeBannerText');
+      if(oText){
+        oText.textContent = currentUser.boPhan
+          ? 'Bạn đang xem lịch của văn phòng "'+currentUser.boPhan+'" — chỉ xem được tới D+2.'
+          : '⚠️ Chưa xác định được văn phòng của bạn — vui lòng đăng xuất/đăng nhập lại hoặc báo Admin kiểm tra Master_NV.';
+      }
+    }
     if(otCard)otCard.style.display='none';
   }
 }
@@ -1902,31 +2001,107 @@ function loadDemo(){
 // ============================================================
 function processData(){populateFilters();populateLoginNVSelect();applyFilters();}
 
-function populateFilters(){
+// Chuẩn hoá tên VP để so sánh không phân biệt hoa thường/khoảng trắng thừa
+function normVP(s){return String(s||'').trim().toLowerCase().replace(/\s+/g,' ');}
+
+// ============================================================
+// BẢNG MAP VP NHỎ -> VP LỚN — ĐẶT NGAY TRONG FRONT-END, KHÔNG PHỤ THUỘC APPS SCRIPT A.
+// Lý do: cột "vanPhong" trên mỗi dòng lịch do Apps Script A ghi ra — nếu A chưa/không
+// bao giờ điền cột này thì trước đây toàn bộ lớp chặn theo VP bị TẮT HẲN cho mọi người
+// (đây chính là lỗ hổng đã xảy ra thực tế: NV VPQN xem được lịch VP HCM).
+// Từ giờ: ưu tiên r.vanPhong nếu Apps Script A có ghi, KHÔNG CÓ thì tự tra bảng này
+// từ r.boPhan (VP nhỏ) — không còn tình huống "không xác định được thì cho xem hết".
+// ⚠️ LƯU Ý VẬN HÀNH: bảng này phải khớp với VP_NHO_TO_LON bên Apps Script B.
+// Nếu công ty mở VP nhỏ mới, phải thêm vào CẢ 2 nơi (đây + Apps Script B).
+// ============================================================
+const OFFICE_NHO_TO_LON_STATIC={
+  'ba diem':'VP HCM','badiem':'VP HCM',
+  'go dua':'VP HCM','godua':'VP HCM',
+  'le hong phong':'VP HCM','lehongphong':'VP HCM','lhp':'VP HCM',
+  '590 binh long':'VP HCM','590bl':'VP HCM','590 bl':'VP HCM',
+  '600 binh long':'VP HCM','600bl':'VP HCM','600 bl':'VP HCM',
+  '287 kinh duong vuong':'VP HCM','287kdv':'VP HCM',
+  'tram go dua':'VP HCM','tramgodua':'VP HCM',
+  '189 tan thang':'VP HCM','189tt':'VP HCM',
+  '140 tam binh':'VP HCM','140tambnh':'VP HCM',
+  'hcm':'VP HCM','vphcm':'VP HCM','vp hcm':'VP HCM','ho chi minh':'VP HCM',
+  'quang ngai':'VPQN','quangngai':'VPQN',
+  'qn':'VPQN','vpqn':'VPQN','vp qn':'VPQN','vp quang ngai':'VPQN',
+  'da lat':'VP Đà Lạt','dalat':'VP Đà Lạt','dl':'VP Đà Lạt',
+  'vp da lat':'VP Đà Lạt','vpdalat':'VP Đà Lạt','vpdl':'VP Đà Lạt'
+};
+// Tra bảng tĩnh — trả về '' nếu không nhận diện được (VP nhỏ mới chưa kịp thêm vào bảng)
+function chuanHoaVanPhongLonFE(vp){
+  if(!vp)return '';
+  const t=String(vp).trim();
+  if(['VP HCM','VPQN','VP Đà Lạt'].includes(t))return t;
+  const key=t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/đ/g,'d').replace(/[^a-z0-9 ]/g,'').trim();
+  return OFFICE_NHO_TO_LON_STATIC[key]||'';
+}
+
+// Apps Script B (loginSchedule) trả currentUser.boPhan = VP LỚN (VP HCM/VPQN/VP Đà Lạt).
+// Mỗi dòng lịch (allData) có 2 tầng riêng: r.boPhan = VP NHỎ (Bà Điểm, Gò Dưa...),
+// r.vanPhong = VP LỚN (nếu Apps Script A có ghi). Hàm này suy map "VP nhỏ -> VP lớn"
+// ƯU TIÊN dữ liệu thật từ allData, KHÔNG CÓ thì fallback qua bảng tĩnh phía trên —
+// không bao giờ để trống hoàn toàn như trước.
+function buildOfficeToVPLonMap(){
+  const map={};
+  allData.forEach(r=>{
+    if(!r.boPhan||map[r.boPhan])return;
+    if(r.vanPhong&&r.vanPhong.trim()){ map[r.boPhan]=normVP(r.vanPhong); return; }
+    const guessed=chuanHoaVanPhongLonFE(r.boPhan);
+    if(guessed)map[r.boPhan]=normVP(guessed);
+  });
+  return map;
+}
+
+// Trả về {isSuperManager, myVPNorm, officeToVPLon, allOffices, visibleOffices}
+function getMyVPScope(){
+  const isSuperManager=currentUser&&currentUser.isSuperManager;
+  const myVP=currentUser?currentUser.boPhan:''; // = VP LỚN
+  const myVPNorm=normVP(myVP);
+  const officeToVPLon=buildOfficeToVPLonMap();
   const allOffices=[...new Set(allData.map(r=>r.boPhan).filter(o=>o&&o!=='OFF'))].sort();
+
+  let visibleOffices;
+  if(isSuperManager||!myVPNorm){
+    visibleOffices=allOffices;
+  }else{
+    const filtered=allOffices.filter(o=>officeToVPLon[o]===myVPNorm);
+    // Fallback CHỈ ảnh hưởng dropdown (để không rỗng, NV vẫn thao tác được) —
+    // dữ liệu THẬT hiển thị vẫn do applyFilters() chặn đúng bằng officeToVPLon,
+    // không liên quan gì tới danh sách hiển thị trong dropdown này.
+    // KHÔNG để dropdown trống — tạm hiện hết, applyFilters() vẫn chặn đúng dữ liệu thật.
+    visibleOffices = filtered.length ? filtered : allOffices;
+  }
+  return {isSuperManager,myVPNorm,officeToVPLon,allOffices,visibleOffices};
+}
+
+function populateFilters(){
   const allNvs=[...new Set(allData.map(r=>r.nv))].sort();
   const months=[...new Set(allData.map(r=>r.thang).filter(Boolean))].sort((a,b)=>a-b);
 
   // Xác định VP và NV được phép xem theo phân quyền
-  const isSuperManager=currentUser&&currentUser.isSuperManager;
-  const isManager=currentUser&&currentUser.isManager;
-  const myVP=currentUser?currentUser.boPhan:'';
+  const scope=getMyVPScope();
+  const isSuperManager=scope.isSuperManager;
+  const myVPNorm=scope.myVPNorm;
+  const officeToVPLon=scope.officeToVPLon;
+  const visibleOffices=scope.visibleOffices;
 
-  // squanly: xem tất cả VP | quanly/nhanvien: chỉ VP của mình
-  // Chuẩn hoá tên VP để so sánh không phân biệt hoa thường/khoảng trắng thừa
-  const normVP=(s)=>String(s||'').trim().toLowerCase().replace(/\s+/g,' ');
-  const myVPNorm=normVP(myVP);
-
-  const visibleOffices=isSuperManager
-    ? allOffices
-    : myVPNorm ? allOffices.filter(o=>normVP(o)===myVPNorm) : allOffices;
-
-  // NV được hiện trong filter: chỉ NV thuộc VP được phép xem
-  const visibleNvs=isSuperManager
-    ? allNvs
-    : myVPNorm
-      ? [...new Set(allData.filter(r=>{const rvp=normVP(r.vanPhong)||normVP(r.boPhan);return !rvp||rvp===myVPNorm;}).map(r=>r.nv))].sort()
-      : allNvs;
+  // NV được hiện trong filter: chỉ NV thuộc VP được phép xem.
+  // Đây CHỈ là danh sách hiển thị trên dropdown (fallback không để rỗng cho dễ thao tác) —
+  // dữ liệu THẬT vẫn do applyFilters() chặn đúng, không liên quan gì tới đoạn này.
+  let visibleNvs;
+  if(isSuperManager || !myVPNorm){
+    visibleNvs = allNvs;
+  }else{
+    const filteredNvs=[...new Set(allData.filter(r=>{
+      const rvp=normVP(r.vanPhong)||officeToVPLon[r.boPhan]||'';
+      return !rvp||rvp===myVPNorm;
+    }).map(r=>r.nv))].sort();
+    visibleNvs = filteredNvs.length ? filteredNvs : allNvs;
+  }
 
   // Multi-select Văn phòng
   const officeItems=document.getElementById('officeMsItems');
@@ -2031,8 +2206,8 @@ function onOfficeCheck(cb){
   applyFilters();
 }
 function officeSelectAll(){
-  const all=[...new Set(allData.map(r=>r.boPhan).filter(o=>o&&o!=='OFF'))].sort();
-  selectedOffices=[...all];
+  const visibleOffices=getMyVPScope().visibleOffices;
+  selectedOffices=[...visibleOffices];
   document.querySelectorAll('#officeMsItems input').forEach(cb=>cb.checked=true);
   updateOfficeLabel();
   applyFilters();
@@ -2066,25 +2241,32 @@ function applyFilters(){
   const ca=document.getElementById('filterCa').value;
   const month=document.getElementById('filterMonth').value;
 
-  const isSuperManager=currentUser&&currentUser.isSuperManager;
-  const myVP=currentUser?currentUser.boPhan:'';
-  // Chuẩn hoá tên VP để so sánh không phân biệt hoa thường/khoảng trắng thừa
-  // vì Apps Script A (lịch) và Apps Script B (Master_NV) có thể ghi tên VP khác định dạng
-  const normVP=(s)=>String(s||'').trim().toLowerCase().replace(/\s+/g,' ');
-  const myVPNorm=normVP(myVP);
+  const scope=getMyVPScope();
+  const isSuperManager=scope.isSuperManager;
+  const myVPNorm=scope.myVPNorm;
+  const officeToVPLon=scope.officeToVPLon;
 
-  // Kiểm tra xem vanPhong có đang hoạt động không (cột J đã có dữ liệu)
-  // Nếu TOÀN BỘ allData đều không có vanPhong → cột J chưa điền/chưa authorize
-  // → tạm thời bỏ filter VP để NV vẫn thấy được lịch
-  const hasVanPhongData = allData.some(r => r.vanPhong && r.vanPhong.trim());
+  // FAIL-CLOSED tuyệt đối: NV/QL thường mà không xác định được VP lớn của chính mình
+  // (Master_NV chưa điền VP, hoặc trình duyệt còn cache phiên đăng nhập cũ trước khi
+  // Apps Script B được vá) → KHÔNG hiện bất kỳ dữ liệu nào, thay vì hiện hết như trước.
+  // NV cần đăng xuất/đăng nhập lại để làm mới quyền, hoặc báo admin điền VP trong Master_NV.
+  if(!isSuperManager && !myVPNorm){
+    filteredData=[];
+    renderAll();
+    return;
+  }
 
   filteredData=allData.filter(r=>{
-    // Giới hạn theo phân quyền VP — tầng bảo vệ chính
-    // squanly: xem tất cả | quanly + nhanvien: chỉ VP mình
-    if(!isSuperManager && myVPNorm && hasVanPhongData){
-      // Chỉ lọc theo VP khi đã có dữ liệu vanPhong trong cột J
-      const rvp = normVP(r.vanPhong);
-      if(rvp && rvp !== myVPNorm) return false;
+    // Giới hạn theo phân quyền VP — TẦNG BẢO VỆ CHÍNH, luôn bật, không có "công tắc tắt".
+    // squanly: xem tất cả | quanly + nhanvien: chỉ VP mình.
+    // Xác định VP lớn của dòng này: ưu tiên r.vanPhong (nếu Apps Script A có ghi),
+    // không có thì tự tra bảng OFFICE_NHO_TO_LON_STATIC từ r.boPhan (VP nhỏ).
+    // FAIL-CLOSED: nếu cả 2 nguồn đều không xác định được VP lớn của dòng này
+    // (VP nhỏ lạ, chưa kịp thêm vào bảng map) → LOẠI BỎ, không hiện cho NV thường/QL —
+    // an toàn hơn nhiều so với "không xác định được thì cho xem hết" (lỗi đã xảy ra thực tế).
+    if(!isSuperManager && myVPNorm){
+      const rvp = normVP(r.vanPhong) || officeToVPLon[r.boPhan] || '';
+      if(rvp !== myVPNorm) return false;
     }
     // Filter tuỳ chọn (multi-select VP/NV — trong phạm vi được phép)
     if(selectedOffices.length>0&&!selectedOffices.includes(r.boPhan))return false;
@@ -4352,6 +4534,7 @@ document.addEventListener('keydown',(e)=>{
 // ============================================================
 window.addEventListener('load',()=>{
   initTheme();
+  initSkin();
   initAuth();
   // Luôn dùng URL cố định từ CONFIG
   const url = (typeof CONFIG!=='undefined'&&CONFIG.webAppUrl) ? CONFIG.webAppUrl : '';
