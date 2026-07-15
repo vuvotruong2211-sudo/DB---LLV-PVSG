@@ -3758,6 +3758,12 @@ function removeThuChiPhoto(){
 // Upload ảnh đã scale lên Drive qua doPost thực sự (KHÔNG qua JSONP, vì base64
 // ảnh dù đã nén vẫn có thể vượt giới hạn an toàn của URL GET/JSONP).
 // Trả về link ảnh trên Drive.
+//
+// QUAN TRỌNG: fetch() mặc định KHÔNG có timeout — nếu mạng di động chập chờn
+// (redirect nội bộ của Google Apps Script qua googleusercontent.com bị nghẽn),
+// request có thể treo VÔ THỜI HẠN, khiến nút "Ghi nhận giao dịch" đứng yên mãi
+// không lỗi không thành công. Dùng AbortController để tự huỷ sau 25 giây,
+// đảm bảo luôn có kết quả rõ ràng (thành công / lỗi) trong thời gian hợp lý.
 async function uploadThuChiPhotoIfAny(){
   if(!thuChiPhotoState)return ''; // không có ảnh -> bỏ qua, giao dịch vẫn ghi bình thường
   if(thuChiPhotoState.daUpload)return thuChiPhotoState.linkAnh; // đã upload rồi, không upload lại
@@ -3768,18 +3774,39 @@ async function uploadThuChiPhotoIfAny(){
 
   const base64=await blobToBase64(thuChiPhotoState.blob);
 
-  const res=await fetch(CONFIG.payrollUrl,{
-    method:'POST',
-    headers:{'Content-Type':'text/plain;charset=utf-8'}, // tránh CORS preflight phức tạp với Apps Script
-    body:JSON.stringify({
-      action:'uploadAnhThuChi',
-      nv:thuChiUser.nv, passcode:thuChiUser.passcode,
-      anhBase64:base64,
-      gioChupUTC:thuChiPhotoState.gioChupUTC,
-      lat:thuChiPhotoState.lat, lng:thuChiPhotoState.lng
-    })
-  });
-  const json=await res.json();
+  const UPLOAD_TIMEOUT_MS=25000;
+  const controller=new AbortController();
+  const timeoutId=setTimeout(()=>controller.abort(),UPLOAD_TIMEOUT_MS);
+
+  let res;
+  try{
+    res=await fetch(CONFIG.payrollUrl,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'}, // tránh CORS preflight phức tạp với Apps Script
+      signal:controller.signal,
+      body:JSON.stringify({
+        action:'uploadAnhThuChi',
+        nv:thuChiUser.nv, passcode:thuChiUser.passcode,
+        anhBase64:base64,
+        gioChupUTC:thuChiPhotoState.gioChupUTC,
+        lat:thuChiPhotoState.lat, lng:thuChiPhotoState.lng
+      })
+    });
+  }catch(fetchErr){
+    if(fetchErr.name==='AbortError'){
+      throw new Error('Tải ảnh quá lâu (mạng yếu/chập chờn) — đã huỷ sau '+(UPLOAD_TIMEOUT_MS/1000)+'s.');
+    }
+    throw new Error('Không kết nối được tới server để tải ảnh (kiểm tra mạng): '+fetchErr.message);
+  }finally{
+    clearTimeout(timeoutId);
+  }
+
+  let json;
+  try{
+    json=await res.json();
+  }catch(parseErr){
+    throw new Error('Server trả về dữ liệu không hợp lệ khi tải ảnh (không phải JSON).');
+  }
   if(json.status!=='ok')throw new Error(json.message||'Tải ảnh lên Drive thất bại.');
 
   thuChiPhotoState.daUpload=true;
