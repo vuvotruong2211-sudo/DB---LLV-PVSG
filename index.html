@@ -399,6 +399,8 @@
   .nghiphep-quota-box{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:12px;margin-bottom:12px;}
   .nghiphep-quota-box.warn{border-color:var(--amber);color:var(--amber);}
   .nghiphep-quota-box.full{border-color:var(--red);color:var(--red);}
+  .nghiphep-quota-box.ok{border-color:var(--green);color:var(--green);}
+  .nghiphep-quota-box.error{border-color:var(--red);color:var(--red);}
   .nghiphep-table{width:100%;border-collapse:collapse;font-size:12px;}
   .nghiphep-table th{text-align:left;padding:8px 10px;background:var(--surface2);color:var(--text3);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.3px;border-bottom:1px solid var(--border);position:sticky;top:0;}
   .nghiphep-table td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:middle;}
@@ -653,6 +655,7 @@
     .nghiphep-modal-box{width:98vw;max-width:98vw;padding:14px;}
     .thuchi-modal-box{width:98vw;max-width:98vw;}
     .payroll-modal-box{width:98vw;max-width:98vw;}
+    .thuchi-form-row{grid-template-columns:1fr 1fr;gap:8px;}
   }
 
   /* --- MOBILE PHỔ THÔNG ≤480px --- */
@@ -695,6 +698,11 @@
     .modal-box{width:96vw;max-width:96vw;padding:16px;border-radius:12px;}
     .modal-actions{flex-direction:column;}
     .modal-actions button{width:100%;}
+
+    /* Form 2 cột (Ngày/Nội dung, Tuyến/Biển số, Tài xế 2/3, Phụ xe 1/2...)
+       -> tự xuống 1 cột trên mobile nhỏ, khỏi phải xoay ngang máy để xem/nhập */
+    .thuchi-form-row{grid-template-columns:1fr;gap:8px;}
+    .thuchi-signature-canvas{width:100%!important;height:140px!important;}
 
     /* Bảng tin */
     .news-title{font-size:15px;}
@@ -1092,6 +1100,154 @@
   </div>
 </div>
 
+<!-- ĐO NỒNG ĐỘ CỒN MODAL -->
+<div class="modal-overlay" id="nongDoConModal">
+  <div class="modal-box thuchi-modal-box login-mode" id="nongDoConModalBox">
+
+    <!-- LOGIN VIEW -->
+    <div id="nongDoConLoginView">
+      <div class="modal-title">🍺 Đo nồng độ cồn / Báo cáo</div>
+      <div class="modal-sub">Chọn tên và nhập passcode cá nhân (dùng chung với phiếu lương)</div>
+      <select id="nongDoConNVSelect" style="display:none;"></select>
+      <label class="field-label" style="margin-top:0;">Văn phòng / Tên nhân viên</label>
+      <div class="nv-picker-row">
+        <select id="nongDoConVPSelect" class="nv-picker-vp" onchange="onNVPickerVPChange('nongDoCon')"></select>
+        <input type="text" id="nongDoConNVInput" class="nv-picker-ten" list="nongDoConNVDatalist"
+               placeholder="Gõ hoặc chọn tên..." autocomplete="off"
+               oninput="onNVPickerInput('nongDoCon')" onchange="onNVPickerInput('nongDoCon')">
+        <datalist id="nongDoConNVDatalist"></datalist>
+      </div>
+      <label class="field-label">Passcode</label>
+      <input type="password" id="nongDoConPasscodeInput" maxlength="6" inputmode="numeric" placeholder="Passcode 6 số" autocomplete="off">
+      <div class="modal-err" id="nongDoConLoginErr">Passcode không đúng hoặc không tìm thấy nhân viên.</div>
+      <div class="modal-actions">
+        <button class="modal-btn-cancel" onclick="closeNongDoConModal()">Hủy</button>
+        <button class="modal-btn-confirm" onclick="submitNongDoConLogin()">Đăng nhập</button>
+      </div>
+    </div>
+
+    <!-- CONTENT VIEW (sau khi đăng nhập) -->
+    <div id="nongDoConContentView" class="thuchi-content" style="display:none;">
+      <span class="back-link" onclick="closeNongDoConModal()">‹ Đóng</span>
+
+      <div class="thuchi-tabs">
+        <div class="thuchi-tab active" id="nongDoConTabNhap" onclick="switchNongDoConTab('nhap')">➕ Ghi nhận đo</div>
+        <div class="thuchi-tab" id="nongDoConTabBaoCao" onclick="switchNongDoConTab('baocao')">📊 Báo cáo</div>
+      </div>
+
+      <!-- TAB: GHI NHẬN -->
+      <div id="nongDoConPaneNhap">
+        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Nhân viên giao dịch</label>
+        <select id="nongDoConFormNV"></select>
+
+        <div class="thuchi-form-row">
+          <div>
+            <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Ngày giao dịch</label>
+            <input type="date" id="nongDoConFormNgay">
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Nội dung</label>
+            <input type="text" value="Đo nồng độ cồn" disabled style="opacity:.7;">
+          </div>
+        </div>
+
+        <div class="thuchi-form-row">
+          <div>
+            <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Tuyến</label>
+            <select id="nongDoConFormTuyen">
+              <option value="">— Chưa xác định —</option>
+              <option value="HCM-Quảng Ngãi">HCM - Quảng Ngãi</option>
+              <option value="HCM-Đà Lạt">HCM - Đà Lạt</option>
+              <option value="Khác-Văn phòng">Khác / Văn phòng</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Biển số xe</label>
+            <input type="text" id="nongDoConFormBienSo" placeholder="VD: 51B-123.45" style="text-transform:uppercase;">
+          </div>
+        </div>
+
+        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Tài xế 1 (bắt buộc)</label>
+        <input type="text" id="nongDoConFormTaiXe1" placeholder="Tên tài xế 1">
+        <div class="thuchi-form-row">
+          <div>
+            <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Tài xế 2</label>
+            <input type="text" id="nongDoConFormTaiXe2" placeholder="Tên tài xế 2 (nếu có)">
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Tài xế 3</label>
+            <input type="text" id="nongDoConFormTaiXe3" placeholder="Tên tài xế 3 (nếu có)">
+          </div>
+        </div>
+        <div class="thuchi-form-row">
+          <div>
+            <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Phụ xe 1</label>
+            <input type="text" id="nongDoConFormPhuXe1" placeholder="Tên phụ xe 1 (nếu có)">
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Phụ xe 2</label>
+            <input type="text" id="nongDoConFormPhuXe2" placeholder="Tên phụ xe 2 (nếu có)">
+          </div>
+        </div>
+
+        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Chữ ký xác nhận (bắt buộc — ký bằng ngón tay/chuột)</label>
+        <div class="thuchi-photo-box">
+          <canvas id="nongDoConSignatureCanvas" class="thuchi-signature-canvas"
+                  style="width:100%;height:160px;border:1px dashed var(--border);border-radius:10px;background:#fff;touch-action:none;display:block;"></canvas>
+          <div class="thuchi-photo-actions" style="margin-top:8px;">
+            <button type="button" class="thuchi-photo-btn" onclick="clearNongDoConSignature()">🗑️ Xoá chữ ký</button>
+          </div>
+          <div class="thuchi-photo-status" id="nongDoConSignatureStatus"></div>
+        </div>
+
+        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Ảnh bằng chứng — chụp ảnh realtime (bắt buộc)</label>
+        <div class="thuchi-photo-box">
+          <div class="thuchi-photo-actions">
+            <button type="button" class="thuchi-photo-btn" onclick="document.getElementById('nongDoConPhotoCameraInput').click()">📷 Chụp ảnh</button>
+          </div>
+          <!-- CHỈ camera, KHÔNG cho chọn ảnh có sẵn -> đảm bảo ảnh là chụp thời gian thực -->
+          <input type="file" id="nongDoConPhotoCameraInput" accept="image/*" capture="environment" style="display:none;" onchange="onNongDoConPhotoSelected(event)">
+
+          <div class="thuchi-photo-preview-wrap" id="nongDoConPhotoPreviewWrap">
+            <img class="thuchi-photo-preview" id="nongDoConPhotoPreview" src="" alt="Ảnh bằng chứng">
+            <button type="button" class="thuchi-photo-remove" onclick="removeNongDoConPhoto()" title="Xoá ảnh">✕</button>
+            <div class="thuchi-photo-meta" id="nongDoConPhotoMeta"></div>
+          </div>
+          <div class="thuchi-photo-status" id="nongDoConPhotoStatus"></div>
+        </div>
+
+        <div class="modal-actions" style="margin-top:6px;">
+          <button class="modal-btn-confirm" style="width:100%;" id="nongDoConSubmitBtn" onclick="submitNongDoConForm()">Ghi nhận đo nồng độ cồn</button>
+        </div>
+        <div class="thuchi-msg" id="nongDoConFormMsg"></div>
+      </div>
+
+      <!-- TAB: BÁO CÁO -->
+      <div id="nongDoConPaneBaoCao" style="display:none;">
+        <div class="thuchi-filter-row">
+          <select id="nongDoConReportNVFilter" style="display:none;"></select>
+          <input type="date" id="nongDoConReportTu" title="Từ ngày">
+          <input type="date" id="nongDoConReportDen" title="Đến ngày">
+          <button type="button" class="tab" style="font-size:11px;padding:8px 12px;" onclick="loadNongDoConReport()">🔍 Lọc</button>
+        </div>
+
+        <div class="table-scroll" style="max-height:420px;">
+          <table class="thuchi-table" id="nongDoConReportTable">
+            <thead id="nongDoConReportHead"></thead>
+            <tbody id="nongDoConReportBody">
+              <tr><td class="thuchi-empty">Chọn "Lọc" để tải báo cáo...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="modal-actions" style="margin-top:14px;">
+        <button class="modal-btn-cancel" onclick="closeNongDoConModal()">Đóng</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ĐĂNG KÝ NGHỈ PHÉP MODAL -->
 <div class="modal-overlay" id="nghiPhepModal">
   <div class="modal-box nghiphep-modal-box login-mode" id="nghiPhepModalBox">
@@ -1175,6 +1331,96 @@
   </div>
 </div>
 
+<!-- ============ MODAL ĐỔI CA ============ -->
+<div class="modal-overlay" id="doiCaModal">
+  <div class="modal-box nghiphep-modal-box login-mode" id="doiCaModalBox">
+
+    <!-- LOGIN VIEW -->
+    <div id="doiCaLoginView">
+      <div class="modal-title">🔄 Đổi ca với đồng nghiệp</div>
+      <div class="modal-sub">Chọn tên và nhập passcode cá nhân (dùng chung với phiếu lương)</div>
+      <select id="doiCaNVSelect" style="display:none;"></select>
+      <label class="field-label" style="margin-top:0;">Văn phòng / Tên nhân viên</label>
+      <div class="nv-picker-row">
+        <select id="doiCaVPSelect" class="nv-picker-vp" onchange="onNVPickerVPChange('doiCa')"></select>
+        <input type="text" id="doiCaNVInput" class="nv-picker-ten" list="doiCaNVDatalist"
+               placeholder="Gõ hoặc chọn tên..." autocomplete="off"
+               oninput="onNVPickerInput('doiCa')" onchange="onNVPickerInput('doiCa')">
+        <datalist id="doiCaNVDatalist"></datalist>
+      </div>
+      <label class="field-label">Passcode</label>
+      <input type="password" id="doiCaPasscodeInput" maxlength="6" inputmode="numeric" placeholder="Passcode 6 số" autocomplete="off">
+      <div class="modal-err" id="doiCaLoginErr">Passcode không đúng hoặc không tìm thấy nhân viên.</div>
+      <div class="modal-actions">
+        <button class="modal-btn-cancel" onclick="closeDoiCaModal()">Hủy</button>
+        <button class="modal-btn-confirm" onclick="submitDoiCaLogin()">Đăng nhập</button>
+      </div>
+    </div>
+
+    <!-- CONTENT VIEW -->
+    <div id="doiCaContentView" class="nghiphep-content" style="display:none;">
+      <span class="back-link" onclick="closeDoiCaModal()">‹ Đóng</span>
+
+      <div class="nghiphep-tabs">
+        <div class="nghiphep-tab active" id="doiCaTabDeXuat" onclick="switchDoiCaTab('dexuat')">🔄 Đề xuất mới</div>
+        <div class="nghiphep-tab" id="doiCaTabDonCuaToi" onclick="switchDoiCaTab('doncuatoi')">📋 Đơn liên quan tới tôi</div>
+        <div class="nghiphep-tab" id="doiCaTabDuyet" style="display:none;" onclick="switchDoiCaTab('duyet')">✅ Duyệt đổi ca <span id="doiCaChoDuyetBadge"></span></div>
+      </div>
+
+      <!-- TAB: ĐỀ XUẤT MỚI -->
+      <div id="doiCaPaneDeXuat">
+        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Ngày ca của bạn muốn đổi</label>
+        <input type="date" id="doiCaFormNgayMinh" onchange="checkDoiCaShiftInfo('minh')">
+        <div class="nghiphep-quota-box" id="doiCaCaMinhBox" style="display:none;"></div>
+
+        <label style="font-size:11px;color:var(--text3);display:block;margin:10px 0 4px;">Đổi ca với ai (cùng văn phòng lớn với bạn)</label>
+        <select id="doiCaFormNVKia"><option value="">— Chọn nhân viên —</option></select>
+
+        <label style="font-size:11px;color:var(--text3);display:block;margin:10px 0 4px;">Ngày ca của người đó, muốn đổi cho bạn</label>
+        <input type="date" id="doiCaFormNgayKia" onchange="checkDoiCaShiftInfo('kia')">
+        <div class="nghiphep-quota-box" id="doiCaCaKiaBox" style="display:none;"></div>
+
+        <label style="font-size:11px;color:var(--text3);display:block;margin:10px 0 4px;">Lý do (không bắt buộc)</label>
+        <textarea id="doiCaFormLyDo" placeholder="VD: Có việc gia đình ngày hôm đó..." style="min-height:50px;"></textarea>
+
+        <div class="modal-actions" style="margin-top:6px;">
+          <button class="modal-btn-confirm" style="width:100%;" id="doiCaSubmitBtn" onclick="submitDoiCaForm()">Gửi đề xuất đổi ca</button>
+        </div>
+        <div class="nghiphep-msg" id="doiCaFormMsg"></div>
+      </div>
+
+      <!-- TAB: ĐƠN LIÊN QUAN TỚI TÔI -->
+      <div id="doiCaPaneDonCuaToi" style="display:none;">
+        <div class="table-scroll" style="max-height:420px;">
+          <table class="nghiphep-table">
+            <thead><tr><th>Ngày tạo</th><th>Đổi giữa</th><th>Ca</th><th>Trạng thái</th><th>Hành động</th></tr></thead>
+            <tbody id="doiCaDonCuaToiBody">
+              <tr><td colspan="5" class="nghiphep-empty">Chưa có đơn nào</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB: DUYỆT ĐỔI CA (chỉ Quản lý) -->
+      <div id="doiCaPaneDuyet" style="display:none;">
+        <div id="doiCaThongKeBox" style="font-size:12px;color:var(--text3);margin-bottom:10px;"></div>
+        <div class="table-scroll" style="max-height:420px;">
+          <table class="nghiphep-table">
+            <thead><tr><th>Ngày tạo</th><th>Đổi giữa</th><th>Ca</th><th>VP</th><th>Trạng thái</th><th>Hành động</th></tr></thead>
+            <tbody id="doiCaDuyetBody">
+              <tr><td colspan="6" class="nghiphep-empty">Đang tải...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="modal-actions" style="margin-top:14px;">
+        <button class="modal-btn-cancel" onclick="closeDoiCaModal()">Đóng</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="app-shell">
 
   <!-- SIDEBAR BONG BÓNG (kiểu Messenger) -->
@@ -1198,6 +1444,14 @@
     <button class="bubble-btn" onclick="openThuChiModal()">
       <div class="bubble-icon">💰</div>
       <div class="bubble-label">Thu-Chi</div>
+    </button>
+    <button class="bubble-btn" onclick="openDoiCaModal()">
+      <div class="bubble-icon">🔄</div>
+      <div class="bubble-label">Đổi ca</div>
+    </button>
+    <button class="bubble-btn" onclick="openNongDoConModal()">
+      <div class="bubble-icon">🍺</div>
+      <div class="bubble-label">Đo nồng độ cồn</div>
     </button>
   </div>
 
@@ -3996,6 +4250,480 @@ document.addEventListener('keydown',(e)=>{
 });
 
 // ============================================================
+// ĐO NỒNG ĐỘ CỒN — ghi nhận + báo cáo
+// ============================================================
+let nongDoConUser=null;        // {nv, passcode}
+let nongDoConLastReport=null;  // cache kết quả getNongDoConReport gần nhất
+
+// CHỮ KÝ XÁC NHẬN — canvas vẽ bằng ngón tay/chuột (Pointer Events, dùng chung mouse+touch+pen)
+let nongDoConSigCtx=null;
+let nongDoConSigHasDrawn=false;
+let nongDoConSigDrawing=false;
+let nongDoConSigInited=false;
+
+function initNongDoConSignatureCanvas(){
+  const canvas=document.getElementById('nongDoConSignatureCanvas');
+  if(!canvas)return;
+  const rect=canvas.getBoundingClientRect();
+  if(rect.width<10)return; // canvas chưa hiển thị (đang display:none) -> bỏ qua, gọi lại sau
+  const dpr=window.devicePixelRatio||1;
+  canvas.width=rect.width*dpr;
+  canvas.height=rect.height*dpr;
+  const ctx=canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  ctx.lineWidth=2.2;
+  ctx.lineCap='round';
+  ctx.lineJoin='round';
+  ctx.strokeStyle='#1a1a1a';
+  nongDoConSigCtx=ctx;
+  nongDoConSigHasDrawn=false;
+
+  if(nongDoConSigInited)return; // chỉ gắn listener 1 lần, tránh nhân đôi
+  nongDoConSigInited=true;
+
+  const getPos=(evt)=>{
+    const r=canvas.getBoundingClientRect();
+    return {x:evt.clientX-r.left, y:evt.clientY-r.top};
+  };
+  canvas.addEventListener('pointerdown',(e)=>{
+    nongDoConSigDrawing=true;
+    const p=getPos(e);
+    nongDoConSigCtx.beginPath();
+    nongDoConSigCtx.moveTo(p.x,p.y);
+    canvas.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  canvas.addEventListener('pointermove',(e)=>{
+    if(!nongDoConSigDrawing)return;
+    const p=getPos(e);
+    nongDoConSigCtx.lineTo(p.x,p.y);
+    nongDoConSigCtx.stroke();
+    nongDoConSigHasDrawn=true;
+    e.preventDefault();
+  });
+  const endDraw=()=>{nongDoConSigDrawing=false;};
+  canvas.addEventListener('pointerup',endDraw);
+  canvas.addEventListener('pointerleave',endDraw);
+  canvas.addEventListener('pointercancel',endDraw);
+}
+
+function clearNongDoConSignature(){
+  const canvas=document.getElementById('nongDoConSignatureCanvas');
+  if(!canvas||!nongDoConSigCtx)return;
+  nongDoConSigCtx.clearRect(0,0,canvas.width,canvas.height);
+  nongDoConSigHasDrawn=false;
+  const statusEl=document.getElementById('nongDoConSignatureStatus');
+  if(statusEl){statusEl.className='thuchi-photo-status';statusEl.textContent='';}
+}
+
+// Upload chữ ký lên Drive qua doPost thật (không qua JSONP) — trả về link ảnh chữ ký.
+async function uploadNongDoConSignatureIfAny(){
+  if(!nongDoConSigHasDrawn)return '';
+  const canvas=document.getElementById('nongDoConSignatureCanvas');
+  const statusEl=document.getElementById('nongDoConSignatureStatus');
+  statusEl.className='thuchi-photo-status uploading';
+  statusEl.textContent='⏳ Đang lưu chữ ký...';
+
+  const dataUrl=canvas.toDataURL('image/png');
+
+  const UPLOAD_TIMEOUT_MS=20000;
+  const controller=new AbortController();
+  const timeoutId=setTimeout(()=>controller.abort(),UPLOAD_TIMEOUT_MS);
+
+  let res;
+  try{
+    res=await fetch(CONFIG.payrollUrl,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      signal:controller.signal,
+      body:JSON.stringify({
+        action:'uploadChuKyNongDoCon',
+        nv:nongDoConUser.nv, passcode:nongDoConUser.passcode,
+        chuKyBase64:dataUrl
+      })
+    });
+  }catch(fetchErr){
+    if(fetchErr.name==='AbortError'){
+      throw new Error('Tải chữ ký quá lâu (mạng yếu) — đã huỷ sau '+(UPLOAD_TIMEOUT_MS/1000)+'s.');
+    }
+    throw new Error('Không kết nối được tới server để lưu chữ ký: '+fetchErr.message);
+  }finally{
+    clearTimeout(timeoutId);
+  }
+
+  let json;
+  try{
+    json=await res.json();
+  }catch(parseErr){
+    throw new Error('Server trả về dữ liệu không hợp lệ khi lưu chữ ký.');
+  }
+  if(json.status!=='ok')throw new Error(json.message||'Lưu chữ ký thất bại.');
+
+  statusEl.className='thuchi-photo-status ok';
+  statusEl.textContent='✅ Đã lưu chữ ký.';
+  return json.linkChuKy;
+}
+
+function showNongDoConLogin(){
+  document.getElementById('nongDoConLoginView').style.display='block';
+  document.getElementById('nongDoConContentView').style.display='none';
+  document.getElementById('nongDoConModalBox').classList.add('login-mode');
+}
+function showNongDoConContent(){
+  document.getElementById('nongDoConLoginView').style.display='none';
+  document.getElementById('nongDoConContentView').style.display='block';
+  document.getElementById('nongDoConModalBox').classList.remove('login-mode');
+  setTimeout(initNongDoConSignatureCanvas,120); // đợi canvas render xong mới đo kích thước thật
+}
+
+async function openNongDoConModal(){
+  document.getElementById('nongDoConNVInput').value='';
+  document.getElementById('nongDoConNVSelect').innerHTML='';
+  await populateNVPicker('nongDoCon');
+
+  const fullNVOptions=(masterNVFullList.length?masterNVFullList.map(o=>o.ten):[...new Set(allData.map(r=>r.nv))].sort())
+    .map(n=>`<option value="${n}">${n}</option>`).join('');
+  const formNVSelInit=document.getElementById('nongDoConFormNV');
+  if(formNVSelInit)formNVSelInit.innerHTML=fullNVOptions;
+
+  document.getElementById('nongDoConPasscodeInput').value='';
+  document.getElementById('nongDoConLoginErr').style.display='none';
+
+  if(nongDoConUser){
+    document.getElementById('nongDoConFormNV').value=nongDoConUser.nv;
+    showNongDoConContent();
+  }else{
+    showNongDoConLogin();
+  }
+  document.getElementById('nongDoConModal').classList.add('show');
+  setTimeout(()=>document.getElementById('nongDoConPasscodeInput')?.focus(),100);
+}
+function closeNongDoConModal(){
+  document.getElementById('nongDoConModal').classList.remove('show');
+}
+
+async function submitNongDoConLogin(){
+  const nv=document.getElementById('nongDoConNVSelect').value;
+  const passcode=document.getElementById('nongDoConPasscodeInput').value.trim();
+  const errEl=document.getElementById('nongDoConLoginErr');
+  errEl.style.display='none';
+
+  if(!nv){errEl.textContent='Vui lòng gõ hoặc chọn tên nhân viên.';errEl.style.display='block';return;}
+  if(!passcode||passcode.length!==6){errEl.textContent='Vui lòng nhập đủ 6 số passcode.';errEl.style.display='block';return;}
+
+  showLoading('Đang xác thực...');
+  try{
+    const url=CONFIG.payrollUrl+'?action=checkPasscode&nv='+encodeURIComponent(nv)+'&passcode='+encodeURIComponent(passcode);
+    const json=await fetchJSONP(url);
+    if(json.status!=='ok'||!json.data||!json.data.valid)throw new Error('Passcode không đúng.');
+
+    nongDoConUser={nv:nv,passcode:passcode};
+
+    const formNVSel=document.getElementById('nongDoConFormNV');
+    if(formNVSel)formNVSel.value=nv;
+
+    document.getElementById('nongDoConFormNgay').value=fmtDate(new Date());
+
+    switchNongDoConTab('nhap');
+    showNongDoConContent();
+  }catch(e){
+    errEl.textContent='Lỗi: '+e.message;
+    errEl.style.display='block';
+  }
+  hideLoading();
+}
+
+function switchNongDoConTab(tab){
+  const isNhap=tab==='nhap';
+  document.getElementById('nongDoConTabNhap').classList.toggle('active',isNhap);
+  document.getElementById('nongDoConTabBaoCao').classList.toggle('active',!isNhap);
+  document.getElementById('nongDoConPaneNhap').style.display=isNhap?'block':'none';
+  document.getElementById('nongDoConPaneBaoCao').style.display=isNhap?'none':'block';
+
+  if(!isNhap){
+    setupNongDoConReportFilters();
+    if(!nongDoConLastReport)loadNongDoConReport();
+  }
+}
+
+// ẢNH BẰNG CHỨNG — chỉ chụp realtime (không cho chọn ảnh có sẵn), gắn GPS + giờ UTC
+let nongDoConPhotoState=null; // {blob, previewUrl, gioChupUTC, lat, lng, daUpload, linkAnh}
+const NONGDOCON_PHOTO_MAX_DIM=1000;
+const NONGDOCON_PHOTO_QUALITY=0.7;
+
+async function onNongDoConPhotoSelected(evt){
+  const file=evt.target.files&&evt.target.files[0];
+  evt.target.value='';
+  if(!file)return;
+
+  const statusEl=document.getElementById('nongDoConPhotoStatus');
+  statusEl.className='thuchi-photo-status uploading';
+  statusEl.textContent='⏳ Đang xử lý ảnh...';
+
+  try{
+    const gioChupUTC=new Date().toISOString();
+    const scaledBlob=await scaleImageFile(file, NONGDOCON_PHOTO_MAX_DIM, NONGDOCON_PHOTO_QUALITY);
+    const previewUrl=URL.createObjectURL(scaledBlob);
+
+    nongDoConPhotoState={blob:scaledBlob, previewUrl:previewUrl, gioChupUTC:gioChupUTC, lat:null, lng:null, daUpload:false, linkAnh:''};
+
+    document.getElementById('nongDoConPhotoPreview').src=previewUrl;
+    document.getElementById('nongDoConPhotoPreviewWrap').classList.add('show');
+    updateNongDoConPhotoMeta();
+
+    statusEl.textContent='📍 Đang lấy vị trí GPS (có thể bỏ qua nếu trình duyệt hỏi quyền)...';
+    try{
+      const pos=await getGeoLocationSafe();
+      if(pos){
+        nongDoConPhotoState.lat=pos.coords.latitude;
+        nongDoConPhotoState.lng=pos.coords.longitude;
+      }
+    }catch(e){/* không có GPS vẫn tiếp tục bình thường */}
+
+    updateNongDoConPhotoMeta();
+    statusEl.className='thuchi-photo-status';
+    statusEl.textContent='Ảnh sẽ được tải lên khi bạn bấm "Ghi nhận đo nồng độ cồn".';
+  }catch(e){
+    statusEl.className='thuchi-photo-status error';
+    statusEl.textContent='❌ Lỗi xử lý ảnh: '+e.message;
+  }
+}
+
+function updateNongDoConPhotoMeta(){
+  const meta=document.getElementById('nongDoConPhotoMeta');
+  if(!nongDoConPhotoState){meta.textContent='';return;}
+  const gioLocal=new Date(nongDoConPhotoState.gioChupUTC).toLocaleString('vi-VN');
+  const gpsText=(nongDoConPhotoState.lat!=null&&nongDoConPhotoState.lng!=null)
+    ? `${nongDoConPhotoState.lat.toFixed(5)}, ${nongDoConPhotoState.lng.toFixed(5)}`
+    : 'Không có (chưa cấp quyền vị trí)';
+  meta.innerHTML=`🕒 ${gioLocal} (UTC: ${nongDoConPhotoState.gioChupUTC})<br>📍 GPS: ${gpsText}`;
+}
+
+function removeNongDoConPhoto(){
+  if(nongDoConPhotoState&&nongDoConPhotoState.previewUrl)URL.revokeObjectURL(nongDoConPhotoState.previewUrl);
+  nongDoConPhotoState=null;
+  document.getElementById('nongDoConPhotoPreviewWrap').classList.remove('show');
+  document.getElementById('nongDoConPhotoPreview').src='';
+  document.getElementById('nongDoConPhotoMeta').innerHTML='';
+  const statusEl=document.getElementById('nongDoConPhotoStatus');
+  statusEl.className='thuchi-photo-status';
+  statusEl.textContent='';
+}
+
+async function uploadNongDoConPhotoIfAny(){
+  if(!nongDoConPhotoState)return '';
+  if(nongDoConPhotoState.daUpload)return nongDoConPhotoState.linkAnh;
+
+  const statusEl=document.getElementById('nongDoConPhotoStatus');
+  statusEl.className='thuchi-photo-status uploading';
+  statusEl.textContent='⏳ Đang tải ảnh lên Drive...';
+
+  const base64=await blobToBase64(nongDoConPhotoState.blob);
+
+  const UPLOAD_TIMEOUT_MS=25000;
+  const controller=new AbortController();
+  const timeoutId=setTimeout(()=>controller.abort(),UPLOAD_TIMEOUT_MS);
+
+  let res;
+  try{
+    res=await fetch(CONFIG.payrollUrl,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      signal:controller.signal,
+      body:JSON.stringify({
+        action:'uploadAnhNongDoCon',
+        nv:nongDoConUser.nv, passcode:nongDoConUser.passcode,
+        anhBase64:base64,
+        gioChupUTC:nongDoConPhotoState.gioChupUTC,
+        lat:nongDoConPhotoState.lat, lng:nongDoConPhotoState.lng
+      })
+    });
+  }catch(fetchErr){
+    if(fetchErr.name==='AbortError'){
+      throw new Error('Tải ảnh quá lâu (mạng yếu/chập chờn) — đã huỷ sau '+(UPLOAD_TIMEOUT_MS/1000)+'s.');
+    }
+    throw new Error('Không kết nối được tới server để tải ảnh (kiểm tra mạng): '+fetchErr.message);
+  }finally{
+    clearTimeout(timeoutId);
+  }
+
+  let json;
+  try{
+    json=await res.json();
+  }catch(parseErr){
+    throw new Error('Server trả về dữ liệu không hợp lệ khi tải ảnh (không phải JSON).');
+  }
+  if(json.status!=='ok')throw new Error(json.message||'Tải ảnh lên Drive thất bại.');
+
+  nongDoConPhotoState.daUpload=true;
+  nongDoConPhotoState.linkAnh=json.linkAnh;
+  statusEl.className='thuchi-photo-status ok';
+  statusEl.textContent='✅ Đã tải ảnh lên Drive.';
+  return json.linkAnh;
+}
+
+async function submitNongDoConForm(){
+  const msg=document.getElementById('nongDoConFormMsg');
+  msg.style.display='none';
+  if(!nongDoConUser){msg.textContent='❌ Phiên đăng nhập đã hết, vui lòng mở lại.';msg.className='thuchi-msg error';return;}
+
+  const tenGiaoDich=document.getElementById('nongDoConFormNV').value;
+  const ngay=document.getElementById('nongDoConFormNgay').value;
+  const tuyen=document.getElementById('nongDoConFormTuyen').value;
+  const bienSo=document.getElementById('nongDoConFormBienSo').value.trim().toUpperCase();
+  const taiXe1=document.getElementById('nongDoConFormTaiXe1').value.trim();
+  const taiXe2=document.getElementById('nongDoConFormTaiXe2').value.trim();
+  const taiXe3=document.getElementById('nongDoConFormTaiXe3').value.trim();
+  const phuXe1=document.getElementById('nongDoConFormPhuXe1').value.trim();
+  const phuXe2=document.getElementById('nongDoConFormPhuXe2').value.trim();
+
+  if(!tenGiaoDich){msg.textContent='❌ Vui lòng chọn nhân viên giao dịch.';msg.className='thuchi-msg error';return;}
+  if(!ngay){msg.textContent='❌ Vui lòng chọn ngày giao dịch.';msg.className='thuchi-msg error';return;}
+  if(!bienSo){msg.textContent='❌ Vui lòng nhập biển số xe.';msg.className='thuchi-msg error';return;}
+  if(!taiXe1){msg.textContent='❌ Vui lòng nhập tên Tài xế 1.';msg.className='thuchi-msg error';return;}
+  if(!nongDoConSigHasDrawn){msg.textContent='❌ Vui lòng ký tên xác nhận trước khi ghi nhận.';msg.className='thuchi-msg error';return;}
+  if(!nongDoConPhotoState){msg.textContent='❌ Vui lòng chụp ảnh bằng chứng (realtime) trước khi ghi nhận.';msg.className='thuchi-msg error';return;}
+
+  // Giờ gửi thực tế — ghi nhận NGAY LÚC bấm nút, độc lập với "Ngày giao dịch" NV chọn ở trên,
+  // để đối chiếu phát hiện trường hợp NV chỉnh lùi/đẩy ngày giao dịch do quên đo.
+  const gioGuiUTC=new Date().toISOString();
+
+  const btn=document.getElementById('nongDoConSubmitBtn');
+  btn.disabled=true;btn.textContent='Đang ghi nhận...';
+
+  try{
+    let linkAnh='';
+    try{
+      linkAnh=await uploadNongDoConPhotoIfAny();
+    }catch(photoErr){
+      msg.textContent='❌ '+photoErr.message+' — vui lòng thử lại (bắt buộc phải có ảnh).';
+      msg.className='thuchi-msg error';
+      btn.disabled=false;btn.textContent='Ghi nhận đo nồng độ cồn';
+      return; // ảnh bắt buộc -> không ghi nhận nếu upload lỗi
+    }
+
+    let linkChuKy='';
+    try{
+      linkChuKy=await uploadNongDoConSignatureIfAny();
+    }catch(sigErr){
+      msg.textContent='❌ '+sigErr.message+' — vui lòng thử lại (bắt buộc phải có chữ ký).';
+      msg.className='thuchi-msg error';
+      btn.disabled=false;btn.textContent='Ghi nhận đo nồng độ cồn';
+      return; // chữ ký bắt buộc -> không ghi nhận nếu upload lỗi
+    }
+
+    const payload={
+      nv:nongDoConUser.nv, passcode:nongDoConUser.passcode,
+      tenGiaoDich:tenGiaoDich, ngay:ngay, noiDung:'Đo nồng độ cồn',
+      tuyen:tuyen, bienSo:bienSo,
+      taiXe1:taiXe1, taiXe2:taiXe2, taiXe3:taiXe3,
+      phuXe1:phuXe1, phuXe2:phuXe2,
+      linkAnh:linkAnh, linkChuKy:linkChuKy, gioGuiUTC:gioGuiUTC
+    };
+    const url=CONFIG.payrollUrl+'?action=submitNongDoCon&payload='+encodeURIComponent(JSON.stringify(payload));
+    const json=await fetchJSONP(url);
+    if(json.status!=='ok')throw new Error(json.message||'Ghi nhận thất bại');
+
+    msg.textContent='✅ '+json.message;
+    msg.className='thuchi-msg success';
+
+    // Reset form (giữ lại NV + tuyến để nhập liên tiếp nhiều xe cùng ngày nhanh hơn)
+    document.getElementById('nongDoConFormBienSo').value='';
+    document.getElementById('nongDoConFormTaiXe1').value='';
+    document.getElementById('nongDoConFormTaiXe2').value='';
+    document.getElementById('nongDoConFormTaiXe3').value='';
+    document.getElementById('nongDoConFormPhuXe1').value='';
+    document.getElementById('nongDoConFormPhuXe2').value='';
+    removeNongDoConPhoto();
+    clearNongDoConSignature();
+
+    nongDoConLastReport=null;
+  }catch(e){
+    msg.textContent='❌ Lỗi: '+e.message;
+    msg.className='thuchi-msg error';
+  }
+  btn.disabled=false;btn.textContent='Ghi nhận đo nồng độ cồn';
+}
+
+function setupNongDoConReportFilters(){
+  const sel=document.getElementById('nongDoConReportNVFilter');
+  const isManager=currentUser&&currentUser.isManager&&currentUser.nv===nongDoConUser?.nv;
+  if(isManager){
+    sel.style.display='inline-block';
+    const nvNames=masterNVFullList.length?masterNVFullList.map(o=>o.ten):[];
+    sel.innerHTML='<option value="">— Tất cả nhân viên —</option>'+
+      nvNames.map(n=>`<option value="${n}">${n}</option>`).join('');
+  }else{
+    sel.style.display='none';
+  }
+}
+
+async function loadNongDoConReport(){
+  if(!nongDoConUser)return;
+  const tbody=document.getElementById('nongDoConReportBody');
+  tbody.innerHTML='<tr><td class="thuchi-empty">Đang tải...</td></tr>';
+
+  const tu=document.getElementById('nongDoConReportTu').value||'';
+  const den=document.getElementById('nongDoConReportDen').value||'';
+  const nvLoc=document.getElementById('nongDoConReportNVFilter').value||'';
+
+  try{
+    let url=CONFIG.payrollUrl+'?action=getNongDoConReport&nv='+encodeURIComponent(nongDoConUser.nv)+'&passcode='+encodeURIComponent(nongDoConUser.passcode);
+    if(tu)url+='&tu='+encodeURIComponent(tu);
+    if(den)url+='&den='+encodeURIComponent(den);
+    if(nvLoc)url+='&nvLoc='+encodeURIComponent(nvLoc);
+    const json=await fetchJSONP(url);
+    if(json.status!=='ok')throw new Error(json.message||'Không tải được báo cáo');
+
+    nongDoConLastReport=json.data;
+    setupNongDoConReportFilters();
+    renderNongDoConReportTable();
+  }catch(e){
+    tbody.innerHTML='<tr><td class="thuchi-empty">❌ Lỗi: '+e.message+'</td></tr>';
+  }
+}
+
+function renderNongDoConReportTable(){
+  const head=document.getElementById('nongDoConReportHead');
+  const body=document.getElementById('nongDoConReportBody');
+  if(!nongDoConLastReport){body.innerHTML='<tr><td class="thuchi-empty">Chọn "Lọc" để tải báo cáo...</td></tr>';head.innerHTML='';return;}
+
+  const rows=nongDoConLastReport.rows||nongDoConLastReport;
+  head.innerHTML='<tr><th>Ngày GD</th><th>NV giao dịch</th><th>Tuyến</th><th>Biển số</th>'
+    +'<th>Tài xế</th><th>Phụ xe</th><th>Ảnh</th><th>Chữ ký</th><th>Giờ gửi thực tế</th></tr>';
+  if(!rows||!rows.length){body.innerHTML='<tr><td colspan="9" class="thuchi-empty">Không có giao dịch trong khoảng đã chọn</td></tr>';return;}
+
+  body.innerHTML=rows.map(r=>{
+    const taiXe=[r.taiXe1,r.taiXe2,r.taiXe3].filter(Boolean).join(', ')||'—';
+    const phuXe=[r.phuXe1,r.phuXe2].filter(Boolean).join(', ')||'—';
+    const gioGuiLocal=r.gioGuiUTC?new Date(r.gioGuiUTC).toLocaleString('vi-VN'):'—';
+    // Cảnh báo nếu ngày gửi thực tế khác ngày giao dịch NV khai -> nghi ngờ NV dời ngày lại
+    const ngayGuiOnly=r.gioGuiUTC?new Date(r.gioGuiUTC).toISOString().slice(0,10):'';
+    const lechNgay=ngayGuiOnly&&r.ngay&&ngayGuiOnly!==r.ngay;
+    return `
+      <tr>
+        <td>${r.ngay}</td>
+        <td>${r.nv}</td>
+        <td>${r.tuyen||'—'}</td>
+        <td><strong>${r.bienSo||'—'}</strong></td>
+        <td>${escapeHtml(taiXe)}</td>
+        <td>${escapeHtml(phuXe)}</td>
+        <td>${r.linkAnh?`<a href="${r.linkAnh}" target="_blank" rel="noopener" title="Xem ảnh bằng chứng">📷</a>`:'—'}</td>
+        <td>${r.linkChuKy?`<a href="${r.linkChuKy}" target="_blank" rel="noopener" title="Xem chữ ký">✍️</a>`:'—'}</td>
+        <td style="${lechNgay?'color:var(--red);font-weight:600;':''}" title="${lechNgay?'⚠️ Ngày gửi thực tế khác ngày giao dịch khai báo':''}">${gioGuiLocal}${lechNgay?' ⚠️':''}</td>
+      </tr>`;
+  }).join('');
+}
+
+// Enter để submit passcode Đo nồng độ cồn
+document.addEventListener('keydown',(e)=>{
+  if(e.key==='Enter'&&document.getElementById('nongDoConModal')?.classList.contains('show')
+     &&document.getElementById('nongDoConLoginView')?.style.display!=='none'){
+    submitNongDoConLogin();
+  }
+});
+
+// ============================================================
 // ĐĂNG KÝ NGHỈ PHÉP / OFF
 // ============================================================
 let nghiPhepUser=null;       // {nv, passcode}
@@ -4267,6 +4995,340 @@ async function duyetDon(maDK,hanhDong){
   }
   hideLoading();
 }
+
+// ============================================================
+// ĐỔI CA GIỮA 2 NHÂN VIÊN — 3 bước: NV đề xuất -> NV kia xác nhận -> Quản lý VP duyệt
+// Khi Quản lý duyệt xong, backend tự đổi tên NV trên đúng 2 ca trong Raw Data.
+// ============================================================
+let doiCaUser=null;        // {nv, passcode}
+let doiCaIsManager=false;
+let doiCaVanPhong='';      // VP lớn của người đăng nhập
+let doiCaLastList=null;    // cache kết quả getDoiCaList gần nhất
+
+function showDoiCaLogin(){
+  document.getElementById('doiCaLoginView').style.display='block';
+  document.getElementById('doiCaContentView').style.display='none';
+  document.getElementById('doiCaModalBox').classList.add('login-mode');
+}
+function showDoiCaContent(){
+  document.getElementById('doiCaLoginView').style.display='none';
+  document.getElementById('doiCaContentView').style.display='block';
+  document.getElementById('doiCaModalBox').classList.remove('login-mode');
+}
+
+async function openDoiCaModal(){
+  document.getElementById('doiCaNVInput').value='';
+  document.getElementById('doiCaNVSelect').innerHTML='';
+  await populateNVPicker('doiCa');
+
+  document.getElementById('doiCaPasscodeInput').value='';
+  document.getElementById('doiCaLoginErr').style.display='none';
+
+  if(doiCaUser){
+    showDoiCaContent();
+    switchDoiCaTab('dexuat');
+  }else{
+    showDoiCaLogin();
+  }
+  document.getElementById('doiCaModal').classList.add('show');
+  setTimeout(()=>document.getElementById('doiCaPasscodeInput')?.focus(),100);
+}
+function closeDoiCaModal(){
+  document.getElementById('doiCaModal').classList.remove('show');
+}
+
+async function submitDoiCaLogin(){
+  const nv=document.getElementById('doiCaNVSelect').value;
+  const passcode=document.getElementById('doiCaPasscodeInput').value.trim();
+  const errEl=document.getElementById('doiCaLoginErr');
+  errEl.style.display='none';
+
+  if(!nv){errEl.textContent='Vui lòng gõ hoặc chọn tên nhân viên.';errEl.style.display='block';return;}
+  if(!passcode||passcode.length!==6){errEl.textContent='Vui lòng nhập đủ 6 số passcode.';errEl.style.display='block';return;}
+
+  showLoading('Đang xác thực...');
+  try{
+    const url=CONFIG.payrollUrl+'?action=loginSchedule&nv='+encodeURIComponent(nv)+'&passcode='+encodeURIComponent(passcode);
+    const json=await fetchJSONP(url);
+    if(json.status!=='ok'||!json.data)throw new Error('Passcode không đúng.');
+
+    doiCaUser={nv:nv,passcode:passcode};
+    doiCaVanPhong=json.data.vanPhong||json.data.boPhan||'';
+    doiCaIsManager=json.data.isManager||false;
+    document.getElementById('doiCaTabDuyet').style.display=doiCaIsManager?'block':'none';
+
+    // Ngày mặc định = ngày mai cho cả 2 ô ngày
+    document.getElementById('doiCaFormNgayMinh').value=fmtDate(addDays(new Date(),1));
+    document.getElementById('doiCaFormNgayKia').value=fmtDate(addDays(new Date(),1));
+    document.getElementById('doiCaCaMinhBox').style.display='none';
+    document.getElementById('doiCaCaKiaBox').style.display='none';
+    document.getElementById('doiCaFormLyDo').value='';
+    populateDoiCaNVKiaOptions();
+    checkDoiCaShiftInfo('minh');
+
+    showDoiCaContent();
+    switchDoiCaTab('dexuat');
+  }catch(e){
+    errEl.textContent='Lỗi: '+e.message;
+    errEl.style.display='block';
+  }
+  hideLoading();
+}
+
+// Đổ danh sách "đổi ca với ai" — chỉ những NV cùng văn phòng lớn, loại trừ chính mình
+function populateDoiCaNVKiaOptions(){
+  const sel=document.getElementById('doiCaFormNVKia');
+  if(!sel)return;
+  const source=masterNVFullList.length ? masterNVFullList : [];
+  const cungVP=source.filter(o=>o.ten && normKeyFE(o.ten)!==normKeyFE(doiCaUser?.nv||'')
+    && (!doiCaVanPhong || o.vanPhong===doiCaVanPhong));
+  sel.innerHTML='<option value="">— Chọn nhân viên —</option>'
+    +cungVP.map(o=>`<option value="${o.ten}">${o.ten}</option>`).join('');
+  sel.onchange=()=>checkDoiCaShiftInfo('kia');
+}
+// Chuẩn hoá tên để so sánh không dấu/hoa-thường — dùng riêng ở khối Đổi ca,
+// không đụng tới normVP()/getMyVPScope() đã dùng cho phân quyền lịch chính.
+function normKeyFE(s){
+  return String(s||'').trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/đ/g,'d').replace(/[^a-z0-9]/g,'');
+}
+
+// Tra cứu cục bộ (không gọi API) xem NV có ca ngày đó không, hiển thị ngay cho NV biết
+// trước khi bấm gửi — lớp chặn thật sự vẫn nằm ở backend submitDoiCa().
+function timCaLocal(tenNV, ngayStr){
+  if(!tenNV||!ngayStr)return null;
+  return allData.find(r=>r.date===ngayStr && normKeyFE(r.nv)===normKeyFE(tenNV)) || null;
+}
+function checkDoiCaShiftInfo(who){
+  if(who==='minh'){
+    const box=document.getElementById('doiCaCaMinhBox');
+    const ngay=document.getElementById('doiCaFormNgayMinh').value;
+    const ca=timCaLocal(doiCaUser?.nv, ngay);
+    box.style.display='flex';
+    if(ca){
+      box.className='nghiphep-quota-box ok';
+      box.textContent='Ca của bạn ngày này: '+(ca.caLam||ca.loaiCa||'—')+' ('+(ca.loaiCa||'')+') tại '+(ca.boPhan||'—');
+    }else{
+      box.className='nghiphep-quota-box error';
+      box.textContent='⚠️ Bạn không có ca làm việc vào ngày này trong lịch hiện có.';
+    }
+  }else{
+    const box=document.getElementById('doiCaCaKiaBox');
+    const nvKia=document.getElementById('doiCaFormNVKia').value;
+    const ngay=document.getElementById('doiCaFormNgayKia').value;
+    if(!nvKia||!ngay){box.style.display='none';return;}
+    const ca=timCaLocal(nvKia, ngay);
+    box.style.display='flex';
+    if(ca){
+      box.className='nghiphep-quota-box ok';
+      box.textContent='Ca của '+nvKia+' ngày này: '+(ca.caLam||ca.loaiCa||'—')+' ('+(ca.loaiCa||'')+') tại '+(ca.boPhan||'—');
+    }else{
+      box.className='nghiphep-quota-box error';
+      box.textContent='⚠️ '+nvKia+' không có ca làm việc vào ngày này trong lịch hiện có.';
+    }
+  }
+}
+
+async function switchDoiCaTab(tab){
+  document.getElementById('doiCaTabDeXuat').classList.toggle('active',tab==='dexuat');
+  document.getElementById('doiCaTabDonCuaToi').classList.toggle('active',tab==='doncuatoi');
+  document.getElementById('doiCaTabDuyet').classList.toggle('active',tab==='duyet');
+  document.getElementById('doiCaPaneDeXuat').style.display=tab==='dexuat'?'block':'none';
+  document.getElementById('doiCaPaneDonCuaToi').style.display=tab==='doncuatoi'?'block':'none';
+  document.getElementById('doiCaPaneDuyet').style.display=tab==='duyet'?'block':'none';
+
+  if(tab==='doncuatoi'||tab==='duyet'){
+    await loadDoiCaList();
+    if(tab==='doncuatoi')renderDoiCaDonCuaToi();
+    if(tab==='duyet')renderDoiCaDuyet();
+  }
+}
+
+async function loadDoiCaList(){
+  if(!doiCaUser)return;
+  try{
+    const url=CONFIG.payrollUrl+'?action=getDoiCaList&nv='+encodeURIComponent(doiCaUser.nv)+'&passcode='+encodeURIComponent(doiCaUser.passcode);
+    const json=await fetchJSONP(url);
+    if(json.status!=='ok')throw new Error(json.message||'Không tải được danh sách đổi ca');
+    doiCaLastList=json.data;
+  }catch(e){
+    doiCaLastList=null;
+    console.error('Lỗi tải danh sách đổi ca:',e.message);
+  }
+}
+
+function doiCaStatusBadge(trangThai){
+  const map={
+    'Chờ NV kia xác nhận': ['cho','⏳ Chờ NV kia xác nhận'],
+    'Chờ Quản lý duyệt':   ['cho','⏳ Chờ Quản lý duyệt'],
+    'Đã duyệt':            ['duyet','✅ Đã duyệt'],
+    'NV từ chối':          ['tuchoi','✕ NV từ chối'],
+    'Quản lý từ chối':     ['tuchoi','✕ Quản lý từ chối'],
+    'Đã huỷ':              ['tuchoi','✕ Đã huỷ']
+  };
+  const [cls,label]=map[trangThai]||['cho',trangThai||'—'];
+  return `<span class="nghiphep-status ${cls}">${label}</span>`;
+}
+
+function renderDoiCaDonCuaToi(){
+  const body=document.getElementById('doiCaDonCuaToiBody');
+  if(!doiCaLastList||!doiCaLastList.rows.length){
+    body.innerHTML='<tr><td colspan="5" class="nghiphep-empty">Chưa có đơn nào</td></tr>';
+    return;
+  }
+  const myName=doiCaUser.nv;
+  body.innerHTML=doiCaLastList.rows.map(r=>{
+    const laNguoiDeXuat = normKeyFE(r.nvDeXuat)===normKeyFE(myName);
+    const laNguoiDuocDoi = normKeyFE(r.nvDuocDoi)===normKeyFE(myName);
+    let hanhDongHtml='—';
+    if(laNguoiDuocDoi && r.trangThai==='Chờ NV kia xác nhận'){
+      hanhDongHtml=`<div class="nghiphep-approve-btns">
+        <button class="nghiphep-btn-approve" onclick="xacNhanDoiCaAction('${r.maDC}','dongy')">✓ Đồng ý</button>
+        <button class="nghiphep-btn-reject" onclick="xacNhanDoiCaAction('${r.maDC}','tuchoi')">✕ Từ chối</button>
+      </div>`;
+    }else if(laNguoiDeXuat && r.trangThai==='Chờ NV kia xác nhận'){
+      hanhDongHtml=`<button class="nghiphep-btn-reject" onclick="xacNhanDoiCaAction('${r.maDC}','huy')">✕ Huỷ đề xuất</button>`;
+    }
+    return `<tr>
+      <td>${r.ngayTao?r.ngayTao.split('-').reverse().join('/'):'—'}</td>
+      <td>${r.nvDeXuat} ↔ ${r.nvDuocDoi}<br><span style="font-size:10px;color:var(--text3);">
+        ${r.ngayCaNVDeXuat?r.ngayCaNVDeXuat.split('-').reverse().join('/'):'—'} ↔ ${r.ngayCaNVDuocDoi?r.ngayCaNVDuocDoi.split('-').reverse().join('/'):'—'}</span></td>
+      <td style="font-size:11px;">${escapeHtml(r.caNVDeXuat)}<br>${escapeHtml(r.caNVDuocDoi)}</td>
+      <td>${doiCaStatusBadge(r.trangThai)}</td>
+      <td>${hanhDongHtml}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderDoiCaDuyet(){
+  const body=document.getElementById('doiCaDuyetBody');
+  const thongKeBox=document.getElementById('doiCaThongKeBox');
+  if(!doiCaIsManager){
+    body.innerHTML='<tr><td colspan="6" class="nghiphep-empty">Chỉ Quản lý mới xem được mục này</td></tr>';
+    thongKeBox.innerHTML='';
+    return;
+  }
+  if(!doiCaLastList){
+    body.innerHTML='<tr><td colspan="6" class="nghiphep-empty">Chưa có đơn đổi ca nào</td></tr>';
+    thongKeBox.innerHTML='';
+    return;
+  }
+
+  // Thống kê số lần đổi ca ĐÃ DUYỆT theo từng NV — để quản lý theo dõi tần suất
+  const demTheoNV=doiCaLastList.demTheoNV||{};
+  const demEntries=Object.entries(demTheoNV).sort((a,b)=>b[1]-a[1]);
+  thongKeBox.innerHTML = demEntries.length
+    ? '📊 Số lần đổi ca đã duyệt: '+demEntries.map(([nv,soLan])=>`<b>${nv}</b>: ${soLan}`).join(' · ')
+    : '📊 Chưa có lượt đổi ca nào được duyệt.';
+
+  if(!doiCaLastList.rows.length){
+    body.innerHTML='<tr><td colspan="6" class="nghiphep-empty">Chưa có đơn đổi ca nào</td></tr>';
+    return;
+  }
+  const sorted=[...doiCaLastList.rows].sort((a,b)=>{
+    const order={'Chờ Quản lý duyệt':0,'Chờ NV kia xác nhận':1,'Đã duyệt':2};
+    return (order[a.trangThai]??3)-(order[b.trangThai]??3);
+  });
+  body.innerHTML=sorted.map(r=>`
+    <tr>
+      <td>${r.ngayTao?r.ngayTao.split('-').reverse().join('/'):'—'}</td>
+      <td>${r.nvDeXuat} ↔ ${r.nvDuocDoi}<br><span style="font-size:10px;color:var(--text3);">
+        ${r.ngayCaNVDeXuat?r.ngayCaNVDeXuat.split('-').reverse().join('/'):'—'} ↔ ${r.ngayCaNVDuocDoi?r.ngayCaNVDuocDoi.split('-').reverse().join('/'):'—'}</span></td>
+      <td style="font-size:11px;">${escapeHtml(r.caNVDeXuat)}<br>${escapeHtml(r.caNVDuocDoi)}</td>
+      <td>${r.vp||'—'}</td>
+      <td>${doiCaStatusBadge(r.trangThai)}</td>
+      <td>${r.trangThai==='Chờ Quản lý duyệt'
+        ? `<div class="nghiphep-approve-btns">
+             <button class="nghiphep-btn-approve" onclick="duyetDoiCaAction('${r.maDC}','duyet')">✓ Duyệt</button>
+             <button class="nghiphep-btn-reject" onclick="duyetDoiCaAction('${r.maDC}','tuchoi')">✕ Từ chối</button>
+           </div>`
+        : (r.nguoiDuyet||'—')}</td>
+    </tr>`).join('');
+}
+
+async function submitDoiCaForm(){
+  const msg=document.getElementById('doiCaFormMsg');
+  msg.style.display='none';
+  if(!doiCaUser){msg.textContent='❌ Phiên đăng nhập đã hết, vui lòng mở lại.';msg.className='nghiphep-msg error';msg.style.display='block';return;}
+
+  const ngayMinh=document.getElementById('doiCaFormNgayMinh').value;
+  const nvKia=document.getElementById('doiCaFormNVKia').value;
+  const ngayKia=document.getElementById('doiCaFormNgayKia').value;
+  const lyDo=document.getElementById('doiCaFormLyDo').value.trim();
+
+  if(!ngayMinh){msg.textContent='❌ Vui lòng chọn ngày ca của bạn.';msg.className='nghiphep-msg error';msg.style.display='block';return;}
+  if(!nvKia){msg.textContent='❌ Vui lòng chọn người muốn đổi ca.';msg.className='nghiphep-msg error';msg.style.display='block';return;}
+  if(!ngayKia){msg.textContent='❌ Vui lòng chọn ngày ca của người kia.';msg.className='nghiphep-msg error';msg.style.display='block';return;}
+
+  const btn=document.getElementById('doiCaSubmitBtn');
+  btn.disabled=true;btn.textContent='Đang gửi...';
+
+  try{
+    const payload={
+      nv:doiCaUser.nv, passcode:doiCaUser.passcode,
+      ngayCuaMinh:ngayMinh, nvDuocDoi:nvKia, ngayCuaNguoiKia:ngayKia, lyDo:lyDo
+    };
+    const url=CONFIG.payrollUrl+'?action=submitDoiCa&payload='+encodeURIComponent(JSON.stringify(payload));
+    const json=await fetchJSONP(url);
+    if(json.status!=='ok')throw new Error(json.message||'Gửi đề xuất thất bại');
+
+    msg.textContent='✅ '+json.message;
+    msg.className='nghiphep-msg success';
+    msg.style.display='block';
+
+    document.getElementById('doiCaFormLyDo').value='';
+    doiCaLastList=null; // invalidate cache để tab "Đơn liên quan" tự tải lại
+  }catch(e){
+    msg.textContent='❌ Lỗi: '+e.message;
+    msg.className='nghiphep-msg error';
+    msg.style.display='block';
+  }
+  btn.disabled=false;btn.textContent='Gửi đề xuất đổi ca';
+}
+
+async function xacNhanDoiCaAction(maDC,hanhDong){
+  if(!doiCaUser)return;
+  const labelMap={dongy:'Đang xác nhận đồng ý...',tuchoi:'Đang từ chối...',huy:'Đang huỷ đề xuất...'};
+  showLoading(labelMap[hanhDong]||'Đang xử lý...');
+  try{
+    const payload={nv:doiCaUser.nv,passcode:doiCaUser.passcode,maDC:maDC,hanhDong:hanhDong};
+    const url=CONFIG.payrollUrl+'?action=xacNhanDoiCa&payload='+encodeURIComponent(JSON.stringify(payload));
+    const json=await fetchJSONP(url);
+    if(json.status!=='ok')throw new Error(json.message);
+    await loadDoiCaList();
+    renderDoiCaDonCuaToi();
+  }catch(e){
+    alert('Lỗi: '+e.message);
+  }
+  hideLoading();
+}
+
+async function duyetDoiCaAction(maDC,hanhDong){
+  if(!doiCaUser)return;
+  showLoading(hanhDong==='duyet'?'Đang duyệt và cập nhật lịch...':'Đang từ chối...');
+  try{
+    const payload={nv:doiCaUser.nv,passcode:doiCaUser.passcode,maDC:maDC,hanhDong:hanhDong};
+    const url=CONFIG.payrollUrl+'?action=duyetDoiCa&payload='+encodeURIComponent(JSON.stringify(payload));
+    const json=await fetchJSONP(url);
+    if(json.status!=='ok')throw new Error(json.message);
+    await loadDoiCaList();
+    renderDoiCaDuyet();
+    // Đổi ca thành công có thể vừa sửa Raw Data -> tải lại lịch chính để phản ánh ngay
+    if(hanhDong==='duyet'){ loadData(); }
+  }catch(e){
+    alert('Lỗi: '+e.message);
+  }
+  hideLoading();
+}
+
+// Enter để submit passcode Đổi ca
+document.addEventListener('keydown',(e)=>{
+  if(e.key==='Enter'&&document.getElementById('doiCaModal')?.classList.contains('show')
+     &&document.getElementById('doiCaLoginView')?.style.display!=='none'){
+    submitDoiCaLogin();
+  }
+});
 
 // Enter để submit passcode Đăng ký nghỉ phép
 document.addEventListener('keydown',(e)=>{
