@@ -1285,13 +1285,15 @@
 
       <!-- TAB: GỬI BÁO CÁO -->
       <div id="lineDTPaneNhap">
+        <div id="lineDTRotationBox" style="margin-bottom:10px;"></div>
+
         <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Nhân viên</label>
-        <select id="lineDTFormNV"></select>
+        <select id="lineDTFormNV" onchange="updateLineDTRotationSuggestion()"></select>
 
         <div class="thuchi-form-row">
           <div>
             <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Ngày</label>
-            <input type="date" id="lineDTFormNgay">
+            <input type="date" id="lineDTFormNgay" onchange="updateLineDTRotationSuggestion()">
           </div>
           <div>
             <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Số line / bàn (bắt buộc)</label>
@@ -2287,6 +2289,60 @@ function getDeviceInfo(){
     userAgent: (navigator.userAgent || ''),
     doPhanGiai: (window.screen ? (window.screen.width + 'x' + window.screen.height) : '')
   };
+}
+
+// ============================================================
+// XOAY VÒNG LINE ĐIỆN THOẠI VP BÀ ĐIỂM (100-103) — dựa THẲNG vào lịch làm
+// việc thật (allData, đã tải từ Apps Script A) — không cần gọi thêm backend.
+// Quy tắc: mỗi ngày, NV nào có lịch trực Bà Điểm hôm đó (ca sáng/chiều, không OFF)
+// -> sắp xếp theo tên -> dịch vòng theo số ngày (dayIndex) -> gán line 100..103.
+// Hôm sau vòng dịch thêm 1 bước -> không ai bị "dính" mãi 1 số line.
+// Dùng chung 4 line cho mọi ca trong ngày (đúng yêu cầu anh chốt).
+// ============================================================
+const LINE_DT_ROTATION_BASE = 100;
+const LINE_DT_ROTATION_COUNT = 4;
+
+function isBaDiemOffice(boPhan){
+  return normKey(boPhan).includes('badiem');
+}
+
+// Lấy danh sách NV có lịch trực Bà Điểm đúng ngày truyền vào (không OFF),
+// mỗi NV chỉ lấy 1 dòng dù dữ liệu lịch có thể có nhiều dòng trùng.
+function getBaDiemStaffForDate(dateObj){
+  const ds = fmtDate(dateObj);
+  const seen = {};
+  const list = [];
+  (allData||[]).forEach(r=>{
+    if(!r.date || !r.nv) return;
+    if(fmtDate(r.date) !== ds) return;
+    if(!isBaDiemOffice(r.boPhan)) return;
+    if(!r.loaiCa || r.loaiCa === 'OFF') return;
+    const key = normKey(r.nv);
+    if(seen[key]) return;
+    seen[key] = true;
+    list.push({ nv: r.nv, ca: r.loaiCa });
+  });
+  return list;
+}
+
+// Tính vòng xoay line cho 1 ngày cụ thể: trả về [{nv, ca, line}]
+// (line = null nếu hôm đó có nhiều hơn 4 người trực Bà Điểm cùng lúc -> hết line)
+function computeBaDiemLineRotation(dateObj){
+  const staff = getBaDiemStaffForDate(dateObj);
+  if(!staff.length) return [];
+
+  staff.sort((a,b)=>a.nv.localeCompare(b.nv,'vi')); // thứ tự gốc ổn định trước khi xoay
+
+  const dayIdx = Math.round(new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate()).getTime() / 86400000);
+  const n = staff.length;
+  const offset = ((dayIdx % n) + n) % n; // luôn dương dù dayIdx âm
+  const rotated = staff.slice(offset).concat(staff.slice(0, offset));
+
+  return rotated.map((s,i)=>({
+    nv: s.nv,
+    ca: s.ca,
+    line: i < LINE_DT_ROTATION_COUNT ? (LINE_DT_ROTATION_BASE + i) : null
+  }));
 }
 
 async function loadData(){
@@ -4874,6 +4930,8 @@ async function openLineDTModal(){
 
   if(lineDTUser){
     document.getElementById('lineDTFormNV').value=lineDTUser.nv;
+    if(!document.getElementById('lineDTFormNgay').value)document.getElementById('lineDTFormNgay').value=fmtDate(new Date());
+    updateLineDTRotationSuggestion();
     showLineDTContent();
   }else{
     showLineDTLogin();
@@ -4905,6 +4963,7 @@ async function submitLineDTLogin(){
     const formNVSel=document.getElementById('lineDTFormNV');
     if(formNVSel)formNVSel.value=nv;
     document.getElementById('lineDTFormNgay').value=fmtDate(new Date());
+    updateLineDTRotationSuggestion();
 
     switchLineDTTab('nhap');
     showLineDTContent();
@@ -4913,6 +4972,39 @@ async function submitLineDTLogin(){
     errEl.style.display='block';
   }
   hideLoading();
+}
+
+// Hiển thị bảng vòng xoay hôm nay (mọi người Bà Điểm đang trực) + tự điền gợi ý
+// số line cho đúng NV đang chọn trong form. NV vẫn có thể sửa tay nếu cần.
+function updateLineDTRotationSuggestion(){
+  const box=document.getElementById('lineDTRotationBox');
+  const ngayStr=document.getElementById('lineDTFormNgay')?.value;
+  if(!box||!ngayStr){if(box)box.innerHTML='';return;}
+
+  const [y,m,d]=ngayStr.split('-').map(Number);
+  const dateObj=new Date(y,m-1,d);
+  const rotation=computeBaDiemLineRotation(dateObj);
+
+  if(!rotation.length){
+    box.innerHTML=''; // hôm đó không ai trực Bà Điểm theo lịch -> không gợi ý, NV tự nhập tay
+    return;
+  }
+
+  const nv=document.getElementById('lineDTFormNV')?.value||'';
+  const mine=rotation.find(r=>normKey(r.nv)===normKey(nv));
+  const soLineInput=document.getElementById('lineDTFormSoLine');
+  if(mine&&mine.line&&soLineInput){
+    soLineInput.value=String(mine.line);
+  }
+
+  box.innerHTML='<div style="background:var(--surface2);border-radius:8px;padding:8px 10px;font-size:11px;color:var(--text2);line-height:1.6;">'
+    +'🔀 <strong>Xoay vòng line hôm nay — VP Bà Điểm</strong><br>'
+    +rotation.map(r=>{
+        const isMine=normKey(r.nv)===normKey(nv);
+        const lineText=r.line?('Line '+r.line):'hết line (>4 người)';
+        return `${isMine?'<strong>':''}${escapeHtml(r.nv)} (${escapeHtml(r.ca)}) → ${lineText}${isMine?' ⭐':''}${isMine?'</strong>':''}`;
+      }).join(' &nbsp;·&nbsp; ')
+    +'</div>';
 }
 
 function switchLineDTTab(tab){
