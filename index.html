@@ -2302,12 +2302,33 @@ function getDeviceInfo(){
 const LINE_DT_ROTATION_BASE = 100;
 const LINE_DT_ROTATION_COUNT = 4;
 
+// Chỉ những ca này mới cần trực nghe line điện thoại (Ca Tối / Trực đêm KHÔNG tính
+// vào vòng xoay — chỉnh lại danh sách này nếu sau này đổi ca áp dụng).
+const LINE_DT_ALLOWED_CA = ['Ca Sáng', 'Ca Lỡ'];
+
+// Danh sách NV KHÔNG tham gia random line ĐT (quản lý, hoặc bất kỳ ai không trực nghe line).
+// Anh tự thêm/bớt tên ở đây khi cần — gõ ĐÚNG tên như trong lịch làm việc (không phân biệt
+// hoa/thường/dấu, ví dụ 'Mai' hay 'MAI' đều được), cách nhau bởi dấu phẩy.
+const LINE_DT_EXCLUDE_NV = ['MAI'];
+
 function isBaDiemOffice(boPhan){
   return normKey(boPhan).includes('badiem');
 }
 
-// Lấy danh sách NV có lịch trực Bà Điểm đúng ngày truyền vào (không OFF),
-// mỗi NV chỉ lấy 1 dòng dù dữ liệu lịch có thể có nhiều dòng trùng.
+// Trả về tên ca CHUẨN HOÁ (đúng chính tả trong LINE_DT_ALLOWED_CA) nếu loaiCa khớp,
+// null nếu không thuộc diện trực line (Ca Tối/Trực đêm/OFF...).
+// Dùng bản chuẩn hoá này để nhóm theo ca cho nhất quán, tránh lệch chính tả/khoảng trắng.
+function matchLineDTAllowedCa(loaiCa){
+  return LINE_DT_ALLOWED_CA.find(ca => normKey(ca) === normKey(loaiCa)) || null;
+}
+
+function isLineDTExcludedNV(tenNV){
+  return LINE_DT_EXCLUDE_NV.some(n => normKey(n) === normKey(tenNV));
+}
+
+// Lấy danh sách NV có lịch trực Bà Điểm đúng ngày truyền vào — CHỈ tính Ca Sáng/Ca Lỡ,
+// loại trừ danh sách quản lý (LINE_DT_EXCLUDE_NV), mỗi NV chỉ lấy 1 dòng dù dữ liệu
+// lịch có thể có nhiều dòng trùng.
 function getBaDiemStaffForDate(dateObj){
   const ds = fmtDate(dateObj);
   const seen = {};
@@ -2316,33 +2337,40 @@ function getBaDiemStaffForDate(dateObj){
     if(!r.date || !r.nv) return;
     if(fmtDate(r.date) !== ds) return;
     if(!isBaDiemOffice(r.boPhan)) return;
-    if(!r.loaiCa || r.loaiCa === 'OFF') return;
+    const caChuan = matchLineDTAllowedCa(r.loaiCa);
+    if(!caChuan) return; // loại Ca Tối / Trực đêm / OFF
+    if(isLineDTExcludedNV(r.nv)) return; // loại quản lý / người không trực line
     const key = normKey(r.nv);
     if(seen[key]) return;
     seen[key] = true;
-    list.push({ nv: r.nv, ca: r.loaiCa });
+    list.push({ nv: r.nv, ca: caChuan });
   });
   return list;
 }
 
-// Tính vòng xoay line cho 1 ngày cụ thể: trả về [{nv, ca, line}]
-// (line = null nếu hôm đó có nhiều hơn 4 người trực Bà Điểm cùng lúc -> hết line)
-function computeBaDiemLineRotation(dateObj){
+// Xoay vòng RIÊNG cho từng ca (Ca Sáng và Ca Lỡ = ca chiều tách biệt, KHÔNG gộp chung).
+// Mỗi ca tự lấp line từ 100 tăng dần theo đúng số người có mặt ca đó — 4 người thì đủ
+// 100-103, 3 người (off nhiều) thì chỉ dùng 100-102, không nhảy cóc sang 103.
+// Vòng xoay theo dayIndex để không ai bị dính mãi 1 số (né line 100/101 đổ chuông nhiều).
+// Trả về: { 'Ca Sáng':[{nv,ca,line}], 'Ca Lỡ':[{nv,ca,line}] }
+function computeBaDiemLineRotationByCa(dateObj){
   const staff = getBaDiemStaffForDate(dateObj);
-  if(!staff.length) return [];
-
-  staff.sort((a,b)=>a.nv.localeCompare(b.nv,'vi')); // thứ tự gốc ổn định trước khi xoay
-
   const dayIdx = Math.round(new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate()).getTime() / 86400000);
-  const n = staff.length;
-  const offset = ((dayIdx % n) + n) % n; // luôn dương dù dayIdx âm
-  const rotated = staff.slice(offset).concat(staff.slice(0, offset));
 
-  return rotated.map((s,i)=>({
-    nv: s.nv,
-    ca: s.ca,
-    line: i < LINE_DT_ROTATION_COUNT ? (LINE_DT_ROTATION_BASE + i) : null
-  }));
+  const result = {};
+  LINE_DT_ALLOWED_CA.forEach(caName=>{
+    const group = staff.filter(s=>s.ca===caName).sort((a,b)=>a.nv.localeCompare(b.nv,'vi'));
+    const n = group.length;
+    if(n===0){ result[caName]=[]; return; }
+    const offset = ((dayIdx % n) + n) % n;
+    const rotated = group.slice(offset).concat(group.slice(0, offset));
+    result[caName] = rotated.map((s,i)=>({
+      nv: s.nv,
+      ca: s.ca,
+      line: i < LINE_DT_ROTATION_COUNT ? (LINE_DT_ROTATION_BASE + i) : null
+    }));
+  });
+  return result;
 }
 
 async function loadData(){
@@ -4974,8 +5002,8 @@ async function submitLineDTLogin(){
   hideLoading();
 }
 
-// Hiển thị bảng vòng xoay hôm nay (mọi người Bà Điểm đang trực) + tự điền gợi ý
-// số line cho đúng NV đang chọn trong form. NV vẫn có thể sửa tay nếu cần.
+// Hiển thị 2 bảng vòng xoay hôm nay TÁCH RIÊNG theo Ca Sáng / Ca Lỡ (chiều) + tự điền
+// gợi ý số line cho đúng NV đang chọn trong form. NV vẫn có thể sửa tay nếu cần.
 function updateLineDTRotationSuggestion(){
   const box=document.getElementById('lineDTRotationBox');
   const ngayStr=document.getElementById('lineDTFormNgay')?.value;
@@ -4983,27 +5011,38 @@ function updateLineDTRotationSuggestion(){
 
   const [y,m,d]=ngayStr.split('-').map(Number);
   const dateObj=new Date(y,m-1,d);
-  const rotation=computeBaDiemLineRotation(dateObj);
+  const byCa=computeBaDiemLineRotationByCa(dateObj);
+  const caLabels={'Ca Sáng':'☀️ Ca Sáng','Ca Lỡ':'🌇 Ca Chiều (Ca Lỡ)'};
 
-  if(!rotation.length){
+  const hasAny=LINE_DT_ALLOWED_CA.some(ca=>(byCa[ca]||[]).length>0);
+  if(!hasAny){
     box.innerHTML=''; // hôm đó không ai trực Bà Điểm theo lịch -> không gợi ý, NV tự nhập tay
     return;
   }
 
   const nv=document.getElementById('lineDTFormNV')?.value||'';
-  const mine=rotation.find(r=>normKey(r.nv)===normKey(nv));
   const soLineInput=document.getElementById('lineDTFormSoLine');
-  if(mine&&mine.line&&soLineInput){
-    soLineInput.value=String(mine.line);
+  let mineLine=null;
+
+  const blocks=LINE_DT_ALLOWED_CA.map(caName=>{
+    const rotation=byCa[caName]||[];
+    if(!rotation.length)return '';
+    const rowsHtml=rotation.map(r=>{
+      const isMine=normKey(r.nv)===normKey(nv);
+      if(isMine&&r.line)mineLine=r.line;
+      const lineText=r.line?('Line '+r.line):'hết line (>4 người)';
+      return `${isMine?'<strong>':''}${escapeHtml(r.nv)} → ${lineText}${isMine?' ⭐':''}${isMine?'</strong>':''}`;
+    }).join(' &nbsp;·&nbsp; ');
+    return `<div style="margin-top:4px;"><strong>${caLabels[caName]||caName}:</strong> ${rowsHtml}</div>`;
+  }).join('');
+
+  if(mineLine&&soLineInput){
+    soLineInput.value=String(mineLine);
   }
 
   box.innerHTML='<div style="background:var(--surface2);border-radius:8px;padding:8px 10px;font-size:11px;color:var(--text2);line-height:1.6;">'
-    +'🔀 <strong>Xoay vòng line hôm nay — VP Bà Điểm</strong><br>'
-    +rotation.map(r=>{
-        const isMine=normKey(r.nv)===normKey(nv);
-        const lineText=r.line?('Line '+r.line):'hết line (>4 người)';
-        return `${isMine?'<strong>':''}${escapeHtml(r.nv)} (${escapeHtml(r.ca)}) → ${lineText}${isMine?' ⭐':''}${isMine?'</strong>':''}`;
-      }).join(' &nbsp;·&nbsp; ')
+    +'🔀 <strong>Xoay vòng line hôm nay — VP Bà Điểm</strong> (tách riêng từng ca, lấp từ Line 100 tăng dần)'
+    +blocks
     +'</div>';
 }
 
