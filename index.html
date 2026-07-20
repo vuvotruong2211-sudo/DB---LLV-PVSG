@@ -2262,6 +2262,33 @@ function fetchJSONP(url){
   });
 }
 
+// ============================================================
+// NHẬN DIỆN THIẾT BỊ — chống trường hợp NV nhờ người khác nhập hộ.
+// Device ID được sinh 1 lần và lưu cố định trong trình duyệt/máy đó
+// (localStorage) -> cùng 1 điện thoại/máy sẽ luôn ra cùng 1 Device ID,
+// dù đăng nhập bằng tên NV nào. Nếu 2 NV khác nhau nhưng cùng Device ID
+// trong cùng khung giờ -> khả năng cao đang nhập hộ trên cùng 1 máy.
+// ============================================================
+function getDeviceId(){
+  try{
+    let id=localStorage.getItem('llv_device_id');
+    if(!id){
+      id='dev-'+Math.random().toString(36).slice(2,10)+'-'+Math.random().toString(36).slice(2,10);
+      localStorage.setItem('llv_device_id',id);
+    }
+    return id;
+  }catch(e){
+    return 'dev-khongluudc'; // trình duyệt chặn localStorage (chế độ ẩn danh...) -> không cố định được
+  }
+}
+function getDeviceInfo(){
+  return {
+    deviceId: getDeviceId(),
+    userAgent: (navigator.userAgent || ''),
+    doPhanGiai: (window.screen ? (window.screen.width + 'x' + window.screen.height) : '')
+  };
+}
+
 async function loadData(){
   // Ưu tiên đọc URL từ CONFIG (set cứng, luôn có sẵn) thay vì từ ô input
   // để tránh race condition khi auto-load lúc trang mới mở
@@ -4205,7 +4232,8 @@ async function submitThuChiForm(){
     const payload={
       nv:thuChiUser.nv, passcode:thuChiUser.passcode,
       tenGiaoDich:tenGiaoDich, ngay:ngay, phanLoai:thuChiCurrentType,
-      noiDung:noiDung, soTien:soTien, tuyen:tuyen, linkAnh:linkAnh
+      noiDung:noiDung, soTien:soTien, tuyen:tuyen, linkAnh:linkAnh,
+      ...getDeviceInfo()
     };
     const url=CONFIG.payrollUrl+'?action=submitThuChi&payload='+encodeURIComponent(JSON.stringify(payload));
     const json=await fetchJSONP(url);
@@ -4708,7 +4736,8 @@ async function submitNongDoConForm(){
       tuyen:tuyen, bienSo:bienSo,
       taiXe1:taiXe1, taiXe2:taiXe2, taiXe3:taiXe3,
       phuXe1:phuXe1, phuXe2:phuXe2,
-      linkAnh:linkAnh, linkChuKy:linkChuKy, gioGuiUTC:gioGuiUTC
+      linkAnh:linkAnh, linkChuKy:linkChuKy, gioGuiUTC:gioGuiUTC,
+      ...getDeviceInfo()
     };
     const url=CONFIG.payrollUrl+'?action=submitNongDoCon&payload='+encodeURIComponent(JSON.stringify(payload));
     const json=await fetchJSONP(url);
@@ -4917,7 +4946,7 @@ async function submitLineDTForm(){
   btn.disabled=true;btn.textContent='Đang gửi...';
 
   try{
-    const payload={nv:lineDTUser.nv, passcode:lineDTUser.passcode, tenNV:nv, ngay:ngay, soLine:soLine, ghiChu:ghiChu};
+    const payload={nv:lineDTUser.nv, passcode:lineDTUser.passcode, tenNV:nv, ngay:ngay, soLine:soLine, ghiChu:ghiChu, ...getDeviceInfo()};
     const url=CONFIG.payrollUrl+'?action=submitLineDT&payload='+encodeURIComponent(JSON.stringify(payload));
     const json=await fetchJSONP(url);
     if(json.status!=='ok')throw new Error(json.message||'Gửi báo cáo thất bại');
