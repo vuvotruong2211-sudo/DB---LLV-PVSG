@@ -2328,7 +2328,8 @@ function isLineDTExcludedNV(tenNV){
 
 // Lấy danh sách NV có lịch trực Bà Điểm đúng ngày truyền vào — CHỈ tính Ca Sáng/Ca Lỡ,
 // loại trừ danh sách quản lý (LINE_DT_EXCLUDE_NV), mỗi NV chỉ lấy 1 dòng dù dữ liệu
-// lịch có thể có nhiều dòng trùng.
+// lịch có thể có nhiều dòng trùng. Có kèm giờ vào/ra thật (startMin/endMin) để tính
+// khung giờ thật sự có mặt tại văn phòng — không chỉ dựa vào nhãn ca.
 function getBaDiemStaffForDate(dateObj){
   const ds = fmtDate(dateObj);
   const seen = {};
@@ -2343,34 +2344,60 @@ function getBaDiemStaffForDate(dateObj){
     const key = normKey(r.nv);
     if(seen[key]) return;
     seen[key] = true;
-    list.push({ nv: r.nv, ca: caChuan });
+    const parsed = parseCaLamViecJS(r.caLam);
+    list.push({
+      nv: r.nv, ca: caChuan,
+      startMin: parsed ? parsed.startMin : null,
+      endMin: parsed ? parsed.endMin : null
+    });
   });
   return list;
 }
 
-// Xoay vòng RIÊNG cho từng ca (Ca Sáng và Ca Lỡ = ca chiều tách biệt, KHÔNG gộp chung).
-// Mỗi ca tự lấp line từ 100 tăng dần theo đúng số người có mặt ca đó — 4 người thì đủ
-// 100-103, 3 người (off nhiều) thì chỉ dùng 100-102, không nhảy cóc sang 103.
-// Vòng xoay theo dayIndex để không ai bị dính mãi 1 số (né line 100/101 đổ chuông nhiều).
-// Trả về: { 'Ca Sáng':[{nv,ca,line}], 'Ca Lỡ':[{nv,ca,line}] }
-function computeBaDiemLineRotationByCa(dateObj){
+// Mốc tách buổi sáng/chiều — Ca Sáng làm tới 14h30 là hết ca, sau mốc này coi là buổi chiều.
+const LINE_DT_WINDOW_BOUNDARY_MIN = 14*60 + 30;
+
+// Xoay vòng RIÊNG theo KHUNG GIỜ THẬT (không theo nhãn ca) — mốc 14h30:
+// - Buổi sáng: gồm mọi NV có mặt trước 14h30 (Ca Sáng + cả Ca Lỡ nào vào sớm, VD 8h,
+//   vì họ đang ngồi CHUNG phòng với Ca Sáng lúc đó) -> chung 1 pool 100-103.
+// - Buổi chiều: gồm mọi NV còn ở lại sau 14h30 (thường là Ca Lỡ) -> random LẠI riêng,
+//   không dùng lại line buổi sáng của chính họ -> không ai bị dính mãi 100/101.
+// Mỗi khung tự lấp line từ 100 tăng dần theo đúng số người có mặt khung đó.
+// Trả về: { morning:[{nv,ca,startMin,endMin,line}], afternoon:[...] }
+function computeBaDiemLineRotationByWindow(dateObj){
   const staff = getBaDiemStaffForDate(dateObj);
   const dayIdx = Math.round(new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate()).getTime() / 86400000);
 
-  const result = {};
-  LINE_DT_ALLOWED_CA.forEach(caName=>{
-    const group = staff.filter(s=>s.ca===caName).sort((a,b)=>a.nv.localeCompare(b.nv,'vi'));
+  function buildPool(filterFn){
+    const group = staff.filter(filterFn).sort((a,b)=>a.nv.localeCompare(b.nv,'vi'));
     const n = group.length;
-    if(n===0){ result[caName]=[]; return; }
+    if(n===0) return [];
     const offset = ((dayIdx % n) + n) % n;
     const rotated = group.slice(offset).concat(group.slice(0, offset));
-    result[caName] = rotated.map((s,i)=>({
-      nv: s.nv,
-      ca: s.ca,
+    return rotated.map((s,i)=>({
+      nv: s.nv, ca: s.ca, startMin: s.startMin, endMin: s.endMin,
       line: i < LINE_DT_ROTATION_COUNT ? (LINE_DT_ROTATION_BASE + i) : null
     }));
-  });
-  return result;
+  }
+
+  return {
+    morning:   buildPool(s => s.startMin!=null && s.startMin < LINE_DT_WINDOW_BOUNDARY_MIN),
+    afternoon: buildPool(s => s.endMin!=null && s.endMin > LINE_DT_WINDOW_BOUNDARY_MIN)
+  };
+}
+
+// Chọn khung phù hợp với "bây giờ" cho 1 NV cụ thể — vì có người (VD Y.NHI vào Ca Lỡ
+// nhưng vào sớm 8h) nằm trong CẢ 2 khung, cần biết đang là buổi sáng hay chiều để lấy
+// đúng line hiện tại của họ, thay vì lấy nhầm line của khung còn lại.
+function pickLineDTLineForNVNow(nv, dateObj){
+  const byWindow = computeBaDiemLineRotationByWindow(dateObj);
+  const nowMin = new Date().getHours()*60 + new Date().getMinutes();
+  const order = nowMin < LINE_DT_WINDOW_BOUNDARY_MIN ? ['morning','afternoon'] : ['afternoon','morning'];
+  for(const w of order){
+    const found=(byWindow[w]||[]).find(r=>normKey(r.nv)===normKey(nv));
+    if(found && found.line) return { win:w, line:found.line };
+  }
+  return null;
 }
 
 async function loadData(){
@@ -5002,8 +5029,9 @@ async function submitLineDTLogin(){
   hideLoading();
 }
 
-// Hiển thị 2 bảng vòng xoay hôm nay TÁCH RIÊNG theo Ca Sáng / Ca Lỡ (chiều) + tự điền
-// gợi ý số line cho đúng NV đang chọn trong form. NV vẫn có thể sửa tay nếu cần.
+// Hiển thị 2 bảng vòng xoay hôm nay TÁCH RIÊNG theo khung giờ thật (mốc 14h30) + tự
+// điền gợi ý số line cho đúng NV đang chọn, ưu tiên đúng khung giờ hiện tại. NV vẫn
+// có thể sửa tay nếu cần.
 function updateLineDTRotationSuggestion(){
   const box=document.getElementById('lineDTRotationBox');
   const ngayStr=document.getElementById('lineDTFormNgay')?.value;
@@ -5011,10 +5039,10 @@ function updateLineDTRotationSuggestion(){
 
   const [y,m,d]=ngayStr.split('-').map(Number);
   const dateObj=new Date(y,m-1,d);
-  const byCa=computeBaDiemLineRotationByCa(dateObj);
-  const caLabels={'Ca Sáng':'☀️ Ca Sáng','Ca Lỡ':'🌇 Ca Chiều (Ca Lỡ)'};
+  const byWindow=computeBaDiemLineRotationByWindow(dateObj);
+  const winLabels={morning:'☀️ Buổi sáng (trước 14h30)', afternoon:'🌇 Buổi chiều (từ 14h30)'};
 
-  const hasAny=LINE_DT_ALLOWED_CA.some(ca=>(byCa[ca]||[]).length>0);
+  const hasAny=(byWindow.morning||[]).length>0 || (byWindow.afternoon||[]).length>0;
   if(!hasAny){
     box.innerHTML=''; // hôm đó không ai trực Bà Điểm theo lịch -> không gợi ý, NV tự nhập tay
     return;
@@ -5022,26 +5050,31 @@ function updateLineDTRotationSuggestion(){
 
   const nv=document.getElementById('lineDTFormNV')?.value||'';
   const soLineInput=document.getElementById('lineDTFormSoLine');
-  let mineLine=null;
+  const gioiVaoCa=(mins)=>{
+    if(mins==null)return '';
+    return String(Math.floor(mins/60)).padStart(2,'0')+'h'+(mins%60?String(mins%60).padStart(2,'0'):'');
+  };
 
-  const blocks=LINE_DT_ALLOWED_CA.map(caName=>{
-    const rotation=byCa[caName]||[];
+  const blocks=['morning','afternoon'].map(win=>{
+    const rotation=byWindow[win]||[];
     if(!rotation.length)return '';
     const rowsHtml=rotation.map(r=>{
       const isMine=normKey(r.nv)===normKey(nv);
-      if(isMine&&r.line)mineLine=r.line;
       const lineText=r.line?('Line '+r.line):'hết line (>4 người)';
-      return `${isMine?'<strong>':''}${escapeHtml(r.nv)} → ${lineText}${isMine?' ⭐':''}${isMine?'</strong>':''}`;
+      return `${isMine?'<strong>':''}${escapeHtml(r.nv)} (vào ${gioiVaoCa(r.startMin)}) → ${lineText}${isMine?' ⭐':''}${isMine?'</strong>':''}`;
     }).join(' &nbsp;·&nbsp; ');
-    return `<div style="margin-top:4px;"><strong>${caLabels[caName]||caName}:</strong> ${rowsHtml}</div>`;
+    return `<div style="margin-top:4px;"><strong>${winLabels[win]}:</strong> ${rowsHtml}</div>`;
   }).join('');
 
-  if(mineLine&&soLineInput){
-    soLineInput.value=String(mineLine);
+  // Tự điền: ưu tiên đúng khung giờ hiện tại (VD Y.NHI vào Ca Lỡ 8h -> nằm ở cả 2 khung,
+  // nhưng lúc 10h sáng phải lấy line của khung sáng, lúc 16h phải lấy line khung chiều).
+  const picked=pickLineDTLineForNVNow(nv,dateObj);
+  if(picked&&soLineInput){
+    soLineInput.value=String(picked.line);
   }
 
   box.innerHTML='<div style="background:var(--surface2);border-radius:8px;padding:8px 10px;font-size:11px;color:var(--text2);line-height:1.6;">'
-    +'🔀 <strong>Xoay vòng line hôm nay — VP Bà Điểm</strong> (tách riêng từng ca, lấp từ Line 100 tăng dần)'
+    +'🔀 <strong>Xoay vòng line hôm nay — VP Bà Điểm</strong> (chia theo khung giờ thật, mốc 14h30 — lấp từ Line 100 tăng dần)'
     +blocks
     +'</div>';
 }
