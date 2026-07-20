@@ -1248,6 +1248,92 @@
   </div>
 </div>
 
+<!-- BÁO CÁO LINE ĐIỆN THOẠI MODAL -->
+<div class="modal-overlay" id="lineDTModal">
+  <div class="modal-box thuchi-modal-box login-mode" id="lineDTModalBox">
+
+    <!-- LOGIN VIEW -->
+    <div id="lineDTLoginView">
+      <div class="modal-title">📞 Báo cáo Line điện thoại</div>
+      <div class="modal-sub">Chọn tên và nhập passcode cá nhân (dùng chung với phiếu lương)</div>
+      <select id="lineDTNVSelect" style="display:none;"></select>
+      <label class="field-label" style="margin-top:0;">Văn phòng / Tên nhân viên</label>
+      <div class="nv-picker-row">
+        <select id="lineDTVPSelect" class="nv-picker-vp" onchange="onNVPickerVPChange('lineDT')"></select>
+        <input type="text" id="lineDTNVInput" class="nv-picker-ten" list="lineDTNVDatalist"
+               placeholder="Gõ hoặc chọn tên..." autocomplete="off"
+               oninput="onNVPickerInput('lineDT')" onchange="onNVPickerInput('lineDT')">
+        <datalist id="lineDTNVDatalist"></datalist>
+      </div>
+      <label class="field-label">Passcode</label>
+      <input type="password" id="lineDTPasscodeInput" maxlength="6" inputmode="numeric" placeholder="Passcode 6 số" autocomplete="off">
+      <div class="modal-err" id="lineDTLoginErr">Passcode không đúng hoặc không tìm thấy nhân viên.</div>
+      <div class="modal-actions">
+        <button class="modal-btn-cancel" onclick="closeLineDTModal()">Hủy</button>
+        <button class="modal-btn-confirm" onclick="submitLineDTLogin()">Đăng nhập</button>
+      </div>
+    </div>
+
+    <!-- CONTENT VIEW -->
+    <div id="lineDTContentView" class="thuchi-content" style="display:none;">
+      <span class="back-link" onclick="closeLineDTModal()">‹ Đóng</span>
+
+      <div class="thuchi-tabs">
+        <div class="thuchi-tab active" id="lineDTTabNhap" onclick="switchLineDTTab('nhap')">➕ Gửi báo cáo</div>
+        <div class="thuchi-tab" id="lineDTTabBaoCao" onclick="switchLineDTTab('baocao')">📊 Báo cáo</div>
+      </div>
+
+      <!-- TAB: GỬI BÁO CÁO -->
+      <div id="lineDTPaneNhap">
+        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Nhân viên</label>
+        <select id="lineDTFormNV"></select>
+
+        <div class="thuchi-form-row">
+          <div>
+            <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Ngày</label>
+            <input type="date" id="lineDTFormNgay">
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Số line / bàn (bắt buộc)</label>
+            <input type="text" id="lineDTFormSoLine" placeholder="VD: 101" inputmode="numeric">
+          </div>
+        </div>
+
+        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Ghi chú (nếu có)</label>
+        <input type="text" id="lineDTFormGhiChu" placeholder="VD: đổi bàn từ 10h sáng...">
+
+        <div class="modal-actions" style="margin-top:10px;">
+          <button class="modal-btn-confirm" style="width:100%;" id="lineDTSubmitBtn" onclick="submitLineDTForm()">Gửi báo cáo</button>
+        </div>
+        <div class="thuchi-msg" id="lineDTFormMsg"></div>
+      </div>
+
+      <!-- TAB: BÁO CÁO -->
+      <div id="lineDTPaneBaoCao" style="display:none;">
+        <div class="thuchi-filter-row">
+          <select id="lineDTReportNVFilter" style="display:none;"></select>
+          <input type="date" id="lineDTReportTu" title="Từ ngày">
+          <input type="date" id="lineDTReportDen" title="Đến ngày">
+          <button type="button" class="tab" style="font-size:11px;padding:8px 12px;" onclick="loadLineDTReport()">🔍 Lọc</button>
+        </div>
+
+        <div class="table-scroll" style="max-height:420px;">
+          <table class="thuchi-table" id="lineDTReportTable">
+            <thead id="lineDTReportHead"></thead>
+            <tbody id="lineDTReportBody">
+              <tr><td class="thuchi-empty">Chọn "Lọc" để tải báo cáo...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="modal-actions" style="margin-top:14px;">
+        <button class="modal-btn-cancel" onclick="closeLineDTModal()">Đóng</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ĐĂNG KÝ NGHỈ PHÉP MODAL -->
 <div class="modal-overlay" id="nghiPhepModal">
   <div class="modal-box nghiphep-modal-box login-mode" id="nghiPhepModalBox">
@@ -1452,6 +1538,10 @@
     <button class="bubble-btn" onclick="openNongDoConModal()">
       <div class="bubble-icon">🍺</div>
       <div class="bubble-label">Đo nồng độ cồn</div>
+    </button>
+    <button class="bubble-btn" onclick="openLineDTModal()">
+      <div class="bubble-icon">📞</div>
+      <div class="bubble-label">Báo cáo Line ĐT</div>
     </button>
   </div>
 
@@ -4720,6 +4810,191 @@ document.addEventListener('keydown',(e)=>{
   if(e.key==='Enter'&&document.getElementById('nongDoConModal')?.classList.contains('show')
      &&document.getElementById('nongDoConLoginView')?.style.display!=='none'){
     submitNongDoConLogin();
+  }
+});
+
+// ============================================================
+// BÁO CÁO LINE ĐIỆN THOẠI — NV báo hôm nay ngồi bàn/line số mấy
+// ============================================================
+let lineDTUser=null;
+let lineDTLastReport=null;
+
+function showLineDTLogin(){
+  document.getElementById('lineDTLoginView').style.display='block';
+  document.getElementById('lineDTContentView').style.display='none';
+  document.getElementById('lineDTModalBox').classList.add('login-mode');
+}
+function showLineDTContent(){
+  document.getElementById('lineDTLoginView').style.display='none';
+  document.getElementById('lineDTContentView').style.display='block';
+  document.getElementById('lineDTModalBox').classList.remove('login-mode');
+}
+
+async function openLineDTModal(){
+  document.getElementById('lineDTNVInput').value='';
+  document.getElementById('lineDTNVSelect').innerHTML='';
+  await populateNVPicker('lineDT');
+
+  const fullNVOptions=(masterNVFullList.length?masterNVFullList.map(o=>o.ten):[...new Set(allData.map(r=>r.nv))].sort())
+    .map(n=>`<option value="${n}">${n}</option>`).join('');
+  const formNVSelInit=document.getElementById('lineDTFormNV');
+  if(formNVSelInit)formNVSelInit.innerHTML=fullNVOptions;
+
+  document.getElementById('lineDTPasscodeInput').value='';
+  document.getElementById('lineDTLoginErr').style.display='none';
+
+  if(lineDTUser){
+    document.getElementById('lineDTFormNV').value=lineDTUser.nv;
+    showLineDTContent();
+  }else{
+    showLineDTLogin();
+  }
+  document.getElementById('lineDTModal').classList.add('show');
+  setTimeout(()=>document.getElementById('lineDTPasscodeInput')?.focus(),100);
+}
+function closeLineDTModal(){
+  document.getElementById('lineDTModal').classList.remove('show');
+}
+
+async function submitLineDTLogin(){
+  const nv=document.getElementById('lineDTNVSelect').value;
+  const passcode=document.getElementById('lineDTPasscodeInput').value.trim();
+  const errEl=document.getElementById('lineDTLoginErr');
+  errEl.style.display='none';
+
+  if(!nv){errEl.textContent='Vui lòng gõ hoặc chọn tên nhân viên.';errEl.style.display='block';return;}
+  if(!passcode||passcode.length!==6){errEl.textContent='Vui lòng nhập đủ 6 số passcode.';errEl.style.display='block';return;}
+
+  showLoading('Đang xác thực...');
+  try{
+    const url=CONFIG.payrollUrl+'?action=checkPasscode&nv='+encodeURIComponent(nv)+'&passcode='+encodeURIComponent(passcode);
+    const json=await fetchJSONP(url);
+    if(json.status!=='ok'||!json.data||!json.data.valid)throw new Error('Passcode không đúng.');
+
+    lineDTUser={nv:nv,passcode:passcode};
+
+    const formNVSel=document.getElementById('lineDTFormNV');
+    if(formNVSel)formNVSel.value=nv;
+    document.getElementById('lineDTFormNgay').value=fmtDate(new Date());
+
+    switchLineDTTab('nhap');
+    showLineDTContent();
+  }catch(e){
+    errEl.textContent='Lỗi: '+e.message;
+    errEl.style.display='block';
+  }
+  hideLoading();
+}
+
+function switchLineDTTab(tab){
+  const isNhap=tab==='nhap';
+  document.getElementById('lineDTTabNhap').classList.toggle('active',isNhap);
+  document.getElementById('lineDTTabBaoCao').classList.toggle('active',!isNhap);
+  document.getElementById('lineDTPaneNhap').style.display=isNhap?'block':'none';
+  document.getElementById('lineDTPaneBaoCao').style.display=isNhap?'none':'block';
+
+  if(!isNhap){
+    setupLineDTReportFilters();
+    if(!lineDTLastReport)loadLineDTReport();
+  }
+}
+
+async function submitLineDTForm(){
+  const msg=document.getElementById('lineDTFormMsg');
+  msg.style.display='none';
+  if(!lineDTUser){msg.textContent='❌ Phiên đăng nhập đã hết, vui lòng mở lại.';msg.className='thuchi-msg error';return;}
+
+  const nv=document.getElementById('lineDTFormNV').value;
+  const ngay=document.getElementById('lineDTFormNgay').value;
+  const soLine=document.getElementById('lineDTFormSoLine').value.trim();
+  const ghiChu=document.getElementById('lineDTFormGhiChu').value.trim();
+
+  if(!nv){msg.textContent='❌ Vui lòng chọn nhân viên.';msg.className='thuchi-msg error';return;}
+  if(!ngay){msg.textContent='❌ Vui lòng chọn ngày.';msg.className='thuchi-msg error';return;}
+  if(!soLine){msg.textContent='❌ Vui lòng nhập số line/bàn.';msg.className='thuchi-msg error';return;}
+
+  const btn=document.getElementById('lineDTSubmitBtn');
+  btn.disabled=true;btn.textContent='Đang gửi...';
+
+  try{
+    const payload={nv:lineDTUser.nv, passcode:lineDTUser.passcode, tenNV:nv, ngay:ngay, soLine:soLine, ghiChu:ghiChu};
+    const url=CONFIG.payrollUrl+'?action=submitLineDT&payload='+encodeURIComponent(JSON.stringify(payload));
+    const json=await fetchJSONP(url);
+    if(json.status!=='ok')throw new Error(json.message||'Gửi báo cáo thất bại');
+
+    msg.textContent='✅ '+json.message;
+    msg.className='thuchi-msg success';
+    document.getElementById('lineDTFormSoLine').value='';
+    document.getElementById('lineDTFormGhiChu').value='';
+    lineDTLastReport=null;
+  }catch(e){
+    msg.textContent='❌ Lỗi: '+e.message;
+    msg.className='thuchi-msg error';
+  }
+  btn.disabled=false;btn.textContent='Gửi báo cáo';
+}
+
+function setupLineDTReportFilters(){
+  const sel=document.getElementById('lineDTReportNVFilter');
+  const isManager=currentUser&&currentUser.isManager&&currentUser.nv===lineDTUser?.nv;
+  if(isManager){
+    sel.style.display='inline-block';
+    const nvNames=masterNVFullList.length?masterNVFullList.map(o=>o.ten):[];
+    sel.innerHTML='<option value="">— Tất cả nhân viên —</option>'+
+      nvNames.map(n=>`<option value="${n}">${n}</option>`).join('');
+  }else{
+    sel.style.display='none';
+  }
+}
+
+async function loadLineDTReport(){
+  if(!lineDTUser)return;
+  const tbody=document.getElementById('lineDTReportBody');
+  tbody.innerHTML='<tr><td class="thuchi-empty">Đang tải...</td></tr>';
+
+  const tu=document.getElementById('lineDTReportTu').value||'';
+  const den=document.getElementById('lineDTReportDen').value||'';
+  const nvLoc=document.getElementById('lineDTReportNVFilter').value||'';
+
+  try{
+    let url=CONFIG.payrollUrl+'?action=getLineDTReport&nv='+encodeURIComponent(lineDTUser.nv)+'&passcode='+encodeURIComponent(lineDTUser.passcode);
+    if(tu)url+='&tu='+encodeURIComponent(tu);
+    if(den)url+='&den='+encodeURIComponent(den);
+    if(nvLoc)url+='&nvLoc='+encodeURIComponent(nvLoc);
+    const json=await fetchJSONP(url);
+    if(json.status!=='ok')throw new Error(json.message||'Không tải được báo cáo');
+
+    lineDTLastReport=json.data;
+    setupLineDTReportFilters();
+    renderLineDTReportTable();
+  }catch(e){
+    tbody.innerHTML='<tr><td class="thuchi-empty">❌ Lỗi: '+e.message+'</td></tr>';
+  }
+}
+
+function renderLineDTReportTable(){
+  const head=document.getElementById('lineDTReportHead');
+  const body=document.getElementById('lineDTReportBody');
+  if(!lineDTLastReport){body.innerHTML='<tr><td class="thuchi-empty">Chọn "Lọc" để tải báo cáo...</td></tr>';head.innerHTML='';return;}
+
+  const rows=lineDTLastReport.rows||lineDTLastReport;
+  head.innerHTML='<tr><th>Ngày</th><th>Nhân viên</th><th>Số line/bàn</th><th>Ghi chú</th><th>Người gửi</th></tr>';
+  if(!rows||!rows.length){body.innerHTML='<tr><td colspan="5" class="thuchi-empty">Không có báo cáo trong khoảng đã chọn</td></tr>';return;}
+
+  body.innerHTML=rows.map(r=>`
+      <tr>
+        <td>${r.ngay}</td>
+        <td>${r.nv}</td>
+        <td><strong>${escapeHtml(r.soLine||'—')}</strong></td>
+        <td>${escapeHtml(r.ghiChu||'—')}</td>
+        <td>${escapeHtml(r.nguoiGui||r.nv)}</td>
+      </tr>`).join('');
+}
+
+document.addEventListener('keydown',(e)=>{
+  if(e.key==='Enter'&&document.getElementById('lineDTModal')?.classList.contains('show')
+     &&document.getElementById('lineDTLoginView')?.style.display!=='none'){
+    submitLineDTLogin();
   }
 });
 
