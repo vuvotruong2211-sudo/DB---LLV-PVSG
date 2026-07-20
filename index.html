@@ -5059,6 +5059,22 @@ function updateLineDTRotationSuggestion(){
 
   const [y,m,d]=ngayStr.split('-').map(Number);
   const dateObj=new Date(y,m-1,d);
+
+  // CHẶN RÒ RỈ LỊCH LÀM VIỆC: khung gợi ý này liệt kê tên + giờ vào/ra ca của cả VP —
+  // nếu NV chọn ngày vượt D+2 (lịch chưa công bố), TUYỆT ĐỐI không hiển thị/tự điền,
+  // vì sẽ lộ ai làm ca sáng/chiều ngày đó ra ngoài, phá luật khoá D+2 đang áp dụng cho
+  // lịch chính. Chỉ Quản lý (đăng nhập đúng tài khoản quản lý ở Line ĐT) mới xem được.
+  const today=new Date();today.setHours(0,0,0,0);
+  const limit=addDays(today,2);
+  const ddCheck=new Date(dateObj);ddCheck.setHours(0,0,0,0);
+  const isManagerHere = currentUser && currentUser.isManager && currentUser.nv===lineDTUser?.nv;
+  if(ddCheck>limit && !isManagerHere){
+    box.innerHTML='<div style="background:var(--surface2);border-radius:8px;padding:8px 10px;font-size:11px;color:var(--text3);">'
+      +'🔒 Lịch ngày này chưa công bố (chỉ xem trước D+2) — vui lòng tự nhập số line/bàn.'
+      +'</div>';
+    return; // không tính toán, không tự điền -> không lộ tên/ca của người khác
+  }
+
   const assignments=computeBaDiemLineAssignmentForDay(dateObj);
 
   if(!assignments.length){
