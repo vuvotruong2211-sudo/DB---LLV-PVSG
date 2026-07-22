@@ -1163,9 +1163,28 @@
           </div>
           <div>
             <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Biển số xe</label>
-            <input type="text" id="nongDoConFormBienSo" placeholder="VD: 51B-123.45" style="text-transform:uppercase;">
+            <input type="text" id="nongDoConFormBienSo" placeholder="VD: 51B-123.45" style="text-transform:uppercase;" onblur="onNongDoConBienSoChange()">
+            <div id="nongDoConBienSoHint" style="display:none;font-size:10px;margin-top:3px;"></div>
           </div>
         </div>
+
+        <div class="thuchi-form-row">
+          <div>
+            <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Kết quả đo (bắt buộc)</label>
+            <select id="nongDoConFormKetQua" onchange="onNongDoConKetQuaChange()">
+              <option value="">— Chọn kết quả —</option>
+              <option value="DAT">✅ Đạt (0.000 mg/L)</option>
+              <option value="MUC1">🟡 Mức 1 (0.000 – 0.25 mg/L)</option>
+              <option value="MUC2">🟠 Mức 2 (0.25 – 0.4 mg/L)</option>
+              <option value="MUC3">🔴 Mức 3 (>0.4 mg/L)</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Chỉ số đo được (mg/L, nếu có)</label>
+            <input type="number" id="nongDoConFormChiSo" placeholder="VD: 0.15" step="0.001" min="0" inputmode="decimal">
+          </div>
+        </div>
+        <div id="nongDoConKetQuaWarning" style="display:none;margin-bottom:10px;"></div>
 
         <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Tài xế 1 (bắt buộc)</label>
         <input type="text" id="nongDoConFormTaiXe1" placeholder="Tên tài xế 1">
@@ -1188,6 +1207,19 @@
             <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Phụ xe 2</label>
             <input type="text" id="nongDoConFormPhuXe2" placeholder="Tên phụ xe 2 (nếu có)">
           </div>
+        </div>
+
+        <div class="modal-actions" style="margin-top:8px;margin-bottom:2px;flex-direction:column;gap:6px;">
+          <div style="width:100%;">
+            <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Giọng đọc loa</label>
+            <select id="nongDoConLoaVoiceSelect" style="width:100%;" onchange="onNongDoConVoiceSelectChange()">
+              <option value="">Đang tải danh sách giọng...</option>
+            </select>
+          </div>
+          <button type="button" class="thuchi-photo-btn" style="width:100%;" onclick="openNongDoConVoicePicker()">📢 Phát loa mời tài xế</button>
+          <div id="nongDoConVoicePickerBox" style="display:none;width:100%;"></div>
+          <button type="button" class="thuchi-photo-btn" style="width:100%;background:var(--surface2);" onclick="testNongDoConVoice()">🔊 Nghe thử giọng đang chọn</button>
+          <div style="font-size:10px;color:var(--text3);">Yêu cầu máy đang dùng đã ghép đôi Bluetooth với loa công ty (làm 1 lần trong Cài đặt Bluetooth của điện thoại, như khi nghe nhạc bình thường) — âm thanh sẽ tự ra loa đó. Danh sách giọng tuỳ theo máy/trình duyệt — máy nào không có giọng tiếng Việt sẽ chỉ có "Giọng mặc định của máy".</div>
         </div>
 
         <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Chữ ký xác nhận (bắt buộc — ký bằng ngón tay/chuột)</label>
@@ -4623,6 +4655,8 @@ function showNongDoConContent(){
   document.getElementById('nongDoConContentView').style.display='block';
   document.getElementById('nongDoConModalBox').classList.remove('login-mode');
   setTimeout(initNongDoConSignatureCanvas,120); // đợi canvas render xong mới đo kích thước thật
+  ensureVietnameseVoiceLoaded(); // tải sẵn danh sách giọng đọc để đổ vào dropdown chọn giọng
+  loadNongDoConXeDanhSachIfNeeded(); // tải sẵn danh mục xe-tài xế để auto-điền theo biển số
 }
 
 async function openNongDoConModal(){
@@ -4811,6 +4845,259 @@ async function uploadNongDoConPhotoIfAny(){
   return json.linkAnh;
 }
 
+// ============================================================
+// AUTO-ĐIỀN TÀI XẾ/PHỤ XE THEO BIỂN SỐ — đọc từ sheet danh mục anh đổ dữ liệu vào
+// bằng Power Query (xem hướng dẫn cột trong AppsScriptB). NV chỉ cần gõ biển số,
+// rời khỏi ô là tự điền — vẫn sửa tay được nếu danh mục sai/thiếu.
+// ============================================================
+let nongDoConXeDanhSach=null; // {bienSoNorm: {bienSo,taiXe1,taiXe2,taiXe3,phuXe1,phuXe2}}
+
+async function loadNongDoConXeDanhSachIfNeeded(){
+  if(nongDoConXeDanhSach || !nongDoConUser)return;
+  try{
+    const url=CONFIG.payrollUrl+'?action=getDanhSachXeTaiXe&nv='+encodeURIComponent(nongDoConUser.nv)+'&passcode='+encodeURIComponent(nongDoConUser.passcode);
+    const json=await fetchJSONP(url);
+    if(json.status==='ok' && Array.isArray(json.data)){
+      const map={};
+      json.data.forEach(r=>{ if(r.bienSo) map[normKey(r.bienSo)]=r; });
+      nongDoConXeDanhSach=map;
+    }
+  }catch(e){
+    // Im lặng bỏ qua — không có danh mục thì NV vẫn nhập tay bình thường, không chặn form.
+  }
+}
+
+function onNongDoConBienSoChange(){
+  const input=document.getElementById('nongDoConFormBienSo');
+  const bienSo=(input.value||'').trim().toUpperCase();
+  input.value=bienSo;
+  const hintEl=document.getElementById('nongDoConBienSoHint');
+  if(!bienSo || !nongDoConXeDanhSach){ if(hintEl)hintEl.style.display='none'; return; }
+
+  const found=nongDoConXeDanhSach[normKey(bienSo)];
+  if(found){
+    document.getElementById('nongDoConFormTaiXe1').value=found.taiXe1||'';
+    document.getElementById('nongDoConFormTaiXe2').value=found.taiXe2||'';
+    document.getElementById('nongDoConFormTaiXe3').value=found.taiXe3||'';
+    document.getElementById('nongDoConFormPhuXe1').value=found.phuXe1||'';
+    document.getElementById('nongDoConFormPhuXe2').value=found.phuXe2||'';
+    if(hintEl){
+      hintEl.style.display='block';
+      hintEl.style.color='#16a34a';
+      hintEl.textContent='✅ Đã tự động điền theo biển số '+bienSo+' — vẫn sửa tay được nếu cần.';
+    }
+  }else{
+    if(hintEl){
+      hintEl.style.display='block';
+      hintEl.style.color='var(--text3)';
+      hintEl.textContent='⚠️ Không tìm thấy biển số '+bienSo+' trong danh mục — vui lòng nhập tay tài xế/phụ xe.';
+    }
+  }
+}
+
+
+// Âm thanh phát ra sẽ tự động ra loa Bluetooth NẾU máy đang dùng đã ghép đôi sẵn với
+// loa đó (giống hệt cơ chế nghe nhạc qua Bluetooth) — app không tự kết nối Bluetooth
+// được (giới hạn bảo mật trình duyệt), NV cần ghép đôi 1 lần trong Cài đặt máy.
+// ============================================================
+let nongDoConLoaVoicesReady=false;
+const NONG_DO_CON_VOICE_STORAGE_KEY='llv_loa_voice_name';
+
+function ensureVietnameseVoiceLoaded(){
+  if(!('speechSynthesis' in window))return;
+  window.speechSynthesis.getVoices(); // kích hoạt tải danh sách giọng đọc (một số trình duyệt load bất đồng bộ)
+  if(!nongDoConLoaVoicesReady){
+    nongDoConLoaVoicesReady=true;
+    window.speechSynthesis.onvoiceschanged=()=>{ populateNongDoConVoiceSelect(); };
+  }
+  populateNongDoConVoiceSelect();
+}
+
+// Liệt kê TẤT CẢ giọng đọc máy đang có (ưu tiên hiện giọng tiếng Việt lên trước) để anh
+// tự nghe thử và chọn giọng ưng ý — Web Speech API không đảm bảo phân loại Nam/Nữ rõ ràng
+// trên mọi máy, nên cách an toàn nhất là để anh tự chọn theo tên/thử nghe.
+function populateNongDoConVoiceSelect(){
+  const sel=document.getElementById('nongDoConLoaVoiceSelect');
+  if(!sel || !('speechSynthesis' in window))return;
+
+  const voices=window.speechSynthesis.getVoices();
+  if(!voices.length){
+    sel.innerHTML='<option value="">Đang tải danh sách giọng...</option>';
+    return;
+  }
+
+  const viVoices=voices.filter(v=>v.lang && v.lang.toLowerCase().startsWith('vi'));
+  const otherVoices=voices.filter(v=>!(v.lang && v.lang.toLowerCase().startsWith('vi')));
+  const ordered=[...viVoices, ...otherVoices];
+
+  const savedName=localStorage.getItem(NONG_DO_CON_VOICE_STORAGE_KEY)||'';
+  let optionsHtml='<option value="">— Giọng mặc định của máy —</option>';
+  optionsHtml+=ordered.map(v=>{
+    const isVi=v.lang && v.lang.toLowerCase().startsWith('vi');
+    const label=(isVi?'🇻🇳 ':'')+v.name+' ('+v.lang+')';
+    const selected=(v.name===savedName)?' selected':'';
+    return `<option value="${escapeHtml(v.name)}"${selected}>${escapeHtml(label)}</option>`;
+  }).join('');
+  sel.innerHTML=optionsHtml;
+
+  if(savedName && ordered.some(v=>v.name===savedName)){
+    sel.value=savedName;
+  }
+}
+
+function onNongDoConVoiceSelectChange(){
+  const sel=document.getElementById('nongDoConLoaVoiceSelect');
+  const val=sel?sel.value:'';
+  if(val) localStorage.setItem(NONG_DO_CON_VOICE_STORAGE_KEY, val);
+  else localStorage.removeItem(NONG_DO_CON_VOICE_STORAGE_KEY);
+}
+
+function getSelectedNongDoConVoice(){
+  if(!('speechSynthesis' in window))return null;
+  const voices=window.speechSynthesis.getVoices();
+  const savedName=localStorage.getItem(NONG_DO_CON_VOICE_STORAGE_KEY)||'';
+  if(savedName){
+    const found=voices.find(v=>v.name===savedName);
+    if(found)return found;
+  }
+  // Chưa chọn giọng nào -> mặc định ưu tiên giọng tiếng Việt đầu tiên máy có
+  return voices.find(v=>v.lang && v.lang.toLowerCase().startsWith('vi')) || null;
+}
+
+function speakLoaThongBao(text){
+  if(!('speechSynthesis' in window)){
+    alert('Trình duyệt/máy này không hỗ trợ đọc giọng nói tự động. Vui lòng dùng Chrome hoặc Safari bản mới.');
+    return;
+  }
+  window.speechSynthesis.cancel(); // huỷ câu đang đọc dở (nếu có) trước khi đọc câu mới
+  const utter=new SpeechSynthesisUtterance(text);
+  utter.lang='vi-VN';
+  utter.rate=0.92;
+  utter.pitch=1;
+  utter.volume=1;
+  const chosenVoice=getSelectedNongDoConVoice();
+  if(chosenVoice){
+    utter.voice=chosenVoice;
+    utter.lang=chosenVoice.lang; // khớp lang với voice để tránh 1 số trình duyệt bỏ qua voice đã chọn
+  }
+  window.speechSynthesis.speak(utter);
+}
+
+function testNongDoConVoice(){
+  ensureVietnameseVoiceLoaded();
+  speakLoaThongBao('Xin chào, đây là giọng đọc đang được chọn để phát loa mời tài xế đo nồng độ cồn.');
+}
+
+function buildNongDoConAnnouncementText(){
+  const taiXe1=(document.getElementById('nongDoConFormTaiXe1').value||'').trim();
+  const taiXe2=(document.getElementById('nongDoConFormTaiXe2').value||'').trim();
+  const taiXe3=(document.getElementById('nongDoConFormTaiXe3').value||'').trim();
+  const bienSo=(document.getElementById('nongDoConFormBienSo').value||'').trim();
+  const names=[taiXe1,taiXe2,taiXe3].filter(Boolean);
+
+  if(!names.length){
+    alert('Vui lòng nhập tên tài xế trước khi phát loa mời.');
+    return null;
+  }
+
+  const nameListVoice = names.length===1
+    ? names[0]
+    : names.slice(0,-1).join(', ') + ' và ' + names[names.length-1];
+  const xeText = bienSo ? (' xe biển số ' + bienSo) : '';
+
+  return `Kính mời anh ${nameListVoice}${xeText} nhanh chóng di chuyển vào khu vực kỹ thuật để kiểm tra nồng độ cồn theo quy định. `
+    + `Xin nhắc lại, kính mời anh ${nameListVoice}${xeText} khẩn trương vào khu vực kỹ thuật để hoàn tất việc kiểm tra nồng độ cồn. `
+    + `Xin trân trọng cảm ơn!`;
+}
+
+// Hiện cảnh báo màu ngay khi chọn kết quả có cồn — giúp NV/quản lý nhận ra ngay tại chỗ,
+// không phải đợi xem báo cáo mới biết ai vi phạm.
+const NONG_DO_CON_KET_QUA_META = {
+  DAT:  { label:'✅ Đạt — không phát hiện nồng độ cồn', color:'#16a34a', bg:'#dcfce7' },
+  MUC1: { label:'🟡 Mức 1 — có cồn nhưng chưa vượt 0.25 mg/L. Vẫn có thể bị xử phạt theo quy định.', color:'#a16207', bg:'#fef9c3' },
+  MUC2: { label:'🟠 Mức 2 — vượt 0.25–0.4 mg/L. Vi phạm, KHÔNG được lái xe.', color:'#c2410c', bg:'#ffedd5' },
+  MUC3: { label:'🔴 Mức 3 — vượt 0.4 mg/L. Vi phạm nghiêm trọng, TUYỆT ĐỐI không được lái xe.', color:'#dc2626', bg:'#fee2e2' }
+};
+
+function onNongDoConKetQuaChange(){
+  const val=document.getElementById('nongDoConFormKetQua').value;
+  const box=document.getElementById('nongDoConKetQuaWarning');
+  if(!val || !NONG_DO_CON_KET_QUA_META[val]){ box.style.display='none'; box.innerHTML=''; return; }
+  const meta=NONG_DO_CON_KET_QUA_META[val];
+  box.style.display='block';
+  box.innerHTML=`<div style="background:${meta.bg};color:${meta.color};border-radius:8px;padding:8px 10px;font-size:12px;font-weight:600;">${meta.label}</div>`;
+}
+
+function testNongDoConVoice(){
+  ensureVietnameseVoiceLoaded();
+  speakLoaThongBao('Xin chào, đây là giọng đọc đang được chọn để phát loa mời tài xế đo nồng độ cồn.');
+}
+
+// Thay vì tự phát bằng giọng mặc định đã lưu, bấm "Phát loa" sẽ hiện tối đa 4 lựa chọn
+// giọng (ưu tiên giọng tiếng Việt máy có) để chọn ngay lúc đó — chọn xong phát luôn và
+// nhớ lại cho lần "Nghe thử" sau.
+function openNongDoConVoicePicker(){
+  const text=buildNongDoConAnnouncementText();
+  if(!text)return;
+  ensureVietnameseVoiceLoaded();
+  setTimeout(()=>renderNongDoConVoicePicker(text), 150); // đợi trình duyệt tải xong danh sách giọng
+}
+
+function renderNongDoConVoicePicker(text){
+  const box=document.getElementById('nongDoConVoicePickerBox');
+  if(!box || !('speechSynthesis' in window)){
+    if(box){box.style.display='block';box.innerHTML='<div class="thuchi-msg error">Máy này không hỗ trợ đọc giọng nói tự động.</div>';}
+    return;
+  }
+  const voices=window.speechSynthesis.getVoices();
+  const viVoices=voices.filter(v=>v.lang && v.lang.toLowerCase().startsWith('vi'));
+  const otherVoices=voices.filter(v=>!(v.lang && v.lang.toLowerCase().startsWith('vi')));
+  const ordered=[...viVoices, ...otherVoices].slice(0,4); // chỉ lấy tối đa 4 lựa chọn
+
+  if(!ordered.length){
+    box.style.display='block';
+    box.innerHTML='<div class="thuchi-msg error">Máy này không có giọng đọc nào khả dụng.</div>';
+    return;
+  }
+
+  window.__nongDoConVoiceCandidates=ordered;
+  window.__nongDoConAnnouncementText=text;
+
+  box.style.display='block';
+  box.innerHTML='<div style="font-size:11px;color:var(--text3);margin:4px 0 6px;">Chọn giọng để phát ngay:</div>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:6px;">'
+    + ordered.map((v,i)=>{
+        const shortName=(v.name||'Giọng '+(i+1)).split(' ').slice(0,2).join(' ');
+        return `<button type="button" class="thuchi-photo-btn" style="flex:1 1 45%;font-size:11px;" onclick="playNongDoConWithVoiceIndex(${i})">${i+1}. ${escapeHtml(shortName)}</button>`;
+      }).join('')
+    + '</div>';
+}
+
+function playNongDoConWithVoiceIndex(idx){
+  const voice=(window.__nongDoConVoiceCandidates||[])[idx];
+  const text=window.__nongDoConAnnouncementText;
+  const box=document.getElementById('nongDoConVoicePickerBox');
+  if(!voice || !text)return;
+
+  localStorage.setItem(NONG_DO_CON_VOICE_STORAGE_KEY, voice.name); // nhớ lại cho "Nghe thử" lần sau
+  const selEl=document.getElementById('nongDoConLoaVoiceSelect');
+  if(selEl) selEl.value=voice.name;
+
+  window.speechSynthesis.cancel();
+  const utter=new SpeechSynthesisUtterance(text);
+  utter.voice=voice; utter.lang=voice.lang; utter.rate=0.92; utter.pitch=1; utter.volume=1;
+  window.speechSynthesis.speak(utter);
+
+  if(box)box.style.display='none'; // ẩn picker sau khi đã chọn và phát
+}
+
+function playNongDoConLoaAnnouncement(){
+  ensureVietnameseVoiceLoaded();
+  const text=buildNongDoConAnnouncementText();
+  if(!text)return;
+  speakLoaThongBao(text);
+}
+
 async function submitNongDoConForm(){
   const msg=document.getElementById('nongDoConFormMsg');
   msg.style.display='none';
@@ -4820,6 +5107,8 @@ async function submitNongDoConForm(){
   const ngay=document.getElementById('nongDoConFormNgay').value;
   const tuyen=document.getElementById('nongDoConFormTuyen').value;
   const bienSo=document.getElementById('nongDoConFormBienSo').value.trim().toUpperCase();
+  const ketQua=document.getElementById('nongDoConFormKetQua').value;
+  const chiSo=document.getElementById('nongDoConFormChiSo').value.trim();
   const taiXe1=document.getElementById('nongDoConFormTaiXe1').value.trim();
   const taiXe2=document.getElementById('nongDoConFormTaiXe2').value.trim();
   const taiXe3=document.getElementById('nongDoConFormTaiXe3').value.trim();
@@ -4829,6 +5118,7 @@ async function submitNongDoConForm(){
   if(!tenGiaoDich){msg.textContent='❌ Vui lòng chọn nhân viên giao dịch.';msg.className='thuchi-msg error';return;}
   if(!ngay){msg.textContent='❌ Vui lòng chọn ngày giao dịch.';msg.className='thuchi-msg error';return;}
   if(!bienSo){msg.textContent='❌ Vui lòng nhập biển số xe.';msg.className='thuchi-msg error';return;}
+  if(!ketQua){msg.textContent='❌ Vui lòng chọn kết quả đo.';msg.className='thuchi-msg error';return;}
   if(!taiXe1){msg.textContent='❌ Vui lòng nhập tên Tài xế 1.';msg.className='thuchi-msg error';return;}
   if(!nongDoConSigHasDrawn){msg.textContent='❌ Vui lòng ký tên xác nhận trước khi ghi nhận.';msg.className='thuchi-msg error';return;}
   if(!nongDoConPhotoState){msg.textContent='❌ Vui lòng chụp ảnh bằng chứng (realtime) trước khi ghi nhận.';msg.className='thuchi-msg error';return;}
@@ -4864,7 +5154,7 @@ async function submitNongDoConForm(){
     const payload={
       nv:nongDoConUser.nv, passcode:nongDoConUser.passcode,
       tenGiaoDich:tenGiaoDich, ngay:ngay, noiDung:'Đo nồng độ cồn',
-      tuyen:tuyen, bienSo:bienSo,
+      tuyen:tuyen, bienSo:bienSo, ketQua:ketQua, chiSo:chiSo,
       taiXe1:taiXe1, taiXe2:taiXe2, taiXe3:taiXe3,
       phuXe1:phuXe1, phuXe2:phuXe2,
       linkAnh:linkAnh, linkChuKy:linkChuKy, gioGuiUTC:gioGuiUTC,
@@ -4879,6 +5169,9 @@ async function submitNongDoConForm(){
 
     // Reset form (giữ lại NV + tuyến để nhập liên tiếp nhiều xe cùng ngày nhanh hơn)
     document.getElementById('nongDoConFormBienSo').value='';
+    document.getElementById('nongDoConFormKetQua').value='';
+    document.getElementById('nongDoConFormChiSo').value='';
+    onNongDoConKetQuaChange();
     document.getElementById('nongDoConFormTaiXe1').value='';
     document.getElementById('nongDoConFormTaiXe2').value='';
     document.getElementById('nongDoConFormTaiXe3').value='';
@@ -4939,9 +5232,9 @@ function renderNongDoConReportTable(){
   if(!nongDoConLastReport){body.innerHTML='<tr><td class="thuchi-empty">Chọn "Lọc" để tải báo cáo...</td></tr>';head.innerHTML='';return;}
 
   const rows=nongDoConLastReport.rows||nongDoConLastReport;
-  head.innerHTML='<tr><th>Ngày GD</th><th>NV giao dịch</th><th>Tuyến</th><th>Biển số</th>'
+  head.innerHTML='<tr><th>Ngày GD</th><th>NV giao dịch</th><th>Tuyến</th><th>Biển số</th><th>Kết quả</th>'
     +'<th>Tài xế</th><th>Phụ xe</th><th>Ảnh</th><th>Chữ ký</th><th>Giờ gửi thực tế</th></tr>';
-  if(!rows||!rows.length){body.innerHTML='<tr><td colspan="9" class="thuchi-empty">Không có giao dịch trong khoảng đã chọn</td></tr>';return;}
+  if(!rows||!rows.length){body.innerHTML='<tr><td colspan="10" class="thuchi-empty">Không có giao dịch trong khoảng đã chọn</td></tr>';return;}
 
   body.innerHTML=rows.map(r=>{
     const taiXe=[r.taiXe1,r.taiXe2,r.taiXe3].filter(Boolean).join(', ')||'—';
@@ -4950,12 +5243,19 @@ function renderNongDoConReportTable(){
     // Cảnh báo nếu ngày gửi thực tế khác ngày giao dịch NV khai -> nghi ngờ NV dời ngày lại
     const ngayGuiOnly=r.gioGuiUTC?new Date(r.gioGuiUTC).toISOString().slice(0,10):'';
     const lechNgay=ngayGuiOnly&&r.ngay&&ngayGuiOnly!==r.ngay;
+    const kqMeta=NONG_DO_CON_KET_QUA_META[r.ketQua];
+    const kqShort={DAT:'Đạt',MUC1:'Mức 1',MUC2:'Mức 2',MUC3:'Mức 3'}[r.ketQua]||(r.ketQua||'—');
+    const kqChiSo=r.chiSo?(' ('+r.chiSo+' mg/L)'):'';
+    const kqHtml=kqMeta
+      ? `<span style="background:${kqMeta.bg};color:${kqMeta.color};font-weight:700;padding:2px 8px;border-radius:6px;font-size:11px;white-space:nowrap;">${kqShort}${kqChiSo}</span>`
+      : '—';
     return `
       <tr>
         <td>${r.ngay}</td>
         <td>${r.nv}</td>
         <td>${r.tuyen||'—'}</td>
         <td><strong>${r.bienSo||'—'}</strong></td>
+        <td>${kqHtml}</td>
         <td>${escapeHtml(taiXe)}</td>
         <td>${escapeHtml(phuXe)}</td>
         <td>${r.linkAnh?`<a href="${r.linkAnh}" target="_blank" rel="noopener" title="Xem ảnh bằng chứng">📷</a>`:'—'}</td>
