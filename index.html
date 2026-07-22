@@ -1143,7 +1143,7 @@
         <div class="thuchi-form-row">
           <div>
             <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Ngày giao dịch</label>
-            <input type="date" id="nongDoConFormNgay">
+            <input type="date" id="nongDoConFormNgay" onchange="onNongDoConNgayChange()">
           </div>
           <div>
             <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Nội dung</label>
@@ -1210,16 +1210,22 @@
         </div>
 
         <div class="modal-actions" style="margin-top:8px;margin-bottom:2px;flex-direction:column;gap:6px;">
-          <div style="width:100%;">
-            <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Giọng đọc loa</label>
-            <select id="nongDoConLoaVoiceSelect" style="width:100%;" onchange="onNongDoConVoiceSelectChange()">
-              <option value="">Đang tải danh sách giọng...</option>
-            </select>
-          </div>
-          <button type="button" class="thuchi-photo-btn" style="width:100%;" onclick="openNongDoConVoicePicker()">📢 Phát loa mời tài xế</button>
+          <button type="button" class="thuchi-photo-btn" style="width:100%;" onclick="openNongDoConCloudVoicePicker()">☁️ Phát loa AI (giọng thật, 4 lựa chọn Nam/Nữ)</button>
           <div id="nongDoConVoicePickerBox" style="display:none;width:100%;"></div>
-          <button type="button" class="thuchi-photo-btn" style="width:100%;background:var(--surface2);" onclick="testNongDoConVoice()">🔊 Nghe thử giọng đang chọn</button>
-          <div style="font-size:10px;color:var(--text3);">Yêu cầu máy đang dùng đã ghép đôi Bluetooth với loa công ty (làm 1 lần trong Cài đặt Bluetooth của điện thoại, như khi nghe nhạc bình thường) — âm thanh sẽ tự ra loa đó. Danh sách giọng tuỳ theo máy/trình duyệt — máy nào không có giọng tiếng Việt sẽ chỉ có "Giọng mặc định của máy".</div>
+          <div style="font-size:10px;color:var(--text3);">Cần có Internet. Yêu cầu máy đang dùng đã ghép đôi Bluetooth với loa công ty (làm 1 lần trong Cài đặt Bluetooth điện thoại, như nghe nhạc bình thường) — âm thanh sẽ tự ra loa đó.</div>
+
+          <details style="width:100%;margin-top:2px;">
+            <summary style="font-size:11px;color:var(--text3);cursor:pointer;">🔧 Dự phòng: dùng giọng máy (offline, không cần Internet)</summary>
+            <div style="margin-top:6px;">
+              <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Giọng máy (offline)</label>
+              <select id="nongDoConLoaVoiceSelect" style="width:100%;margin-bottom:6px;" onchange="onNongDoConVoiceSelectChange()">
+                <option value="">Đang tải danh sách giọng...</option>
+              </select>
+              <button type="button" class="thuchi-photo-btn" style="width:100%;background:var(--surface2);margin-bottom:6px;" onclick="testNongDoConVoice()">🔊 Nghe thử giọng máy</button>
+              <button type="button" class="thuchi-photo-btn" style="width:100%;background:var(--surface2);" onclick="playNongDoConLoaAnnouncement()">📴 Phát loa bằng giọng máy (offline)</button>
+              <div style="font-size:10px;color:var(--text3);margin-top:4px;">Danh sách giọng tuỳ theo máy/trình duyệt — nhiều máy chỉ có đúng 1 giọng tiếng Việt (giới hạn của hệ điều hành, không phải lỗi app).</div>
+            </div>
+          </details>
         </div>
 
         <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Chữ ký xác nhận (bắt buộc — ký bằng ngón tay/chuột)</label>
@@ -4656,7 +4662,7 @@ function showNongDoConContent(){
   document.getElementById('nongDoConModalBox').classList.remove('login-mode');
   setTimeout(initNongDoConSignatureCanvas,120); // đợi canvas render xong mới đo kích thước thật
   ensureVietnameseVoiceLoaded(); // tải sẵn danh sách giọng đọc để đổ vào dropdown chọn giọng
-  loadNongDoConXeDanhSachIfNeeded(); // tải sẵn danh mục xe-tài xế để auto-điền theo biển số
+  ensureNongDoConXeDanhSachForCurrentNgay(); // tải sẵn phân công xe-tài xế đúng ngày đang chọn
 }
 
 async function openNongDoConModal(){
@@ -4674,6 +4680,7 @@ async function openNongDoConModal(){
 
   if(nongDoConUser){
     document.getElementById('nongDoConFormNV').value=nongDoConUser.nv;
+    if(!document.getElementById('nongDoConFormNgay').value)document.getElementById('nongDoConFormNgay').value=fmtDate(new Date());
     showNongDoConContent();
   }else{
     showNongDoConLogin();
@@ -4846,25 +4853,39 @@ async function uploadNongDoConPhotoIfAny(){
 }
 
 // ============================================================
-// AUTO-ĐIỀN TÀI XẾ/PHỤ XE THEO BIỂN SỐ — đọc từ sheet danh mục anh đổ dữ liệu vào
-// bằng Power Query (xem hướng dẫn cột trong AppsScriptB). NV chỉ cần gõ biển số,
-// rời khỏi ô là tự điền — vẫn sửa tay được nếu danh mục sai/thiếu.
+// AUTO-ĐIỀN TÀI XẾ/PHỤ XE THEO NGÀY + BIỂN SỐ — đọc từ sheet danh mục anh đổ dữ
+// liệu vào bằng Power Query MỖI NGÀY (xem hướng dẫn cột trong AppsScriptB). Vì
+// phân công xe đổi theo từng ngày (không cố định biển số -> tài xế), tra cứu phải
+// khớp ĐÚNG NGÀY đang chọn trong form, không chỉ khớp biển số.
+// NV chỉ cần gõ biển số + đúng ngày, rời khỏi ô là tự điền — vẫn sửa tay được nếu
+// danh mục sai/thiếu.
 // ============================================================
-let nongDoConXeDanhSach=null; // {bienSoNorm: {bienSo,taiXe1,taiXe2,taiXe3,phuXe1,phuXe2}}
+let nongDoConXeDanhSachByDay={}; // { 'yyyy-mm-dd': {bienSoNorm: {bienSo,taiXe1,taiXe2,taiXe3,phuXe1,phuXe2}} }
 
-async function loadNongDoConXeDanhSachIfNeeded(){
-  if(nongDoConXeDanhSach || !nongDoConUser)return;
+async function ensureNongDoConXeDanhSachForCurrentNgay(){
+  const ngay=document.getElementById('nongDoConFormNgay')?.value;
+  if(!ngay || !nongDoConUser)return;
+  if(nongDoConXeDanhSachByDay[ngay])return; // đã tải rồi, khỏi gọi lại
+
   try{
-    const url=CONFIG.payrollUrl+'?action=getDanhSachXeTaiXe&nv='+encodeURIComponent(nongDoConUser.nv)+'&passcode='+encodeURIComponent(nongDoConUser.passcode);
+    const url=CONFIG.payrollUrl+'?action=getDanhSachXeTaiXe'
+      +'&nv='+encodeURIComponent(nongDoConUser.nv)+'&passcode='+encodeURIComponent(nongDoConUser.passcode)
+      +'&ngay='+encodeURIComponent(ngay);
     const json=await fetchJSONP(url);
     if(json.status==='ok' && Array.isArray(json.data)){
       const map={};
       json.data.forEach(r=>{ if(r.bienSo) map[normKey(r.bienSo)]=r; });
-      nongDoConXeDanhSach=map;
+      nongDoConXeDanhSachByDay[ngay]=map;
     }
   }catch(e){
-    // Im lặng bỏ qua — không có danh mục thì NV vẫn nhập tay bình thường, không chặn form.
+    // Im lặng bỏ qua — không có/không tải được danh mục thì NV vẫn nhập tay bình thường.
   }
+}
+
+// Đổi ngày -> tải lại danh mục đúng ngày đó, và tra lại nếu biển số đã có sẵn.
+async function onNongDoConNgayChange(){
+  await ensureNongDoConXeDanhSachForCurrentNgay();
+  onNongDoConBienSoChange();
 }
 
 function onNongDoConBienSoChange(){
@@ -4872,9 +4893,12 @@ function onNongDoConBienSoChange(){
   const bienSo=(input.value||'').trim().toUpperCase();
   input.value=bienSo;
   const hintEl=document.getElementById('nongDoConBienSoHint');
-  if(!bienSo || !nongDoConXeDanhSach){ if(hintEl)hintEl.style.display='none'; return; }
+  const ngay=document.getElementById('nongDoConFormNgay')?.value;
+  const dayMap=ngay ? nongDoConXeDanhSachByDay[ngay] : null;
 
-  const found=nongDoConXeDanhSach[normKey(bienSo)];
+  if(!bienSo || !dayMap){ if(hintEl)hintEl.style.display='none'; return; }
+
+  const found=dayMap[normKey(bienSo)];
   if(found){
     document.getElementById('nongDoConFormTaiXe1').value=found.taiXe1||'';
     document.getElementById('nongDoConFormTaiXe2').value=found.taiXe2||'';
@@ -4884,13 +4908,13 @@ function onNongDoConBienSoChange(){
     if(hintEl){
       hintEl.style.display='block';
       hintEl.style.color='#16a34a';
-      hintEl.textContent='✅ Đã tự động điền theo biển số '+bienSo+' — vẫn sửa tay được nếu cần.';
+      hintEl.textContent='✅ Đã tự động điền theo phân công ngày '+ngay+' — vẫn sửa tay được nếu cần.';
     }
   }else{
     if(hintEl){
       hintEl.style.display='block';
       hintEl.style.color='var(--text3)';
-      hintEl.textContent='⚠️ Không tìm thấy biển số '+bienSo+' trong danh mục — vui lòng nhập tay tài xế/phụ xe.';
+      hintEl.textContent='⚠️ Không tìm thấy xe '+bienSo+' trong phân công ngày '+ngay+' — vui lòng nhập tay tài xế/phụ xe.';
     }
   }
 }
@@ -4983,11 +5007,6 @@ function speakLoaThongBao(text){
   window.speechSynthesis.speak(utter);
 }
 
-function testNongDoConVoice(){
-  ensureVietnameseVoiceLoaded();
-  speakLoaThongBao('Xin chào, đây là giọng đọc đang được chọn để phát loa mời tài xế đo nồng độ cồn.');
-}
-
 function buildNongDoConAnnouncementText(){
   const taiXe1=(document.getElementById('nongDoConFormTaiXe1').value||'').trim();
   const taiXe2=(document.getElementById('nongDoConFormTaiXe2').value||'').trim();
@@ -5033,62 +5052,82 @@ function testNongDoConVoice(){
   speakLoaThongBao('Xin chào, đây là giọng đọc đang được chọn để phát loa mời tài xế đo nồng độ cồn.');
 }
 
-// Thay vì tự phát bằng giọng mặc định đã lưu, bấm "Phát loa" sẽ hiện tối đa 4 lựa chọn
-// giọng (ưu tiên giọng tiếng Việt máy có) để chọn ngay lúc đó — chọn xong phát luôn và
-// nhớ lại cho lần "Nghe thử" sau.
-function openNongDoConVoicePicker(){
-  const text=buildNongDoConAnnouncementText();
-  if(!text)return;
+function testNongDoConVoice(){
   ensureVietnameseVoiceLoaded();
-  setTimeout(()=>renderNongDoConVoicePicker(text), 150); // đợi trình duyệt tải xong danh sách giọng
+  speakLoaThongBao('Xin chào, đây là giọng đọc đang được chọn để phát loa mời tài xế đo nồng độ cồn.');
 }
 
-function renderNongDoConVoicePicker(text){
-  const box=document.getElementById('nongDoConVoicePickerBox');
-  if(!box || !('speechSynthesis' in window)){
-    if(box){box.style.display='block';box.innerHTML='<div class="thuchi-msg error">Máy này không hỗ trợ đọc giọng nói tự động.</div>';}
-    return;
-  }
-  const voices=window.speechSynthesis.getVoices();
-  const viVoices=voices.filter(v=>v.lang && v.lang.toLowerCase().startsWith('vi'));
-  const otherVoices=voices.filter(v=>!(v.lang && v.lang.toLowerCase().startsWith('vi')));
-  const ordered=[...viVoices, ...otherVoices].slice(0,4); // chỉ lấy tối đa 4 lựa chọn
+// ============================================================
+// PHÁT LOA AI (FPT.AI Text-to-Speech qua backend) — giọng thật, nhiều lựa chọn
+// Nam/Nữ cố định, không phụ thuộc máy đang dùng có mấy giọng cài sẵn hay không.
+// Cần Internet vì phải gọi qua Apps Script -> FPT.AI để tạo file âm thanh.
+// ============================================================
+const NONG_DO_CON_CLOUD_VOICES = [
+  { code:'banmai', label:'Nữ — Miền Bắc (Ban Mai)' },
+  { code:'leminh', label:'Nam — Miền Bắc (Lê Minh)' },
+  { code:'giahuy', label:'Nam — Miền Trung (Gia Huy)' },
+  { code:'lannhi', label:'Nữ — Miền Nam (Lan Nhi)' }
+];
 
-  if(!ordered.length){
-    box.style.display='block';
-    box.innerHTML='<div class="thuchi-msg error">Máy này không có giọng đọc nào khả dụng.</div>';
-    return;
-  }
-
-  window.__nongDoConVoiceCandidates=ordered;
+function openNongDoConCloudVoicePicker(){
+  const text=buildNongDoConAnnouncementText();
+  if(!text)return;
   window.__nongDoConAnnouncementText=text;
 
+  const box=document.getElementById('nongDoConVoicePickerBox');
+  if(!box)return;
   box.style.display='block';
-  box.innerHTML='<div style="font-size:11px;color:var(--text3);margin:4px 0 6px;">Chọn giọng để phát ngay:</div>'
+  box.innerHTML='<div style="font-size:11px;color:var(--text3);margin:4px 0 6px;">Chọn giọng để phát ngay (giọng AI thật, cần Internet):</div>'
     + '<div style="display:flex;flex-wrap:wrap;gap:6px;">'
-    + ordered.map((v,i)=>{
-        const shortName=(v.name||'Giọng '+(i+1)).split(' ').slice(0,2).join(' ');
-        return `<button type="button" class="thuchi-photo-btn" style="flex:1 1 45%;font-size:11px;" onclick="playNongDoConWithVoiceIndex(${i})">${i+1}. ${escapeHtml(shortName)}</button>`;
-      }).join('')
+    + NONG_DO_CON_CLOUD_VOICES.map((v,i)=>
+        `<button type="button" class="thuchi-photo-btn" style="flex:1 1 45%;font-size:11px;" onclick="playNongDoConWithCloudVoice('${v.code}')">${i+1}. ${escapeHtml(v.label)}</button>`
+      ).join('')
     + '</div>';
 }
 
-function playNongDoConWithVoiceIndex(idx){
-  const voice=(window.__nongDoConVoiceCandidates||[])[idx];
+async function callFptAiTTS(text, voiceCode){
+  const res=await fetch(CONFIG.payrollUrl,{
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({ action:'ttsFptAi', nv:nongDoConUser.nv, passcode:nongDoConUser.passcode, text:text, voice:voiceCode })
+  });
+  return await res.json();
+}
+
+async function playNongDoConWithCloudVoice(voiceCode){
   const text=window.__nongDoConAnnouncementText;
   const box=document.getElementById('nongDoConVoicePickerBox');
-  if(!voice || !text)return;
+  if(!text)return;
 
-  localStorage.setItem(NONG_DO_CON_VOICE_STORAGE_KEY, voice.name); // nhớ lại cho "Nghe thử" lần sau
-  const selEl=document.getElementById('nongDoConLoaVoiceSelect');
-  if(selEl) selEl.value=voice.name;
+  if(box)box.innerHTML='<div style="font-size:11px;color:var(--text3);">⏳ Đang tạo giọng đọc qua FPT.AI...</div>';
 
-  window.speechSynthesis.cancel();
-  const utter=new SpeechSynthesisUtterance(text);
-  utter.voice=voice; utter.lang=voice.lang; utter.rate=0.92; utter.pitch=1; utter.volume=1;
-  window.speechSynthesis.speak(utter);
+  try{
+    const json=await callFptAiTTS(text, voiceCode);
+    if(json.status!=='ok') throw new Error(json.message||'Không tạo được giọng đọc.');
 
-  if(box)box.style.display='none'; // ẩn picker sau khi đã chọn và phát
+    let audio=document.getElementById('nongDoConLoaAudioPlayer');
+    if(!audio){
+      audio=document.createElement('audio');
+      audio.id='nongDoConLoaAudioPlayer';
+      audio.style.display='none';
+      document.body.appendChild(audio);
+    }
+    audio.src=json.audioUrl+(json.audioUrl.includes('?')?'&':'?')+'_ts='+Date.now();
+    audio.onerror=()=>{
+      // FPT.AI có thể cần thêm chút thời gian dựng file audio -> tự thử lại 1 lần sau 1.2s
+      setTimeout(()=>{
+        audio.src=json.audioUrl+(json.audioUrl.includes('?')?'&':'?')+'_retry='+Date.now();
+        audio.play().catch(()=>{});
+      },1200);
+    };
+    await audio.play().catch(()=>{}); // 1 số trình duyệt cần tương tác trước, không chặn lỗi ở đây
+    if(box)box.style.display='none';
+  }catch(err){
+    if(box){
+      box.innerHTML='<div class="thuchi-msg error" style="display:block;">❌ '+escapeHtml(err.message)
+        +' — anh có thể dùng phần "Dự phòng: giọng máy (offline)" bên dưới thay thế.</div>';
+    }
+  }
 }
 
 function playNongDoConLoaAnnouncement(){
