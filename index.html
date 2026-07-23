@@ -1211,13 +1211,15 @@
         </div>
 
         <div class="modal-actions" style="margin-top:8px;margin-bottom:2px;flex-direction:column;gap:6px;">
-          <button type="button" class="thuchi-photo-btn" style="width:100%;" onclick="openNongDoConCloudVoicePicker()">☁️ Phát loa AI (giọng thật, 4 lựa chọn Nam/Nữ)</button>
+          <button type="button" class="thuchi-photo-btn" style="width:100%;" onclick="playNongDoConGoogleTranslateVoice()">☁️ Phát loa AI (Google Dịch — miễn phí, không cần đăng ký)</button>
           <div id="nongDoConVoicePickerBox" style="display:none;width:100%;"></div>
           <div style="font-size:10px;color:var(--text3);">Cần có Internet. Yêu cầu máy đang dùng đã ghép đôi Bluetooth với loa công ty (làm 1 lần trong Cài đặt Bluetooth điện thoại, như nghe nhạc bình thường) — âm thanh sẽ tự ra loa đó.</div>
 
           <details style="width:100%;margin-top:2px;">
-            <summary style="font-size:11px;color:var(--text3);cursor:pointer;">🔧 Dự phòng: dùng giọng máy (offline, không cần Internet)</summary>
+            <summary style="font-size:11px;color:var(--text3);cursor:pointer;">🔧 Cách khác: FPT.AI (4 giọng Nam/Nữ) hoặc giọng máy (offline)</summary>
             <div style="margin-top:6px;">
+              <button type="button" class="thuchi-photo-btn" style="width:100%;background:var(--surface2);margin-bottom:6px;" onclick="openNongDoConCloudVoicePicker()">☁️ Phát loa FPT.AI (4 lựa chọn Nam/Nữ — cần API key đã cấu hình)</button>
+
               <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Giọng máy (offline)</label>
               <select id="nongDoConLoaVoiceSelect" style="width:100%;margin-bottom:6px;" onchange="onNongDoConVoiceSelectChange()">
                 <option value="">Đang tải danh sách giọng...</option>
@@ -5091,6 +5093,50 @@ const NONG_DO_CON_CLOUD_VOICES = [
   { code:'giahuy', label:'Nam — Miền Trung (Gia Huy)' },
   { code:'lannhi', label:'Nữ — Miền Nam (Lan Nhi)' }
 ];
+
+// ============================================================
+// PHÁT LOA AI — Google Translate TTS (miễn phí 100%, không cần đăng ký/API key).
+// Chỉ có 1 giọng (nữ, giọng máy kiểu Google Dịch) — bù lại chạy được ngay, không
+// cần anh tự đi lấy API key ở đâu cả.
+// ============================================================
+async function callGoogleTranslateTTS(text){
+  const res=await fetch(CONFIG.payrollUrl,{
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({ action:'ttsGoogleTranslate', nv:nongDoConUser.nv, passcode:nongDoConUser.passcode, text:text })
+  });
+  return await res.json();
+}
+
+async function playNongDoConGoogleTranslateVoice(){
+  const text=buildNongDoConAnnouncementText();
+  if(!text)return;
+  window.__nongDoConAnnouncementText=text;
+
+  const box=document.getElementById('nongDoConVoicePickerBox');
+  if(box){box.style.display='block';box.innerHTML='<div style="font-size:11px;color:var(--text3);">⏳ Đang tạo giọng đọc qua Google Dịch...</div>';}
+
+  try{
+    const json=await callGoogleTranslateTTS(text);
+    if(json.status!=='ok')throw new Error(json.message||'Không tạo được giọng đọc.');
+
+    let audio=document.getElementById('nongDoConLoaAudioPlayer');
+    if(!audio){
+      audio=document.createElement('audio');
+      audio.id='nongDoConLoaAudioPlayer';
+      audio.style.display='none';
+      document.body.appendChild(audio);
+    }
+    audio.src='data:audio/mpeg;base64,'+json.audioBase64;
+    await audio.play().catch(()=>{});
+    if(box)box.style.display='none';
+  }catch(err){
+    if(box){
+      box.innerHTML='<div class="thuchi-msg error" style="display:block;">❌ '+escapeHtml(err.message)
+        +' — anh có thể thử FPT.AI hoặc "giọng máy (offline)" trong mục "Cách khác" bên dưới.</div>';
+    }
+  }
+}
 
 function openNongDoConCloudVoicePicker(){
   const text=buildNongDoConAnnouncementText();
