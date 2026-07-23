@@ -1165,6 +1165,7 @@
             <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Biển số xe</label>
             <input type="text" id="nongDoConFormBienSo" placeholder="VD: 51B-123.45" style="text-transform:uppercase;" onblur="onNongDoConBienSoChange()">
             <div id="nongDoConBienSoHint" style="display:none;font-size:10px;margin-top:3px;"></div>
+            <div style="margin-top:3px;"><a href="javascript:void(0)" onclick="reloadNongDoConXeDanhSach()" style="font-size:10px;color:var(--accent,#3b82f6);text-decoration:underline;">🔄 Tải lại danh mục xe (nếu vừa mới cập nhật sheet)</a></div>
           </div>
         </div>
 
@@ -3991,6 +3992,14 @@ function getResizedSignatureBase64(){
   return outCanvas.toDataURL('image/jpeg',0.5); // chất lượng 50% -> base64 chỉ còn ~2000-4000 ký tự
 }
 
+function showFeedbackMsg(type, text){
+  const msg=document.getElementById('feedbackMsg');
+  if(!msg)return;
+  msg.textContent=text;
+  msg.className='feedback-msg '+type;
+  msg.style.display='block';
+}
+
 async function submitFeedback(){
   const msg=document.getElementById('feedbackMsg');
   const submitBtn=document.getElementById('feedbackSubmitBtn');
@@ -3998,8 +4007,7 @@ async function submitFeedback(){
   msg.className='feedback-msg';
 
   if(!sigHasContent){
-    msg.textContent='Vui lòng ký xác nhận trước khi gửi.';
-    msg.className='feedback-msg error';
+    showFeedbackMsg('error','Vui lòng ký xác nhận trước khi gửi.');
     return;
   }
 
@@ -4008,14 +4016,12 @@ async function submitFeedback(){
     : '';
 
   if(currentFeedbackMode==='dispute'&&!noiDung){
-    msg.textContent='Vui lòng mô tả nội dung phản hồi/khiếu nại.';
-    msg.className='feedback-msg error';
+    showFeedbackMsg('error','Vui lòng mô tả nội dung phản hồi/khiếu nại.');
     return;
   }
 
   if(!CONFIG.payrollUrl){
-    msg.textContent='Chưa cấu hình URL phiếu lương.';
-    msg.className='feedback-msg error';
+    showFeedbackMsg('error','Chưa cấu hình URL phiếu lương.');
     return;
   }
 
@@ -4049,8 +4055,7 @@ async function submitFeedback(){
     const json=await fetchJSONP(url);
     if(json.status!=='ok')throw new Error(json.message||'Gửi không thành công');
 
-    msg.textContent='✅ '+json.message;
-    msg.className='feedback-msg success';
+    showFeedbackMsg('success','✅ '+json.message);
     submitBtn.textContent='Đã gửi';
 
     setTimeout(()=>{
@@ -4066,8 +4071,7 @@ async function submitFeedback(){
     },1200);
 
   }catch(e){
-    msg.textContent='❌ Lỗi: '+e.message;
-    msg.className='feedback-msg error';
+    showFeedbackMsg('error','❌ Lỗi: '+e.message);
     submitBtn.disabled=false;
     submitBtn.textContent='Gửi xác nhận';
   }
@@ -4366,9 +4370,17 @@ function blobToBase64(blob){
 }
 
 async function submitThuChiForm(){
+function showThuChiMsg(type, text){
+  const msg=document.getElementById('thuChiFormMsg');
+  if(!msg)return;
+  msg.textContent=text;
+  msg.className='thuchi-msg '+type;
+  msg.style.display='block';
+}
+
   const msg=document.getElementById('thuChiFormMsg');
   msg.style.display='none';
-  if(!thuChiUser){msg.textContent='❌ Phiên đăng nhập đã hết, vui lòng mở lại.';msg.className='thuchi-msg error';return;}
+  if(!thuChiUser){showThuChiMsg('error','❌ Phiên đăng nhập đã hết, vui lòng mở lại.');return;}
 
   const tenGiaoDich=document.getElementById('thuChiFormNV').value;
   const ngay=document.getElementById('thuChiFormNgay').value;
@@ -4376,10 +4388,10 @@ async function submitThuChiForm(){
   const noiDung=document.getElementById('thuChiFormNoiDung').value.trim();
   const tuyen=document.getElementById('thuChiFormTuyen').value;
 
-  if(!tenGiaoDich){msg.textContent='❌ Vui lòng chọn nhân viên giao dịch.';msg.className='thuchi-msg error';return;}
-  if(!ngay){msg.textContent='❌ Vui lòng chọn ngày giao dịch.';msg.className='thuchi-msg error';return;}
-  if(!soTien||parseFloat(soTien)<=0){msg.textContent='❌ Số tiền không hợp lệ.';msg.className='thuchi-msg error';return;}
-  if(!noiDung){msg.textContent='❌ Vui lòng nhập nội dung giao dịch.';msg.className='thuchi-msg error';return;}
+  if(!tenGiaoDich){showThuChiMsg('error','❌ Vui lòng chọn nhân viên giao dịch.');return;}
+  if(!ngay){showThuChiMsg('error','❌ Vui lòng chọn ngày giao dịch.');return;}
+  if(!soTien||parseFloat(soTien)<=0){showThuChiMsg('error','❌ Số tiền không hợp lệ.');return;}
+  if(!noiDung){showThuChiMsg('error','❌ Vui lòng nhập nội dung giao dịch.');return;}
 
   const btn=document.getElementById('thuChiSubmitBtn');
   btn.disabled=true;btn.textContent='Đang ghi nhận...';
@@ -4408,8 +4420,7 @@ async function submitThuChiForm(){
     const json=await fetchJSONP(url);
     if(json.status!=='ok')throw new Error(json.message||'Ghi nhận thất bại');
 
-    msg.textContent='✅ '+json.message;
-    msg.className='thuchi-msg success';
+    showThuChiMsg('success','✅ '+json.message);
 
     // Reset form (giữ lại NV + tuyến để nhập liên tiếp nhiều giao dịch cùng ngày nhanh hơn)
     document.getElementById('thuChiFormSoTien').value='';
@@ -4418,8 +4429,7 @@ async function submitThuChiForm(){
 
     thuChiLastReport=null; // invalidate cache để lần sau mở tab Báo cáo tự tải lại
   }catch(e){
-    msg.textContent='❌ Lỗi: '+e.message;
-    msg.className='thuchi-msg error';
+    showThuChiMsg('error','❌ Lỗi: '+e.message);
   }
   btn.disabled=false;btn.textContent='Ghi nhận giao dịch';
 }
@@ -4862,24 +4872,37 @@ async function uploadNongDoConPhotoIfAny(){
 // ============================================================
 let nongDoConXeDanhSachByDay={}; // { 'yyyy-mm-dd': {bienSoNorm: {bienSo,taiXe1,taiXe2,taiXe3,phuXe1,phuXe2}} }
 
-async function ensureNongDoConXeDanhSachForCurrentNgay(){
+async function ensureNongDoConXeDanhSachForCurrentNgay(forceReload){
   const ngay=document.getElementById('nongDoConFormNgay')?.value;
   if(!ngay || !nongDoConUser)return;
-  if(nongDoConXeDanhSachByDay[ngay])return; // đã tải rồi, khỏi gọi lại
+  // KHÔNG cache cứng theo ngày nữa — nếu lần trước tải bị lỗi/rỗng, app sẽ tự tải lại
+  // mỗi khi được gọi, tránh trường hợp "nhớ" mãi kết quả rỗng cũ trong phiên đang mở.
+
+  const hintEl=document.getElementById('nongDoConBienSoHint');
+  if(forceReload && hintEl){
+    hintEl.style.display='block';
+    hintEl.style.color='var(--text3)';
+    hintEl.textContent='⏳ Đang tải lại danh mục xe cho ngày '+ngay+'...';
+  }
 
   try{
     const url=CONFIG.payrollUrl+'?action=getDanhSachXeTaiXe'
       +'&nv='+encodeURIComponent(nongDoConUser.nv)+'&passcode='+encodeURIComponent(nongDoConUser.passcode)
-      +'&ngay='+encodeURIComponent(ngay);
+      +'&ngay='+encodeURIComponent(ngay)+'&_ts='+Date.now(); // chống cache JSONP cũ
     const json=await fetchJSONP(url);
     if(json.status==='ok' && Array.isArray(json.data)){
       const map={};
       json.data.forEach(r=>{ if(r.bienSo) map[normKey(r.bienSo)]=r; });
       nongDoConXeDanhSachByDay[ngay]=map;
+      if(forceReload)onNongDoConBienSoChange(); // tra lại ngay theo dữ liệu mới vừa tải
     }
   }catch(e){
     // Im lặng bỏ qua — không có/không tải được danh mục thì NV vẫn nhập tay bình thường.
   }
+}
+
+function reloadNongDoConXeDanhSach(){
+  ensureNongDoConXeDanhSachForCurrentNgay(true);
 }
 
 // Đổi ngày -> tải lại danh mục đúng ngày đó, và tra lại nếu biển số đã có sẵn.
@@ -5137,10 +5160,18 @@ function playNongDoConLoaAnnouncement(){
   speakLoaThongBao(text);
 }
 
+function showNongDoConMsg(type, text){
+  const msg=document.getElementById('nongDoConFormMsg');
+  if(!msg)return;
+  msg.textContent=text;
+  msg.className='thuchi-msg '+type; // 'error' hoặc 'success'
+  msg.style.display='block'; // LUÔN hiện lại — lỗi cũ là set display:none rồi quên hiện lại
+}
+
 async function submitNongDoConForm(){
   const msg=document.getElementById('nongDoConFormMsg');
   msg.style.display='none';
-  if(!nongDoConUser){msg.textContent='❌ Phiên đăng nhập đã hết, vui lòng mở lại.';msg.className='thuchi-msg error';return;}
+  if(!nongDoConUser){showNongDoConMsg('error','❌ Phiên đăng nhập đã hết, vui lòng mở lại.');return;}
 
   const tenGiaoDich=document.getElementById('nongDoConFormNV').value;
   const ngay=document.getElementById('nongDoConFormNgay').value;
@@ -5154,13 +5185,13 @@ async function submitNongDoConForm(){
   const phuXe1=document.getElementById('nongDoConFormPhuXe1').value.trim();
   const phuXe2=document.getElementById('nongDoConFormPhuXe2').value.trim();
 
-  if(!tenGiaoDich){msg.textContent='❌ Vui lòng chọn nhân viên giao dịch.';msg.className='thuchi-msg error';return;}
-  if(!ngay){msg.textContent='❌ Vui lòng chọn ngày giao dịch.';msg.className='thuchi-msg error';return;}
-  if(!bienSo){msg.textContent='❌ Vui lòng nhập biển số xe.';msg.className='thuchi-msg error';return;}
-  if(!ketQua){msg.textContent='❌ Vui lòng chọn kết quả đo.';msg.className='thuchi-msg error';return;}
-  if(!taiXe1){msg.textContent='❌ Vui lòng nhập tên Tài xế 1.';msg.className='thuchi-msg error';return;}
-  if(!nongDoConSigHasDrawn){msg.textContent='❌ Vui lòng ký tên xác nhận trước khi ghi nhận.';msg.className='thuchi-msg error';return;}
-  if(!nongDoConPhotoState){msg.textContent='❌ Vui lòng chụp ảnh bằng chứng (realtime) trước khi ghi nhận.';msg.className='thuchi-msg error';return;}
+  if(!tenGiaoDich){showNongDoConMsg('error','❌ Vui lòng chọn nhân viên giao dịch.');return;}
+  if(!ngay){showNongDoConMsg('error','❌ Vui lòng chọn ngày giao dịch.');return;}
+  if(!bienSo){showNongDoConMsg('error','❌ Vui lòng nhập biển số xe.');return;}
+  if(!ketQua){showNongDoConMsg('error','❌ Vui lòng chọn kết quả đo.');return;}
+  if(!taiXe1){showNongDoConMsg('error','❌ Vui lòng nhập tên Tài xế 1.');return;}
+  if(!nongDoConSigHasDrawn){showNongDoConMsg('error','❌ Vui lòng ký tên xác nhận trước khi ghi nhận.');return;}
+  if(!nongDoConPhotoState){showNongDoConMsg('error','❌ Vui lòng chụp ảnh bằng chứng (realtime) trước khi ghi nhận.');return;}
 
   // Giờ gửi thực tế — ghi nhận NGAY LÚC bấm nút, độc lập với "Ngày giao dịch" NV chọn ở trên,
   // để đối chiếu phát hiện trường hợp NV chỉnh lùi/đẩy ngày giao dịch do quên đo.
@@ -5174,8 +5205,7 @@ async function submitNongDoConForm(){
     try{
       linkAnh=await uploadNongDoConPhotoIfAny();
     }catch(photoErr){
-      msg.textContent='❌ '+photoErr.message+' — vui lòng thử lại (bắt buộc phải có ảnh).';
-      msg.className='thuchi-msg error';
+      showNongDoConMsg('error','❌ '+photoErr.message+' — vui lòng thử lại (bắt buộc phải có ảnh).');
       btn.disabled=false;btn.textContent='Ghi nhận đo nồng độ cồn';
       return; // ảnh bắt buộc -> không ghi nhận nếu upload lỗi
     }
@@ -5184,8 +5214,7 @@ async function submitNongDoConForm(){
     try{
       linkChuKy=await uploadNongDoConSignatureIfAny();
     }catch(sigErr){
-      msg.textContent='❌ '+sigErr.message+' — vui lòng thử lại (bắt buộc phải có chữ ký).';
-      msg.className='thuchi-msg error';
+      showNongDoConMsg('error','❌ '+sigErr.message+' — vui lòng thử lại (bắt buộc phải có chữ ký).');
       btn.disabled=false;btn.textContent='Ghi nhận đo nồng độ cồn';
       return; // chữ ký bắt buộc -> không ghi nhận nếu upload lỗi
     }
@@ -5203,8 +5232,7 @@ async function submitNongDoConForm(){
     const json=await fetchJSONP(url);
     if(json.status!=='ok')throw new Error(json.message||'Ghi nhận thất bại');
 
-    msg.textContent='✅ '+json.message;
-    msg.className='thuchi-msg success';
+    showNongDoConMsg('success','✅ '+json.message);
 
     // Reset form (giữ lại NV + tuyến để nhập liên tiếp nhiều xe cùng ngày nhanh hơn)
     document.getElementById('nongDoConFormBienSo').value='';
@@ -5221,8 +5249,7 @@ async function submitNongDoConForm(){
 
     nongDoConLastReport=null;
   }catch(e){
-    msg.textContent='❌ Lỗi: '+e.message;
-    msg.className='thuchi-msg error';
+    showNongDoConMsg('error','❌ Lỗi: '+e.message);
   }
   btn.disabled=false;btn.textContent='Ghi nhận đo nồng độ cồn';
 }
@@ -5458,19 +5485,27 @@ function switchLineDTTab(tab){
   }
 }
 
+function showLineDTMsg(type, text){
+  const msg=document.getElementById('lineDTFormMsg');
+  if(!msg)return;
+  msg.textContent=text;
+  msg.className='thuchi-msg '+type;
+  msg.style.display='block';
+}
+
 async function submitLineDTForm(){
   const msg=document.getElementById('lineDTFormMsg');
   msg.style.display='none';
-  if(!lineDTUser){msg.textContent='❌ Phiên đăng nhập đã hết, vui lòng mở lại.';msg.className='thuchi-msg error';return;}
+  if(!lineDTUser){showLineDTMsg('error','❌ Phiên đăng nhập đã hết, vui lòng mở lại.');return;}
 
   const nv=document.getElementById('lineDTFormNV').value;
   const ngay=document.getElementById('lineDTFormNgay').value;
   const soLine=document.getElementById('lineDTFormSoLine').value.trim();
   const ghiChu=document.getElementById('lineDTFormGhiChu').value.trim();
 
-  if(!nv){msg.textContent='❌ Vui lòng chọn nhân viên.';msg.className='thuchi-msg error';return;}
-  if(!ngay){msg.textContent='❌ Vui lòng chọn ngày.';msg.className='thuchi-msg error';return;}
-  if(!soLine){msg.textContent='❌ Vui lòng nhập số line/bàn.';msg.className='thuchi-msg error';return;}
+  if(!nv){showLineDTMsg('error','❌ Vui lòng chọn nhân viên.');return;}
+  if(!ngay){showLineDTMsg('error','❌ Vui lòng chọn ngày.');return;}
+  if(!soLine){showLineDTMsg('error','❌ Vui lòng nhập số line/bàn.');return;}
 
   const btn=document.getElementById('lineDTSubmitBtn');
   btn.disabled=true;btn.textContent='Đang gửi...';
@@ -5481,14 +5516,12 @@ async function submitLineDTForm(){
     const json=await fetchJSONP(url);
     if(json.status!=='ok')throw new Error(json.message||'Gửi báo cáo thất bại');
 
-    msg.textContent='✅ '+json.message;
-    msg.className='thuchi-msg success';
+    showLineDTMsg('success','✅ '+json.message);
     document.getElementById('lineDTFormSoLine').value='';
     document.getElementById('lineDTFormGhiChu').value='';
     lineDTLastReport=null;
   }catch(e){
-    msg.textContent='❌ Lỗi: '+e.message;
-    msg.className='thuchi-msg error';
+    showLineDTMsg('error','❌ Lỗi: '+e.message);
   }
   btn.disabled=false;btn.textContent='Gửi báo cáo';
 }
