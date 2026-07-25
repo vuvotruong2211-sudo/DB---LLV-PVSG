@@ -1136,6 +1136,8 @@
       <!-- CỘT NHẬP LIỆU -->
       <div>
         <div class="qr-panel-title">Tài khoản nhận (cấu hình sẵn — Sheet "CauHinhQR")</div>
+        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Chọn tài khoản nhận tiền</label>
+        <select id="qrAccountSelect" onchange="renderQRAccountInfo()"></select>
         <div id="qrBankInfoBox" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:12px;line-height:1.7;margin-bottom:12px;color:var(--text2);">
           Đang tải cấu hình...
         </div>
@@ -4241,8 +4243,9 @@ function closeQRThanhToanModal(){
 }
 
 async function loadQRConfig(){
+  const selectAccEl=document.getElementById('qrAccountSelect');
+  const selectContentEl=document.getElementById('qrNoiDungLoai');
   const boxEl=document.getElementById('qrBankInfoBox');
-  const selectEl=document.getElementById('qrNoiDungLoai');
   boxEl.textContent='Đang tải cấu hình...';
   try{
     const url=CONFIG.payrollUrl+'?action=getQRConfig';
@@ -4253,33 +4256,44 @@ async function loadQRConfig(){
   }catch(err){
     // mất mạng / lỗi -> dùng bản cấu hình đã lưu lần gần nhất (nếu có)
     try{qrConfigCache=JSON.parse(localStorage.getItem(QR_SETTINGS_KEY)||'null');}catch(e){qrConfigCache=null;}
-    if(!qrConfigCache){
+    if(!qrConfigCache||!qrConfigCache.accounts||!qrConfigCache.accounts.length){
       boxEl.innerHTML='<span style="color:var(--red);">Không tải được cấu hình ngân hàng: '+err.message+'</span>';
-      selectEl.innerHTML='';
+      selectAccEl.innerHTML='';
+      selectContentEl.innerHTML='';
       return;
     }
   }
 
+  selectAccEl.innerHTML=qrConfigCache.accounts.map((a,i)=>`<option value="${i}">${a.label}</option>`).join('');
+  selectContentEl.innerHTML=qrConfigCache.noiDungPresets.map(p=>`<option value="${p.replace(/"/g,'&quot;')}">${p}</option>`).join('');
+  renderQRAccountInfo();
+}
+
+function renderQRAccountInfo(){
+  const boxEl=document.getElementById('qrBankInfoBox');
+  if(!qrConfigCache||!qrConfigCache.accounts.length)return;
+  const idx=parseInt(document.getElementById('qrAccountSelect').value,10)||0;
+  const acc=qrConfigCache.accounts[idx];
   const bankNameMap={ICB:'VietinBank',VCB:'Vietcombank',BIDV:'BIDV',TCB:'Techcombank',MB:'MB Bank',ACB:'ACB',VPB:'VPBank',TPB:'TPBank',STB:'Sacombank',AGRIBANK:'Agribank'};
-  const bankLabel=bankNameMap[qrConfigCache.bank]||qrConfigCache.bank;
+  const bankLabel=bankNameMap[acc.bank]||acc.bank;
   boxEl.innerHTML=`
     <div><b>Thương hiệu:</b> ${qrConfigCache.brand}</div>
     <div><b>Ngân hàng:</b> ${bankLabel}</div>
-    <div><b>Số TK:</b> ${qrConfigCache.soTK}</div>
-    <div><b>Chủ TK:</b> ${qrConfigCache.tenChu}</div>`;
-
-  selectEl.innerHTML=qrConfigCache.noiDungPresets.map(p=>`<option value="${p.replace(/"/g,'&quot;')}">${p}</option>`).join('');
+    <div><b>Số TK:</b> ${acc.soTK}</div>
+    <div><b>Chủ TK:</b> ${acc.tenChu}</div>`;
 }
 
 function generateQRThanhToan(){
   const statusEl=document.getElementById('qrGenStatus');
   statusEl.className='qr-copy-status';
 
-  if(!qrConfigCache){statusEl.textContent='Chưa có cấu hình ngân hàng, vui lòng đóng và mở lại (kiểm tra mạng).';statusEl.className='qr-copy-status err';return;}
+  if(!qrConfigCache||!qrConfigCache.accounts.length){statusEl.textContent='Chưa có cấu hình ngân hàng, vui lòng đóng và mở lại (kiểm tra mạng).';statusEl.className='qr-copy-status err';return;}
 
-  const bank=qrConfigCache.bank;
-  const accNo=qrConfigCache.soTK;
-  const accName=qrConfigCache.tenChu.toUpperCase();
+  const accIdx=parseInt(document.getElementById('qrAccountSelect').value,10)||0;
+  const acc=qrConfigCache.accounts[accIdx];
+  const bank=acc.bank;
+  const accNo=acc.soTK;
+  const accName=acc.tenChu.toUpperCase();
   const brand=qrConfigCache.brand;
   const sdt=document.getElementById('qrKhachSDT').value.trim();
   const soTien=parseInt(document.getElementById('qrSoTien').value,10);
