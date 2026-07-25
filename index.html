@@ -346,6 +346,31 @@
   .thuchi-msg.error{color:var(--red);display:block;}
   .thuchi-empty{text-align:center;padding:30px;color:var(--text3);font-size:12px;}
 
+  /* QR THANH TOÁN ĐỘNG */
+  .qr-layout{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  @media (max-width:640px){.qr-layout{grid-template-columns:1fr;}}
+  .qr-panel-title{font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;}
+  .qr-preview-box{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;min-height:260px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;}
+  .qr-receipt{width:280px;background:#fff;color:#111;border-radius:8px;padding:14px 10px;font-family:'Inter',sans-serif;box-shadow:0 2px 10px rgba(0,0,0,.15);}
+  .qr-receipt-brand{font-weight:800;font-size:14px;color:#166534;letter-spacing:.5px;}
+  .qr-receipt img{width:100%;max-width:210px;margin:8px auto;display:block;}
+  .qr-receipt-amount{font-weight:800;font-size:16px;margin-top:4px;}
+  .qr-receipt-info{font-size:10.5px;line-height:1.5;margin-top:6px;text-align:left;}
+  .qr-receipt-info b{font-weight:700;}
+  .qr-receipt-warn{font-size:9.5px;color:#b45309;margin-top:6px;}
+  .qr-preview-empty{color:var(--text3);font-size:12px;}
+  .qr-action-row{display:flex;gap:8px;margin-top:6px;}
+  .qr-action-row button{flex:1;}
+  .qr-copy-status{font-size:11px;margin-top:6px;min-height:14px;}
+  .qr-copy-status.ok{color:var(--green);}
+  .qr-copy-status.err{color:var(--red);}
+  @media print{
+    body *{visibility:hidden;}
+    #qrPrintArea, #qrPrintArea *{visibility:visible;}
+    #qrPrintArea{position:fixed;top:0;left:0;width:58mm;padding:2mm;}
+    @page{size:58mm auto;margin:0;}
+  }
+
   /* ẢNH BẰNG CHỨNG THU-CHI (chụp ảnh + GPS + giờ UTC) */
   .thuchi-photo-box{border:1px dashed var(--border);border-radius:10px;padding:12px;margin-bottom:12px;}
   .thuchi-photo-actions{display:flex;gap:8px;}
@@ -1100,6 +1125,60 @@
   </div>
 </div>
 
+<!-- QR THANH TOÁN MODAL -->
+<div class="modal-overlay" id="qrThanhToanModal">
+  <div class="modal-box thuchi-modal-box" id="qrThanhToanModalBox">
+    <span class="back-link" onclick="closeQRThanhToanModal()">‹ Đóng</span>
+    <div class="modal-title">💳 Tạo mã QR chuyển khoản</div>
+    <div class="modal-sub">Nhập số tiền cần thu, tạo mã QR động để in ra vé nhỏ hoặc gửi Zalo cho khách.</div>
+
+    <div class="qr-layout" style="margin-top:14px;">
+      <!-- CỘT NHẬP LIỆU -->
+      <div>
+        <div class="qr-panel-title">Tài khoản nhận (cấu hình sẵn — Sheet "CauHinhQR")</div>
+        <div id="qrBankInfoBox" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:12px;line-height:1.7;margin-bottom:12px;color:var(--text2);">
+          Đang tải cấu hình...
+        </div>
+
+        <div class="qr-panel-title">Thông tin thu tiền</div>
+        <div class="thuchi-form-row">
+          <div>
+            <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">SĐT khách hàng</label>
+            <input type="text" id="qrKhachSDT" placeholder="VD: 0919892211" inputmode="tel">
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Số tiền cần thu (đồng)</label>
+            <input type="number" id="qrSoTien" placeholder="VD: 350000" min="0" step="1000">
+          </div>
+        </div>
+        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Nội dung chuyển khoản (SĐT + mẫu soạn sẵn)</label>
+        <select id="qrNoiDungLoai"></select>
+
+        <div class="modal-actions" style="margin-top:6px;">
+          <button class="modal-btn-confirm" style="width:100%;" onclick="generateQRThanhToan()">⚙️ Tạo mã QR</button>
+        </div>
+        <div class="qr-copy-status" id="qrGenStatus"></div>
+      </div>
+
+      <!-- CỘT KẾT QUẢ / IN -->
+      <div>
+        <div class="qr-panel-title">Kết quả — vé QR (khổ giấy nhỏ)</div>
+        <div class="qr-preview-box" id="qrPreviewBox">
+          <div class="qr-preview-empty">Điền thông tin bên trái rồi bấm "Tạo mã QR"</div>
+        </div>
+        <div class="qr-action-row">
+          <button type="button" class="modal-btn-cancel" onclick="printQRReceipt()">🖨️ In khổ giấy nhỏ</button>
+          <button type="button" class="modal-btn-confirm" onclick="copyQRImage()">📋 Sao chép ảnh QR (gửi Zalo)</button>
+        </div>
+        <div class="qr-copy-status" id="qrCopyStatus"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- VÙNG ẨN DÙNG ĐỂ IN KHỔ GIẤY NHỎ (chỉ hiện khi in) -->
+<div id="qrPrintArea" style="display:none;"></div>
+
 <!-- ĐO NỒNG ĐỘ CỒN MODAL -->
 <div class="modal-overlay" id="nongDoConModal">
   <div class="modal-box thuchi-modal-box login-mode" id="nongDoConModalBox">
@@ -1211,7 +1290,7 @@
         </div>
 
         <div class="modal-actions" style="margin-top:8px;margin-bottom:2px;flex-direction:column;gap:6px;">
-          <button type="button" class="thuchi-photo-btn" style="width:100%;" onclick="playNongDoConGoogleTranslateVoice()">☁️ Phát loa AI (Google Dịch — miễn phí)</button>
+          <button type="button" class="thuchi-photo-btn" style="width:100%;" onclick="playNongDoConGoogleTranslateVoice()">☁️ Phát loa AI (Google Dịch — miễn phí, không cần đăng ký)</button>
           <div id="nongDoConVoicePickerBox" style="display:none;width:100%;"></div>
           <div style="font-size:10px;color:var(--text3);">Cần có Internet. Yêu cầu máy đang dùng đã ghép đôi Bluetooth với loa công ty (làm 1 lần trong Cài đặt Bluetooth điện thoại, như nghe nhạc bình thường) — âm thanh sẽ tự ra loa đó.</div>
 
@@ -1573,6 +1652,10 @@
     <button class="bubble-btn" onclick="openThuChiModal()">
       <div class="bubble-icon">💰</div>
       <div class="bubble-label">Thu-Chi</div>
+    </button>
+    <button class="bubble-btn" onclick="openQRThanhToanModal()">
+      <div class="bubble-icon">💳</div>
+      <div class="bubble-label">QR Thanh toán</div>
     </button>
     <button class="bubble-btn" onclick="openDoiCaModal()">
       <div class="bubble-icon">🔄</div>
@@ -4135,6 +4218,205 @@ async function openThuChiModal(){
 }
 function closeThuChiModal(){
   document.getElementById('thuChiModal').classList.remove('show');
+}
+
+/* ================= QR THANH TOÁN ĐỘNG (VietQR) ================= */
+// Dùng cổng ảnh QR miễn phí của VietQR (chuẩn Napas 247, ngân hàng nào cũng quét được),
+// không mất phí, không cần đăng ký, không qua bên thứ 3 ăn hoa hồng.
+// Thông tin ngân hàng + tên hiển thị + mẫu nội dung được cấu hình sẵn trong Sheet
+// "CauHinhQR" (đọc qua action=getQRConfig) — nhân viên KHÔNG tự nhập/sửa được.
+const QR_SETTINGS_KEY='llv_qr_bank_settings_v2';
+let qrConfigCache=null;
+
+async function openQRThanhToanModal(){
+  document.getElementById('qrPreviewBox').innerHTML='<div class="qr-preview-empty">Điền thông tin bên trái rồi bấm "Tạo mã QR"</div>';
+  document.getElementById('qrGenStatus').textContent='';
+  document.getElementById('qrCopyStatus').textContent='';
+  document.getElementById('qrThanhToanModal').classList.add('show');
+  await loadQRConfig();
+}
+
+function closeQRThanhToanModal(){
+  document.getElementById('qrThanhToanModal').classList.remove('show');
+}
+
+async function loadQRConfig(){
+  const boxEl=document.getElementById('qrBankInfoBox');
+  const selectEl=document.getElementById('qrNoiDungLoai');
+  boxEl.textContent='Đang tải cấu hình...';
+  try{
+    const url=CONFIG.payrollUrl+'?action=getQRConfig';
+    const json=await fetchJSONP(url);
+    if(json.status!=='ok')throw new Error(json.message||'Không tải được cấu hình.');
+    qrConfigCache=json.data;
+    try{localStorage.setItem(QR_SETTINGS_KEY,JSON.stringify(qrConfigCache));}catch(e){}
+  }catch(err){
+    // mất mạng / lỗi -> dùng bản cấu hình đã lưu lần gần nhất (nếu có)
+    try{qrConfigCache=JSON.parse(localStorage.getItem(QR_SETTINGS_KEY)||'null');}catch(e){qrConfigCache=null;}
+    if(!qrConfigCache){
+      boxEl.innerHTML='<span style="color:var(--red);">Không tải được cấu hình ngân hàng: '+err.message+'</span>';
+      selectEl.innerHTML='';
+      return;
+    }
+  }
+
+  const bankNameMap={ICB:'VietinBank',VCB:'Vietcombank',BIDV:'BIDV',TCB:'Techcombank',MB:'MB Bank',ACB:'ACB',VPB:'VPBank',TPB:'TPBank',STB:'Sacombank',AGRIBANK:'Agribank'};
+  const bankLabel=bankNameMap[qrConfigCache.bank]||qrConfigCache.bank;
+  boxEl.innerHTML=`
+    <div><b>Thương hiệu:</b> ${qrConfigCache.brand}</div>
+    <div><b>Ngân hàng:</b> ${bankLabel}</div>
+    <div><b>Số TK:</b> ${qrConfigCache.soTK}</div>
+    <div><b>Chủ TK:</b> ${qrConfigCache.tenChu}</div>`;
+
+  selectEl.innerHTML=qrConfigCache.noiDungPresets.map(p=>`<option value="${p.replace(/"/g,'&quot;')}">${p}</option>`).join('');
+}
+
+function generateQRThanhToan(){
+  const statusEl=document.getElementById('qrGenStatus');
+  statusEl.className='qr-copy-status';
+
+  if(!qrConfigCache){statusEl.textContent='Chưa có cấu hình ngân hàng, vui lòng đóng và mở lại (kiểm tra mạng).';statusEl.className='qr-copy-status err';return;}
+
+  const bank=qrConfigCache.bank;
+  const accNo=qrConfigCache.soTK;
+  const accName=qrConfigCache.tenChu.toUpperCase();
+  const brand=qrConfigCache.brand;
+  const sdt=document.getElementById('qrKhachSDT').value.trim();
+  const soTien=parseInt(document.getElementById('qrSoTien').value,10);
+  const preset=document.getElementById('qrNoiDungLoai').value;
+
+  if(!sdt){statusEl.textContent='Vui lòng nhập số điện thoại khách hàng.';statusEl.className='qr-copy-status err';return;}
+  if(!soTien||soTien<=0){statusEl.textContent='Vui lòng nhập số tiền cần thu hợp lệ.';statusEl.className='qr-copy-status err';return;}
+  if(!preset){statusEl.textContent='Chưa có mẫu nội dung — kiểm tra sheet CauHinhQR.';statusEl.className='qr-copy-status err';return;}
+
+  // Nội dung = SĐT nhân viên nhập + mẫu soạn sẵn trong Sheet, ví dụ: "0919892211 THANH TOAN VE"
+  const addInfo=removeVietnameseTones(`${sdt} ${preset}`);
+  const qrUrl=`https://img.vietqr.io/image/${bank}-${accNo}-qr_only.png?amount=${soTien}&addInfo=${encodeURIComponent(addInfo)}&accountName=${encodeURIComponent(accName)}`;
+
+  const soTienFmt=soTien.toLocaleString('vi-VN');
+  const now=new Date();
+  const gioNgay=now.toLocaleString('vi-VN',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit',year:'numeric'});
+
+  const receiptHTML=`
+    <div class="qr-receipt" id="qrReceiptContent">
+      <div class="qr-receipt-brand">${brand}</div>
+      <div style="font-size:10px;color:#555;">${gioNgay}</div>
+      <img src="${qrUrl}" crossorigin="anonymous" alt="QR chuyển khoản">
+      <div class="qr-receipt-amount">${soTienFmt} đ</div>
+      <div class="qr-receipt-info">
+        <div><b>SĐT KH:</b> ${sdt}</div>
+        <div><b>Nội dung:</b> ${addInfo}</div>
+        <div><b>TK nhận:</b> ${accNo}</div>
+        <div><b>Chủ TK:</b> ${accName}</div>
+      </div>
+      <div class="qr-receipt-warn">⚠️ Vui lòng quét đúng mã QR, kiểm tra kỹ số tiền trước khi chuyển khoản.</div>
+    </div>`;
+
+  document.getElementById('qrPreviewBox').innerHTML=receiptHTML;
+  document.getElementById('qrPrintArea').innerHTML=receiptHTML;
+  statusEl.textContent='Đã tạo mã QR.';
+  statusEl.className='qr-copy-status ok';
+}
+
+function printQRReceipt(){
+  const printArea=document.getElementById('qrPrintArea');
+  if(!printArea.innerHTML.trim()){alert('Vui lòng tạo mã QR trước khi in.');return;}
+  window.print();
+}
+
+async function copyQRImage(){
+  const statusEl=document.getElementById('qrCopyStatus');
+  statusEl.className='qr-copy-status';
+  const img=document.querySelector('#qrReceiptContent img');
+  if(!img){statusEl.textContent='Vui lòng tạo mã QR trước.';statusEl.className='qr-copy-status err';return;}
+
+  try{
+    // vẽ lại toàn bộ tấm vé (QR + thông tin) ra canvas để copy nguyên ảnh, tiện gửi Zalo
+    const receipt=document.getElementById('qrReceiptContent');
+    const canvas=await renderReceiptToCanvas(receipt,img);
+    canvas.toBlob(async (blob)=>{
+      if(!blob){statusEl.textContent='Không tạo được ảnh, vui lòng thử lại.';statusEl.className='qr-copy-status err';return;}
+      try{
+        await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);
+        statusEl.textContent='✅ Đã sao chép ảnh — dán (Ctrl+V) vào khung chat Zalo để gửi khách.';
+        statusEl.className='qr-copy-status ok';
+      }catch(err){
+        // fallback: trình duyệt không cho copy ảnh -> mở ảnh ra tab mới để tải/lưu thủ công
+        const url=URL.createObjectURL(blob);
+        window.open(url,'_blank');
+        statusEl.textContent='Trình duyệt này chưa hỗ trợ copy ảnh trực tiếp — đã mở ảnh ở tab mới, bấm giữ để lưu/gửi Zalo.';
+        statusEl.className='qr-copy-status err';
+      }
+    },'image/png');
+  }catch(err){
+    statusEl.textContent='Lỗi khi tạo ảnh: '+err.message;
+    statusEl.className='qr-copy-status err';
+  }
+}
+
+function renderReceiptToCanvas(receiptEl,imgEl){
+  return new Promise((resolve,reject)=>{
+    const width=300,padding=16;
+    const lineHeight=15;
+    const infoLines=Array.from(receiptEl.querySelectorAll('.qr-receipt-info div')).map(d=>d.textContent);
+    const brand=receiptEl.querySelector('.qr-receipt-brand').textContent;
+    const dateTxt=receiptEl.children[1].textContent;
+    const amountTxt=receiptEl.querySelector('.qr-receipt-amount').textContent;
+    const warnTxt=receiptEl.querySelector('.qr-receipt-warn').textContent;
+
+    const qrSize=220;
+    const totalHeight=padding*2+24+16+qrSize+10+24+ (infoLines.length*lineHeight) +10+30+10;
+    const canvas=document.createElement('canvas');
+    canvas.width=width;canvas.height=totalHeight;
+    const ctx=canvas.getContext('2d');
+    ctx.fillStyle='#ffffff';ctx.fillRect(0,0,width,totalHeight);
+
+    let y=padding;
+    ctx.fillStyle='#166534';ctx.font='bold 16px Arial';ctx.textAlign='center';
+    ctx.fillText(brand,width/2,y+16);y+=24;
+    ctx.fillStyle='#555';ctx.font='11px Arial';
+    ctx.fillText(dateTxt,width/2,y+10);y+=20;
+
+    const qrImg=new Image();
+    qrImg.crossOrigin='anonymous';
+    qrImg.onload=()=>{
+      const qrX=(width-qrSize)/2;
+      ctx.drawImage(qrImg,qrX,y,qrSize,qrSize);
+      y+=qrSize+14;
+      ctx.fillStyle='#111';ctx.font='bold 18px Arial';
+      ctx.fillText(amountTxt,width/2,y+16);y+=30;
+
+      ctx.textAlign='left';ctx.font='11px Arial';
+      infoLines.forEach(line=>{
+        ctx.fillStyle='#111';
+        ctx.fillText(line,padding,y+10);
+        y+=lineHeight;
+      });
+      y+=6;
+      ctx.fillStyle='#b45309';ctx.font='9px Arial';ctx.textAlign='center';
+      wrapText(ctx,warnTxt,width/2,y+8,width-padding*2,11);
+
+      resolve(canvas);
+    };
+    qrImg.onerror=()=>reject(new Error('Không tải được ảnh QR (kiểm tra kết nối mạng)'));
+    qrImg.src=imgEl.src;
+  });
+}
+
+function wrapText(ctx,text,x,y,maxWidth,lineHeight){
+  const words=text.split(' ');
+  let line='';
+  for(let n=0;n<words.length;n++){
+    const testLine=line+words[n]+' ';
+    if(ctx.measureText(testLine).width>maxWidth&&n>0){
+      ctx.fillText(line,x,y);
+      line=words[n]+' ';
+      y+=lineHeight;
+    }else{
+      line=testLine;
+    }
+  }
+  ctx.fillText(line,x,y);
 }
 
 async function submitThuChiLogin(){
