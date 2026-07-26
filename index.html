@@ -4530,8 +4530,9 @@ async function generateQRThanhToan(){
         <div><b>TK nhận:</b> ${accNo}</div>
         <div><b>Chủ TK:</b> ${accName}</div>
       </div>
+      <div class="qr-receipt-warn" style="color:#b91c1c;font-weight:700;">⏱️ Mã QR chỉ có hiệu lực trong 15 phút kể từ ${gioNgay}. Quá giờ vui lòng liên hệ nhân viên tạo lại.</div>
       <div class="qr-receipt-warn">⚠️ Vui lòng quét đúng mã QR, kiểm tra kỹ số tiền trước khi chuyển khoản.</div>
-    </div>`;
+      </div>`;
 
   document.getElementById('qrPreviewBox').innerHTML=receiptHTML;
   document.getElementById('qrPrintArea').innerHTML=receiptHTML;
