@@ -364,10 +364,11 @@
   .qr-copy-status{font-size:11px;margin-top:6px;min-height:14px;}
   .qr-copy-status.ok{color:var(--green);}
   .qr-copy-status.err{color:var(--red);}
+  #qrPrintArea{position:fixed;left:-9999px;top:0;width:58mm;}
   @media print{
     body *{visibility:hidden;}
     #qrPrintArea, #qrPrintArea *{visibility:visible;}
-    #qrPrintArea{position:fixed;top:0;left:0;width:58mm;padding:2mm;}
+    #qrPrintArea{display:block!important;position:fixed;top:0;left:0;width:58mm;padding:2mm;}
     @page{size:58mm auto;margin:0;}
   }
 
@@ -1127,59 +1128,127 @@
 
 <!-- QR THANH TOÁN MODAL -->
 <div class="modal-overlay" id="qrThanhToanModal">
-  <div class="modal-box thuchi-modal-box" id="qrThanhToanModalBox">
-    <span class="back-link" onclick="closeQRThanhToanModal()">‹ Đóng</span>
-    <div class="modal-title">💳 Tạo mã QR chuyển khoản</div>
-    <div class="modal-sub">Nhập số tiền cần thu, tạo mã QR động để in ra vé nhỏ hoặc gửi Zalo cho khách.</div>
+  <div class="modal-box thuchi-modal-box login-mode" id="qrThanhToanModalBox">
 
-    <div class="qr-layout" style="margin-top:14px;">
-      <!-- CỘT NHẬP LIỆU -->
-      <div>
-        <div class="qr-panel-title">Tài khoản nhận</div>
-        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Chọn tài khoản nhận tiền</label>
-        <select id="qrAccountSelect" onchange="renderQRAccountInfo()"></select>
-        <div id="qrBankInfoBox" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:12px;line-height:1.7;margin-bottom:12px;color:var(--text2);">
-          Đang tải cấu hình...
-        </div>
+    <!-- LOGIN VIEW -->
+    <div id="qrLoginView">
+      <div class="modal-title">🔐 Tạo mã QR chuyển khoản</div>
+      <div class="modal-sub">Chọn tên và nhập passcode cá nhân (dùng chung với phiếu lương / Thu-Chi) — để ghi nhận đúng nhân viên tạo lệnh, phục vụ kết sổ cuối ngày.</div>
+      <select id="qrNVSelect" style="display:none;"></select>
+      <label class="field-label" style="margin-top:0;">Văn phòng / Tên nhân viên</label>
+      <div class="nv-picker-row">
+        <select id="qrVPSelect" class="nv-picker-vp" onchange="onNVPickerVPChange('qr')"></select>
+        <input type="text" id="qrNVInput" class="nv-picker-ten" list="qrNVDatalist"
+               placeholder="Gõ hoặc chọn tên..." autocomplete="off"
+               oninput="onNVPickerInput('qr')" onchange="onNVPickerInput('qr')">
+        <datalist id="qrNVDatalist"></datalist>
+      </div>
+      <label class="field-label">Passcode</label>
+      <input type="password" id="qrPasscodeInput" maxlength="6" inputmode="numeric" placeholder="Passcode 6 số" autocomplete="off">
+      <div class="modal-err" id="qrLoginErr">Passcode không đúng hoặc không tìm thấy nhân viên.</div>
+      <div class="modal-actions">
+        <button class="modal-btn-cancel" onclick="closeQRThanhToanModal()">Hủy</button>
+        <button class="modal-btn-confirm" onclick="submitQRLogin()">Đăng nhập</button>
+      </div>
+    </div>
 
-        <div class="qr-panel-title">Thông tin thu tiền</div>
-        <div class="thuchi-form-row">
-          <div>
-            <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">SĐT khách hàng</label>
-            <input type="text" id="qrKhachSDT" placeholder="VD: 0919892211" inputmode="tel">
-          </div>
-          <div>
-            <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Số tiền cần thu (đồng)</label>
-            <input type="number" id="qrSoTien" placeholder="VD: 350000" min="0" step="1000">
-          </div>
-        </div>
-        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Nội dung chuyển khoản (SĐT + mẫu soạn sẵn)</label>
-        <select id="qrNoiDungLoai"></select>
+    <!-- CONTENT VIEW (sau khi đăng nhập) -->
+    <div id="qrContentView" class="thuchi-content" style="display:none;">
+      <span class="back-link" onclick="closeQRThanhToanModal()">‹ Đóng</span>
+      <div class="modal-title">💳 Tạo mã QR chuyển khoản</div>
+      <div class="modal-sub" id="qrLoggedInAs"></div>
 
-        <div class="modal-actions" style="margin-top:6px;">
-          <button class="modal-btn-confirm" style="width:100%;" onclick="generateQRThanhToan()">⚙️ Tạo mã QR</button>
-        </div>
-        <div class="qr-copy-status" id="qrGenStatus"></div>
+      <div class="thuchi-tabs">
+        <div class="thuchi-tab active" id="qrTabTao" onclick="switchQRTab('tao')">➕ Tạo mã QR</div>
+        <div class="thuchi-tab" id="qrTabBaoCao" onclick="switchQRTab('baocao')">📊 Báo cáo kết sổ</div>
       </div>
 
-      <!-- CỘT KẾT QUẢ / IN -->
-      <div>
-        <div class="qr-panel-title">Kết quả — vé QR (khổ giấy nhỏ)</div>
-        <div class="qr-preview-box" id="qrPreviewBox">
-          <div class="qr-preview-empty">Điền thông tin bên trái rồi bấm "Tạo mã QR"</div>
+      <!-- TAB: TẠO QR -->
+      <div id="qrPaneTao">
+        <div class="qr-layout">
+          <!-- CỘT NHẬP LIỆU -->
+          <div>
+            <div class="qr-panel-title">Tài khoản nhận (cấu hình sẵn — Sheet "CauHinhQR")</div>
+            <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Chọn tài khoản nhận tiền</label>
+            <select id="qrAccountSelect" onchange="renderQRAccountInfo()"></select>
+            <div id="qrBankInfoBox" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:12px;line-height:1.7;margin-bottom:12px;color:var(--text2);">
+              Đang tải cấu hình...
+            </div>
+
+            <div class="qr-panel-title">Thông tin thu tiền</div>
+            <div class="thuchi-form-row">
+              <div>
+                <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">SĐT khách hàng</label>
+                <input type="text" id="qrKhachSDT" placeholder="VD: 0919892211" inputmode="tel">
+              </div>
+              <div>
+                <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Số tiền cần thu (đồng)</label>
+                <input type="number" id="qrSoTien" placeholder="VD: 350000" min="0" step="1000">
+              </div>
+            </div>
+            <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Nội dung chuyển khoản (SĐT + mẫu soạn sẵn)</label>
+            <select id="qrNoiDungLoai"></select>
+
+            <div class="modal-actions" style="margin-top:6px;">
+              <button class="modal-btn-confirm" style="width:100%;" onclick="generateQRThanhToan()">⚙️ Tạo mã QR</button>
+            </div>
+            <div class="qr-copy-status" id="qrGenStatus"></div>
+          </div>
+
+          <!-- CỘT KẾT QUẢ / IN -->
+          <div>
+            <div class="qr-panel-title">Kết quả — vé QR (khổ giấy nhỏ)</div>
+            <div class="qr-preview-box" id="qrPreviewBox">
+              <div class="qr-preview-empty">Điền thông tin bên trái rồi bấm "Tạo mã QR"</div>
+            </div>
+            <div class="qr-action-row">
+              <button type="button" class="modal-btn-cancel" onclick="printQRReceipt()">🖨️ In khổ giấy nhỏ</button>
+              <button type="button" class="modal-btn-confirm" onclick="copyQRImage()">📋 Sao chép ảnh QR (gửi Zalo)</button>
+            </div>
+            <div class="qr-copy-status" id="qrCopyStatus"></div>
+          </div>
         </div>
-        <div class="qr-action-row">
-          <button type="button" class="modal-btn-cancel" onclick="printQRReceipt()">🖨️ In khổ giấy nhỏ</button>
-          <button type="button" class="modal-btn-confirm" onclick="copyQRImage()">📋 Sao chép ảnh QR (gửi Zalo)</button>
+      </div>
+
+      <!-- TAB: BÁO CÁO KẾT SỔ -->
+      <div id="qrPaneBaoCao" style="display:none;">
+        <div class="thuchi-filter-row">
+          <select id="qrReportNVFilter" style="display:none;"></select>
+          <input type="date" id="qrReportTu" title="Từ ngày">
+          <input type="date" id="qrReportDen" title="Đến ngày">
+          <button type="button" class="tab" style="font-size:11px;padding:8px 12px;" onclick="loadQRReport()">🔍 Lọc</button>
         </div>
-        <div class="qr-copy-status" id="qrCopyStatus"></div>
+
+        <div class="thuchi-kpis" style="grid-template-columns:repeat(2,1fr);">
+          <div class="thuchi-kpi thu">
+            <div class="thuchi-kpi-label">Số lệnh đã tạo</div>
+            <div class="thuchi-kpi-value" id="qrKpiSoLenh">0</div>
+          </div>
+          <div class="thuchi-kpi net">
+            <div class="thuchi-kpi-label">Tổng tiền dự kiến thu</div>
+            <div class="thuchi-kpi-value" id="qrKpiTongTien">0 đ</div>
+          </div>
+        </div>
+
+        <div class="table-scroll" style="max-height:380px;">
+          <table class="thuchi-table" id="qrReportTable">
+            <thead id="qrReportHead"></thead>
+            <tbody id="qrReportBody">
+              <tr><td class="thuchi-empty">Chọn "Lọc" để tải báo cáo...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="modal-actions" style="margin-top:14px;">
+        <button class="modal-btn-cancel" onclick="closeQRThanhToanModal()">Đóng</button>
       </div>
     </div>
   </div>
 </div>
 
 <!-- VÙNG ẨN DÙNG ĐỂ IN KHỔ GIẤY NHỎ (chỉ hiện khi in) -->
-<div id="qrPrintArea" style="display:none;"></div>
+<div id="qrPrintArea"></div>
 
 <!-- ĐO NỒNG ĐỘ CỒN MODAL -->
 <div class="modal-overlay" id="nongDoConModal">
@@ -4227,19 +4296,156 @@ function closeThuChiModal(){
 // không mất phí, không cần đăng ký, không qua bên thứ 3 ăn hoa hồng.
 // Thông tin ngân hàng + tên hiển thị + mẫu nội dung được cấu hình sẵn trong Sheet
 // "CauHinhQR" (đọc qua action=getQRConfig) — nhân viên KHÔNG tự nhập/sửa được.
+// Mỗi lần tạo QR sẽ được ghi log (action=submitQRThanhToan) kèm tên nhân viên
+// đang đăng nhập, để cuối ngày chạy Báo cáo kết sổ biết ai tạo bao nhiêu lệnh.
 const QR_SETTINGS_KEY='llv_qr_bank_settings_v2';
 let qrConfigCache=null;
+let qrUser=null;          // {nv, passcode} — giữ trong session, giống thuChiUser
+let qrLastReport=null;
+
+function showQRLogin(){
+  document.getElementById('qrLoginView').style.display='block';
+  document.getElementById('qrContentView').style.display='none';
+  document.getElementById('qrThanhToanModalBox').classList.add('login-mode');
+}
+function showQRContent(){
+  document.getElementById('qrLoginView').style.display='none';
+  document.getElementById('qrContentView').style.display='block';
+  document.getElementById('qrThanhToanModalBox').classList.remove('login-mode');
+  document.getElementById('qrLoggedInAs').textContent='Đang thao tác với tên: '+(qrUser?qrUser.nv:'');
+}
 
 async function openQRThanhToanModal(){
   document.getElementById('qrPreviewBox').innerHTML='<div class="qr-preview-empty">Điền thông tin bên trái rồi bấm "Tạo mã QR"</div>';
   document.getElementById('qrGenStatus').textContent='';
   document.getElementById('qrCopyStatus').textContent='';
   document.getElementById('qrThanhToanModal').classList.add('show');
-  await loadQRConfig();
+
+  document.getElementById('qrNVInput').value='';
+  document.getElementById('qrNVSelect').innerHTML='';
+  await populateNVPicker('qr');
+  document.getElementById('qrPasscodeInput').value='';
+  document.getElementById('qrLoginErr').style.display='none';
+
+  if(qrUser){
+    showQRContent();
+    await loadQRConfig();
+  }else{
+    showQRLogin();
+    setTimeout(()=>document.getElementById('qrPasscodeInput')?.focus(),100);
+  }
 }
 
 function closeQRThanhToanModal(){
   document.getElementById('qrThanhToanModal').classList.remove('show');
+}
+
+async function submitQRLogin(){
+  const nv=document.getElementById('qrNVSelect').value;
+  const passcode=document.getElementById('qrPasscodeInput').value.trim();
+  const errEl=document.getElementById('qrLoginErr');
+  errEl.style.display='none';
+
+  if(!nv){errEl.textContent='Vui lòng gõ hoặc chọn tên nhân viên.';errEl.style.display='block';return;}
+  if(!passcode||passcode.length!==6){errEl.textContent='Vui lòng nhập đủ 6 số passcode.';errEl.style.display='block';return;}
+
+  showLoading('Đang xác thực...');
+  try{
+    const url=CONFIG.payrollUrl+'?action=checkPasscode&nv='+encodeURIComponent(nv)+'&passcode='+encodeURIComponent(passcode);
+    const json=await fetchJSONP(url);
+    if(json.status!=='ok'||!json.data||!json.data.valid)throw new Error('Passcode không đúng.');
+
+    qrUser={nv:nv,passcode:passcode};
+    switchQRTab('tao');
+    showQRContent();
+    await loadQRConfig();
+  }catch(e){
+    errEl.textContent='Lỗi: '+e.message;
+    errEl.style.display='block';
+  }
+  hideLoading();
+}
+
+function switchQRTab(tab){
+  const isTao=tab==='tao';
+  document.getElementById('qrTabTao').classList.toggle('active',isTao);
+  document.getElementById('qrTabBaoCao').classList.toggle('active',!isTao);
+  document.getElementById('qrPaneTao').style.display=isTao?'block':'none';
+  document.getElementById('qrPaneBaoCao').style.display=isTao?'none':'block';
+
+  if(!isTao){
+    setupQRReportFilters();
+    if(!document.getElementById('qrReportTu').value){
+      const today=fmtDate(new Date());
+      document.getElementById('qrReportTu').value=today;
+      document.getElementById('qrReportDen').value=today;
+    }
+    loadQRReport();
+  }
+}
+
+function setupQRReportFilters(){
+  // Dropdown lọc theo NV: chỉ hiện nếu người đăng nhập là Quản lý (lấy từ kết quả report gần nhất)
+  const sel=document.getElementById('qrReportNVFilter');
+  const isManager=qrLastReport&&qrLastReport.isManager;
+  if(isManager){
+    sel.style.display='inline-block';
+    const nvNames=masterNVFullList.length?masterNVFullList.map(o=>o.ten):[];
+    sel.innerHTML='<option value="">— Tất cả nhân viên —</option>'+
+      nvNames.map(n=>`<option value="${n}">${n}</option>`).join('');
+  }else{
+    sel.style.display='none';
+  }
+}
+
+async function loadQRReport(){
+  if(!qrUser)return;
+  const tbody=document.getElementById('qrReportBody');
+  tbody.innerHTML='<tr><td class="thuchi-empty">Đang tải...</td></tr>';
+
+  const tu=document.getElementById('qrReportTu').value||'';
+  const den=document.getElementById('qrReportDen').value||'';
+  const nvLoc=document.getElementById('qrReportNVFilter').value||'';
+
+  try{
+    let url=CONFIG.payrollUrl+'?action=getQRThanhToanReport&nv='+encodeURIComponent(qrUser.nv)+'&passcode='+encodeURIComponent(qrUser.passcode);
+    if(tu)url+='&tu='+encodeURIComponent(tu);
+    if(den)url+='&den='+encodeURIComponent(den);
+    if(nvLoc)url+='&nvLoc='+encodeURIComponent(nvLoc);
+    const json=await fetchJSONP(url);
+    if(json.status!=='ok')throw new Error(json.message||'Không tải được báo cáo');
+
+    qrLastReport=json.data;
+    setupQRReportFilters();
+
+    document.getElementById('qrKpiSoLenh').textContent=qrLastReport.tongHop.soLenh;
+    document.getElementById('qrKpiTongTien').textContent=fmtMoney(qrLastReport.tongHop.tongTien)+' đ';
+
+    const isManager=qrLastReport.isManager;
+    const head=document.getElementById('qrReportHead');
+    const body=document.getElementById('qrReportBody');
+    head.innerHTML='<tr>'+
+      '<th>Ngày</th><th>Giờ</th>'+
+      (isManager?'<th>Nhân viên</th>':'')+
+      '<th>Tài khoản</th><th>SĐT khách</th><th>Nội dung</th><th style="text-align:right;">Số tiền</th></tr>';
+
+    if(!qrLastReport.rows.length){
+      body.innerHTML='<tr><td class="thuchi-empty" colspan="'+(isManager?7:6)+'">Không có dữ liệu trong khoảng đã chọn.</td></tr>';
+      return;
+    }
+    body.innerHTML=qrLastReport.rows.map(r=>`
+      <tr>
+        <td>${r.ngay}</td>
+        <td>${r.gio}</td>
+        ${isManager?`<td>${r.nv}</td>`:''}
+        <td>${r.taiKhoan}</td>
+        <td>${r.sdtKhach}</td>
+        <td>${r.noiDung}</td>
+        <td class="thuchi-amount THU">${fmtMoney(r.soTien)} đ</td>
+      </tr>`).join('');
+  }catch(e){
+    tbody.innerHTML='<tr><td class="thuchi-empty">❌ Lỗi: '+e.message+'</td></tr>';
+  }
 }
 
 async function loadQRConfig(){
@@ -4283,10 +4489,11 @@ function renderQRAccountInfo(){
     <div><b>Chủ TK:</b> ${acc.tenChu}</div>`;
 }
 
-function generateQRThanhToan(){
+async function generateQRThanhToan(){
   const statusEl=document.getElementById('qrGenStatus');
   statusEl.className='qr-copy-status';
 
+  if(!qrUser){statusEl.textContent='Phiên đăng nhập đã hết, vui lòng đóng và mở lại.';statusEl.className='qr-copy-status err';return;}
   if(!qrConfigCache||!qrConfigCache.accounts.length){statusEl.textContent='Chưa có cấu hình ngân hàng, vui lòng đóng và mở lại (kiểm tra mạng).';statusEl.className='qr-copy-status err';return;}
 
   const accIdx=parseInt(document.getElementById('qrAccountSelect').value,10)||0;
@@ -4330,6 +4537,22 @@ function generateQRThanhToan(){
   document.getElementById('qrPrintArea').innerHTML=receiptHTML;
   statusEl.textContent='Đã tạo mã QR.';
   statusEl.className='qr-copy-status ok';
+
+  // Ghi log lệnh tạo QR theo nhân viên đang đăng nhập -> phục vụ báo cáo kết sổ cuối ngày.
+  // Chạy nền, không chặn giao diện; nếu lỗi mạng vẫn không ảnh hưởng tới việc tạo/in/gửi QR.
+  try{
+    const payload={nv:qrUser.nv,passcode:qrUser.passcode,taiKhoan:acc.label,sdtKhach:sdt,soTien:soTien,noiDung:addInfo};
+    const logUrl=CONFIG.payrollUrl+'?action=submitQRThanhToan&payload='+encodeURIComponent(JSON.stringify(payload));
+    fetchJSONP(logUrl).then(res=>{
+      if(res.status==='ok'){
+        statusEl.textContent='Đã tạo mã QR (đã ghi nhận vào báo cáo kết sổ).';
+      }else{
+        statusEl.textContent='Đã tạo mã QR — nhưng ghi log kết sổ lỗi: '+res.message;
+        statusEl.className='qr-copy-status err';
+      }
+      qrLastReport=null; // invalidate cache để lần sau mở tab Báo cáo tự tải lại
+    }).catch(()=>{});
+  }catch(e){}
 }
 
 function printQRReceipt(){
