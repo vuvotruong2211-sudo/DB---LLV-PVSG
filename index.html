@@ -846,6 +846,7 @@
   .nv-picker-ten:focus{border-color:var(--accent);}
   .nv-picker-ten::placeholder{color:var(--text3);}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
 
@@ -4575,13 +4576,16 @@ function printQRReceipt(){
 async function copyQRImage(){
   const statusEl=document.getElementById('qrCopyStatus');
   statusEl.className='qr-copy-status';
-  const img=document.querySelector('#qrReceiptContent img');
-  if(!img){statusEl.textContent='Vui lòng tạo mã QR trước.';statusEl.className='qr-copy-status err';return;}
+  const receipt=document.getElementById('qrReceiptContent');
+  const img=receipt?receipt.querySelector('img'):null;
+  if(!receipt||!img){statusEl.textContent='Vui lòng tạo mã QR trước.';statusEl.className='qr-copy-status err';return;}
+  if(typeof html2canvas==='undefined'){statusEl.textContent='Không tải được thư viện chụp ảnh (kiểm tra mạng), vui lòng thử lại.';statusEl.className='qr-copy-status err';return;}
 
+  statusEl.textContent='Đang tạo ảnh...';
   try{
-    // vẽ lại toàn bộ tấm vé (QR + thông tin) ra canvas để copy nguyên ảnh, tiện gửi Zalo
-    const receipt=document.getElementById('qrReceiptContent');
-    const canvas=await renderReceiptToCanvas(receipt,img);
+    // Chụp lại ĐÚNG y hệt tấm vé đang hiển thị trên màn hình (không tự vẽ lại chữ bằng canvas nữa)
+    // -> tránh lệch/mất chữ do font hệ điều hành khác nhau (Windows vs macOS).
+    const canvas=await html2canvas(receipt,{backgroundColor:'#ffffff',scale:2,useCORS:true,logging:false});
     canvas.toBlob(async (blob)=>{
       if(!blob){statusEl.textContent='Không tạo được ảnh, vui lòng thử lại.';statusEl.className='qr-copy-status err';return;}
       try{
@@ -4600,109 +4604,6 @@ async function copyQRImage(){
     statusEl.textContent='Lỗi khi tạo ảnh: '+err.message;
     statusEl.className='qr-copy-status err';
   }
-}
-
-function wrapTextLines(ctx,text,maxWidth){
-  const words=text.split(' ');
-  const lines=[];
-  let line='';
-  for(let n=0;n<words.length;n++){
-    const testLine=line+words[n]+' ';
-    if(ctx.measureText(testLine).width>maxWidth&&n>0){
-      lines.push(line.trim());
-      line=words[n]+' ';
-    }else{
-      line=testLine;
-    }
-  }
-  if(line.trim())lines.push(line.trim());
-  return lines;
-}
-
-function renderReceiptToCanvas(receiptEl,imgEl){
-  return new Promise((resolve,reject)=>{
-    const width=300,padding=16;
-    const lineHeight=15;
-    const warnLineHeight=12;
-    const infoLines=Array.from(receiptEl.querySelectorAll('.qr-receipt-info div')).map(d=>d.textContent);
-    const brand=receiptEl.querySelector('.qr-receipt-brand').textContent;
-    const dateTxt=receiptEl.children[1].textContent;
-    const amountTxt=receiptEl.querySelector('.qr-receipt-amount').textContent;
-    // có thể có NHIỀU dòng cảnh báo (VD: hạn giờ + lưu ý kiểm tra số tiền) — lấy hết, không chỉ dòng đầu
-    const warnEls=Array.from(receiptEl.querySelectorAll('.qr-receipt-warn'));
-    const warnItems=warnEls.map(el=>({text:el.textContent,color:el.style.color||'#b45309'}));
-
-    // đo trước số dòng thực tế sau khi wrap để tính đúng chiều cao canvas, tránh chữ bị đè/lệch
-    const measureCanvas=document.createElement('canvas');
-    const measureCtx=measureCanvas.getContext('2d');
-    measureCtx.font='9px Arial';
-    let warnLinesTotal=0;
-    const warnWrapped=warnItems.map(w=>{
-      const lines=wrapTextLines(measureCtx,w.text,width-padding*2);
-      warnLinesTotal+=lines.length;
-      return {lines:lines,color:w.color};
-    });
-
-    const qrSize=220;
-    const totalHeight=padding*2+24+16+qrSize+10+24+ (infoLines.length*lineHeight) +6+ (warnLinesTotal*warnLineHeight) +10;
-    const canvas=document.createElement('canvas');
-    canvas.width=width;canvas.height=totalHeight;
-    const ctx=canvas.getContext('2d');
-    ctx.fillStyle='#ffffff';ctx.fillRect(0,0,width,totalHeight);
-
-    let y=padding;
-    ctx.fillStyle='#166534';ctx.font='bold 16px Arial';ctx.textAlign='center';
-    ctx.fillText(brand,width/2,y+16);y+=24;
-    ctx.fillStyle='#555';ctx.font='11px Arial';
-    ctx.fillText(dateTxt,width/2,y+10);y+=20;
-
-    const qrImg=new Image();
-    qrImg.crossOrigin='anonymous';
-    qrImg.onload=()=>{
-      const qrX=(width-qrSize)/2;
-      ctx.drawImage(qrImg,qrX,y,qrSize,qrSize);
-      y+=qrSize+14;
-      ctx.fillStyle='#111';ctx.font='bold 18px Arial';
-      ctx.fillText(amountTxt,width/2,y+16);y+=30;
-
-      ctx.textAlign='left';ctx.font='11px Arial';
-      infoLines.forEach(line=>{
-        ctx.fillStyle='#111';
-        ctx.fillText(line,padding,y+10);
-        y+=lineHeight;
-      });
-      y+=6;
-
-      ctx.textAlign='center';ctx.font='9px Arial';
-      warnWrapped.forEach(w=>{
-        ctx.fillStyle=w.color;
-        w.lines.forEach(line=>{
-          ctx.fillText(line,width/2,y+8);
-          y+=warnLineHeight;
-        });
-      });
-
-      resolve(canvas);
-    };
-    qrImg.onerror=()=>reject(new Error('Không tải được ảnh QR (kiểm tra kết nối mạng)'));
-    qrImg.src=imgEl.src;
-  });
-}
-
-function wrapText(ctx,text,x,y,maxWidth,lineHeight){
-  const words=text.split(' ');
-  let line='';
-  for(let n=0;n<words.length;n++){
-    const testLine=line+words[n]+' ';
-    if(ctx.measureText(testLine).width>maxWidth&&n>0){
-      ctx.fillText(line,x,y);
-      line=words[n]+' ';
-      y+=lineHeight;
-    }else{
-      line=testLine;
-    }
-  }
-  ctx.fillText(line,x,y);
 }
 
 async function submitThuChiLogin(){
