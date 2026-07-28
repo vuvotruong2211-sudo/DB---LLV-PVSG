@@ -1168,7 +1168,7 @@
         <div class="qr-layout">
           <!-- CỘT NHẬP LIỆU -->
           <div>
-            <div class="qr-panel-title">Tài khoản nhận</div>
+            <div class="qr-panel-title">Tài khoản nhận (cấu hình sẵn — Sheet "CauHinhQR")</div>
             <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Chọn tài khoản nhận tiền</label>
             <select id="qrAccountSelect" onchange="renderQRAccountInfo()"></select>
             <div id="qrBankInfoBox" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:12px;line-height:1.7;margin-bottom:12px;color:var(--text2);">
@@ -1182,8 +1182,9 @@
                 <input type="text" id="qrKhachSDT" placeholder="VD: 0919892211" inputmode="tel">
               </div>
               <div>
-                <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Số tiền cần thu (đồng)</label>
-                <input type="number" id="qrSoTien" placeholder="VD: 350000" min="0" step="1000">
+                <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Số tiền cần thu (nhập theo <b>nghìn đồng</b>)</label>
+                <input type="number" id="qrSoTienNghin" placeholder="VD: 1100 → 1.100.000đ" min="0" step="1" oninput="updateQrSoTienPreview()">
+                <div id="qrSoTienPreview" style="font-size:11px;color:var(--text3);margin-top:3px;">= 0 đ</div>
               </div>
             </div>
             <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Nội dung chuyển khoản (SĐT + mẫu soạn sẵn)</label>
@@ -4303,6 +4304,12 @@ let qrConfigCache=null;
 let qrUser=null;          // {nv, passcode} — giữ trong session, giống thuChiUser
 let qrLastReport=null;
 
+function updateQrSoTienPreview(){
+  const v=parseInt(document.getElementById('qrSoTienNghin').value,10);
+  const soTien=v?v*1000:0;
+  document.getElementById('qrSoTienPreview').textContent='= '+soTien.toLocaleString('vi-VN')+' đ';
+}
+
 function showQRLogin(){
   document.getElementById('qrLoginView').style.display='block';
   document.getElementById('qrContentView').style.display='none';
@@ -4319,6 +4326,8 @@ async function openQRThanhToanModal(){
   document.getElementById('qrPreviewBox').innerHTML='<div class="qr-preview-empty">Điền thông tin bên trái rồi bấm "Tạo mã QR"</div>';
   document.getElementById('qrGenStatus').textContent='';
   document.getElementById('qrCopyStatus').textContent='';
+  document.getElementById('qrSoTienNghin').value='';
+  document.getElementById('qrSoTienPreview').textContent='= 0 đ';
   document.getElementById('qrThanhToanModal').classList.add('show');
 
   document.getElementById('qrNVInput').value='';
@@ -4503,7 +4512,8 @@ async function generateQRThanhToan(){
   const accName=acc.tenChu.toUpperCase();
   const brand=qrConfigCache.brand;
   const sdt=document.getElementById('qrKhachSDT').value.trim();
-  const soTien=parseInt(document.getElementById('qrSoTien').value,10);
+  const soTienNghin=parseInt(document.getElementById('qrSoTienNghin').value,10);
+  const soTien=soTienNghin?soTienNghin*1000:0;
   const preset=document.getElementById('qrNoiDungLoai').value;
 
   if(!sdt){statusEl.textContent='Vui lòng nhập số điện thoại khách hàng.';statusEl.className='qr-copy-status err';return;}
@@ -4532,7 +4542,7 @@ async function generateQRThanhToan(){
       </div>
       <div class="qr-receipt-warn" style="color:#b91c1c;font-weight:700;">⏱️ Mã QR chỉ có hiệu lực trong 15 phút kể từ ${gioNgay}. Quá giờ vui lòng liên hệ nhân viên tạo lại.</div>
       <div class="qr-receipt-warn">⚠️ Vui lòng quét đúng mã QR, kiểm tra kỹ số tiền trước khi chuyển khoản.</div>
-      </div>`;
+    </div>`;
 
   document.getElementById('qrPreviewBox').innerHTML=receiptHTML;
   document.getElementById('qrPrintArea').innerHTML=receiptHTML;
@@ -4592,18 +4602,49 @@ async function copyQRImage(){
   }
 }
 
+function wrapTextLines(ctx,text,maxWidth){
+  const words=text.split(' ');
+  const lines=[];
+  let line='';
+  for(let n=0;n<words.length;n++){
+    const testLine=line+words[n]+' ';
+    if(ctx.measureText(testLine).width>maxWidth&&n>0){
+      lines.push(line.trim());
+      line=words[n]+' ';
+    }else{
+      line=testLine;
+    }
+  }
+  if(line.trim())lines.push(line.trim());
+  return lines;
+}
+
 function renderReceiptToCanvas(receiptEl,imgEl){
   return new Promise((resolve,reject)=>{
     const width=300,padding=16;
     const lineHeight=15;
+    const warnLineHeight=12;
     const infoLines=Array.from(receiptEl.querySelectorAll('.qr-receipt-info div')).map(d=>d.textContent);
     const brand=receiptEl.querySelector('.qr-receipt-brand').textContent;
     const dateTxt=receiptEl.children[1].textContent;
     const amountTxt=receiptEl.querySelector('.qr-receipt-amount').textContent;
-    const warnTxt=receiptEl.querySelector('.qr-receipt-warn').textContent;
+    // có thể có NHIỀU dòng cảnh báo (VD: hạn giờ + lưu ý kiểm tra số tiền) — lấy hết, không chỉ dòng đầu
+    const warnEls=Array.from(receiptEl.querySelectorAll('.qr-receipt-warn'));
+    const warnItems=warnEls.map(el=>({text:el.textContent,color:el.style.color||'#b45309'}));
+
+    // đo trước số dòng thực tế sau khi wrap để tính đúng chiều cao canvas, tránh chữ bị đè/lệch
+    const measureCanvas=document.createElement('canvas');
+    const measureCtx=measureCanvas.getContext('2d');
+    measureCtx.font='9px Arial';
+    let warnLinesTotal=0;
+    const warnWrapped=warnItems.map(w=>{
+      const lines=wrapTextLines(measureCtx,w.text,width-padding*2);
+      warnLinesTotal+=lines.length;
+      return {lines:lines,color:w.color};
+    });
 
     const qrSize=220;
-    const totalHeight=padding*2+24+16+qrSize+10+24+ (infoLines.length*lineHeight) +10+30+10;
+    const totalHeight=padding*2+24+16+qrSize+10+24+ (infoLines.length*lineHeight) +6+ (warnLinesTotal*warnLineHeight) +10;
     const canvas=document.createElement('canvas');
     canvas.width=width;canvas.height=totalHeight;
     const ctx=canvas.getContext('2d');
@@ -4631,8 +4672,15 @@ function renderReceiptToCanvas(receiptEl,imgEl){
         y+=lineHeight;
       });
       y+=6;
-      ctx.fillStyle='#b45309';ctx.font='9px Arial';ctx.textAlign='center';
-      wrapText(ctx,warnTxt,width/2,y+8,width-padding*2,11);
+
+      ctx.textAlign='center';ctx.font='9px Arial';
+      warnWrapped.forEach(w=>{
+        ctx.fillStyle=w.color;
+        w.lines.forEach(line=>{
+          ctx.fillText(line,width/2,y+8);
+          y+=warnLineHeight;
+        });
+      });
 
       resolve(canvas);
     };
