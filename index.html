@@ -1198,7 +1198,7 @@
             <div class="thuchi-kpi-label">Tổng khách</div>
             <div class="thuchi-kpi-value" id="tdKpiTongKhach">0</div>
           </div>
-          <div class="thuchi-kpi net">
+          <div class="thuchi-kpi net" id="tdKpiDoanhThuBox">
             <div class="thuchi-kpi-label">Tổng doanh thu</div>
             <div class="thuchi-kpi-value" id="tdKpiDoanhThu">0 đ</div>
           </div>
@@ -1214,7 +1214,8 @@
 
         <div style="margin:14px 0 8px;font-size:12px;font-weight:700;color:var(--text2);">Phân bổ theo hạng</div>
         <div class="table-scroll" style="max-height:150px;">
-          <table class="thuchi-table">
+          <table class="thuchi-table" style="table-layout:fixed;width:100%;">
+            <colgroup><col style="width:60%;"><col style="width:40%;"></colgroup>
             <thead><tr><th>Hạng</th><th>Số khách</th></tr></thead>
             <tbody id="tdPhanBoHangBody"><tr><td class="thuchi-empty" colspan="2">Chưa có dữ liệu.</td></tr></tbody>
           </table>
@@ -1222,7 +1223,8 @@
 
         <div style="margin:14px 0 8px;font-size:12px;font-weight:700;color:var(--text2);">Top 10 khách điểm cao nhất</div>
         <div class="table-scroll" style="max-height:320px;">
-          <table class="thuchi-table">
+          <table class="thuchi-table" style="table-layout:fixed;width:100%;">
+            <colgroup><col style="width:22%;"><col style="width:32%;"><col style="width:16%;"><col style="width:14%;"><col style="width:16%;"></colgroup>
             <thead><tr><th>SĐT</th><th>Tên</th><th>Điểm</th><th>Tần suất</th><th>Hạng</th></tr></thead>
             <tbody id="tdTopKhachBody"><tr><td class="thuchi-empty" colspan="5">Chưa có dữ liệu.</td></tr></tbody>
           </table>
@@ -1233,7 +1235,8 @@
       <div id="tichDiemPaneDanhSach" style="display:none;">
         <input type="text" id="tichDiemSearchInput" placeholder="🔍 Tìm theo SĐT hoặc tên..." oninput="renderTichDiemDanhSach()" style="margin-bottom:10px;">
         <div class="table-scroll" style="max-height:460px;">
-          <table class="thuchi-table">
+          <table class="thuchi-table" style="table-layout:fixed;width:100%;">
+            <colgroup><col style="width:17%;"><col style="width:25%;"><col style="width:20%;"><col style="width:13%;"><col style="width:12%;"><col style="width:13%;"></colgroup>
             <thead><tr><th>SĐT</th><th>Tên</th><th>Tổng tiền cước</th><th>Điểm</th><th>Tần suất</th><th>Hạng</th></tr></thead>
             <tbody id="tdDanhSachBody"><tr><td class="thuchi-empty" colspan="6">Chưa có dữ liệu.</td></tr></tbody>
           </table>
@@ -4549,7 +4552,16 @@ const TICH_DIEM_HANG_ORDER=['KIM CƯƠNG','VÀNG','BẠC','THÂN THIẾT'];
 
 function renderTichDiemTongQuan(data){
   document.getElementById('tdKpiTongKhach').textContent=data.tongQuan.tongKhach.toLocaleString('vi-VN');
-  document.getElementById('tdKpiDoanhThu').textContent=fmtMoneyVND(data.tongQuan.tongDoanhThu);
+  const doanhThuBox=document.getElementById('tdKpiDoanhThuBox');
+  const kpiGrid=doanhThuBox.parentElement;
+  if(data.isSuperManager){
+    doanhThuBox.style.display='';
+    kpiGrid.style.gridTemplateColumns='repeat(4,1fr)';
+    document.getElementById('tdKpiDoanhThu').textContent=fmtMoneyVND(data.tongQuan.tongDoanhThu);
+  }else{
+    doanhThuBox.style.display='none';
+    kpiGrid.style.gridTemplateColumns='repeat(3,1fr)';
+  }
   document.getElementById('tdKpiTongDon').textContent=data.tongQuan.tongDon.toLocaleString('vi-VN');
   document.getElementById('tdKpiKimCuong').textContent=data.tongQuan.khachKimCuong.toLocaleString('vi-VN');
 
