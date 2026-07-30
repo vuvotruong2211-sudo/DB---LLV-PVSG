@@ -1184,11 +1184,14 @@
 
       <!-- TAB: TỔNG QUAN -->
       <div id="tichDiemPaneTongQuan">
-        <div class="thuchi-filter-row">
-          <input type="date" id="tichDiemTongQuanTu" title="Từ ngày">
-          <input type="date" id="tichDiemTongQuanDen" title="Đến ngày">
-          <button type="button" class="tab" style="font-size:11px;padding:8px 12px;" onclick="loadTichDiemReport()">🔍 Lọc</button>
+        <div class="thuchi-filter-row" style="justify-content:space-between;">
+          <div style="font-size:11px;color:var(--text3);">Điểm lũy kế toàn thời gian — cập nhật lần gần nhất khi bấm nút bên cạnh hoặc tự động lúc 2h sáng mỗi ngày.</div>
+          <div style="display:flex;gap:6px;flex-shrink:0;">
+            <button type="button" class="tab" style="font-size:11px;padding:8px 12px;" onclick="loadTichDiemReport()">🔄 Tải lại</button>
+            <button type="button" class="tab" id="tichDiemBtnCapNhat" style="display:none;font-size:11px;padding:8px 12px;background:var(--accent);color:#fff;" onclick="capNhatTichDiem()">⚡ Cập nhật điểm</button>
+          </div>
         </div>
+        <div class="thuchi-msg" id="tichDiemCapNhatMsg" style="margin-bottom:10px;"></div>
 
         <div class="thuchi-kpis" style="grid-template-columns:repeat(4,1fr);">
           <div class="thuchi-kpi thu">
@@ -1224,8 +1227,6 @@
             <tbody id="tdTopKhachBody"><tr><td class="thuchi-empty" colspan="5">Chưa có dữ liệu.</td></tr></tbody>
           </table>
         </div>
-
-        <div id="tdCanhBaoTrung" style="display:none;margin-top:12px;font-size:11px;color:var(--amber);background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:8px 10px;"></div>
       </div>
 
       <!-- TAB: DANH SÁCH KHÁCH -->
@@ -4441,10 +4442,6 @@ async function openTichDiemModal(){
   document.getElementById('tichDiemPasscodeInput').value='';
   document.getElementById('tichDiemLoginErr').style.display='none';
 
-  const today=fmtDate(new Date());
-  document.getElementById('tichDiemTongQuanTu').value=fmtDate(new Date(new Date().setDate(new Date().getDate()-30)));
-  document.getElementById('tichDiemTongQuanDen').value=today;
-
   if(tichDiemUser){
     showTichDiemContent();
     loadTichDiemReport();
@@ -4500,16 +4497,14 @@ function switchTichDiemTab(tab){
 
 async function loadTichDiemReport(){
   if(!tichDiemUser)return;
-  const tu=document.getElementById('tichDiemTongQuanTu').value;
-  const den=document.getElementById('tichDiemTongQuanDen').value;
   showLoading('Đang tải dữ liệu tích điểm...');
   try{
     const url=CONFIG.payrollUrl+'?action=getTichDiemReport&nv='+encodeURIComponent(tichDiemUser.nv)
-      +'&passcode='+encodeURIComponent(tichDiemUser.passcode)
-      +'&tu='+encodeURIComponent(tu||'')+'&den='+encodeURIComponent(den||'');
+      +'&passcode='+encodeURIComponent(tichDiemUser.passcode);
     const json=await fetchJSONP(url);
     if(json.status!=='ok')throw new Error(json.message||'Không tải được dữ liệu.');
     tichDiemLastData=json.data;
+    document.getElementById('tichDiemBtnCapNhat').style.display=json.data.isManager?'inline-block':'none';
     renderTichDiemTongQuan(json.data);
   }catch(e){
     throw e;
@@ -4520,6 +4515,34 @@ async function loadTichDiemReport(){
 
 function fmtMoneyVND(n){
   return (Math.round(n||0)).toLocaleString('vi-VN')+' đ';
+}
+
+// Bấm "Cập nhật điểm" (chỉ Quản lý/S.Quản lý thấy nút) -> server đọc data
+// mới đang có trong 2 tab RawImport_TichDiem/RawImport_TraHang, cộng dồn
+// vào sổ cái TongDiem_KhachHang, rồi TỰ DỌN SẠCH 2 tab đó để dán tiếp ngày
+// mai — không cần đợi trigger đêm nếu anh muốn thấy số cập nhật ngay.
+async function capNhatTichDiem(){
+  if(!tichDiemUser)return;
+  const msgEl=document.getElementById('tichDiemCapNhatMsg');
+  msgEl.className='thuchi-msg';msgEl.style.display='none';
+  showLoading('Đang cộng dồn & dọn dữ liệu thô...');
+  try{
+    const res=await fetch(CONFIG.payrollUrl,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({ action:'capNhatTichDiem', nv:tichDiemUser.nv, passcode:tichDiemUser.passcode })
+    });
+    const json=await res.json();
+    if(json.status!=='ok')throw new Error(json.message||'Cập nhật thất bại.');
+    msgEl.textContent='✅ '+json.message;
+    msgEl.className='thuchi-msg success';
+    await loadTichDiemReport();
+  }catch(e){
+    msgEl.textContent='Lỗi: '+e.message;
+    msgEl.className='thuchi-msg error';
+  }finally{
+    hideLoading();
+  }
 }
 
 const TICH_DIEM_HANG_ORDER=['KIM CƯƠNG','VÀNG','BẠC','THÂN THIẾT'];
@@ -4539,15 +4562,6 @@ function renderTichDiemTongQuan(data){
   topBody.innerHTML=(data.topKhach||[]).map(k=>
     `<tr><td>${k.sdt}</td><td>${escHtml(k.ten)}</td><td>${k.diem.toLocaleString('vi-VN')}</td><td>${k.tanSuat}</td><td>${k.hang}</td></tr>`
   ).join('')||'<tr><td class="thuchi-empty" colspan="5">Chưa có dữ liệu.</td></tr>';
-
-  const canhBaoEl=document.getElementById('tdCanhBaoTrung');
-  const soTrung=data.tongQuan.soDongTrungMaDon||0;
-  if(soTrung>0){
-    canhBaoEl.style.display='block';
-    canhBaoEl.textContent='⚠️ Phát hiện '+soTrung.toLocaleString('vi-VN')+' dòng trùng Mã đơn hàng trong Sheet RawImport_TichDiem (đã tự loại khi tính điểm) — kiểm tra lại xem có dán trùng khối data ngày nào không.';
-  }else{
-    canhBaoEl.style.display='none';
-  }
 }
 
 function escHtml(s){
