@@ -653,12 +653,10 @@
     .sync-btn{padding:8px 10px;}
     #userBadge{font-size:11px;padding:5px 9px;}
 
-    /* Sidebar */
-    .app-sidebar{width:56px;padding:12px 4px;gap:6px;}
-    .bubble-btn{width:44px;padding:5px 2px;}
+    /* Bottom tab bar */
     .bubble-icon{width:36px;height:36px;font-size:16px;}
-    .bubble-label{display:none;}
-    .app-content{padding:12px 10px;}
+    .bubble-label{font-size:8.5px;}
+    .app-content{padding:12px 10px calc(12px + 68px);}
 
     /* KPI */
     .kpi-grid{grid-template-columns:1fr 1fr;}
@@ -694,11 +692,11 @@
     .admin-btn{padding:6px 8px;font-size:10px;}
     #userBadge{font-size:10px;padding:4px 8px;gap:5px;}
 
-    /* Sidebar nhỏ hơn */
-    .app-sidebar{width:48px;padding:10px 2px;gap:4px;}
-    .bubble-btn{width:40px;padding:4px 1px;}
-    .bubble-icon{width:32px;height:32px;font-size:14px;}
-    .app-content{padding:10px 8px;}
+    /* Bottom tab bar nhỏ hơn */
+    .bubble-icon{width:34px;height:34px;font-size:15px;}
+    .bubble-label{font-size:8px;}
+    .app-content{padding:10px 8px calc(10px + 64px);}
+    .more-grid{grid-template-columns:repeat(3,1fr);}
 
     /* KPI 1 cột */
     .kpi-grid{grid-template-columns:1fr 1fr;}
@@ -740,37 +738,41 @@
   /* --- MOBILE NHỎ ≤390px (iPhone SE, màn 360px) --- */
   @media(max-width:390px){
     .header{padding:7px 8px;}
-    .app-sidebar{width:44px;padding:8px 2px;gap:4px;}
     .bubble-icon{width:30px;height:30px;font-size:13px;}
-    .app-content{padding:8px 6px;}
+    .app-content{padding:8px 6px calc(8px + 60px);}
     .kpi-grid{grid-template-columns:1fr 1fr;}
     .kpi-val{font-size:18px;}
     .htitle{font-size:10px;}
     .sync-btn{display:none;} /* ẩn hoàn toàn nút sync trên mobile rất nhỏ — dùng icon đồng bộ trong header là đủ */
   }
 
-  .app-shell{display:flex;min-height:calc(100vh - 65px);}
+  .app-shell{display:block;min-height:calc(100vh - 65px);}
 
-  .app-sidebar{
-    width:84px;flex-shrink:0;
+  /* ============================================================
+     BOTTOM TAB BAR — thay cho sidebar dọc cũ (đỡ phải cuộn tìm tính năng).
+     Chỉ ghim 4 mục: 3 trang hay dùng nhất + "Thêm" (mở sheet chứa toàn bộ
+     tính năng còn lại dạng lưới, giống tab "More" của Zalo/Messenger).
+     ============================================================ */
+  .app-bottombar{
+    position:fixed;left:0;right:0;bottom:0;z-index:600;
+    display:flex;justify-content:space-around;align-items:center;
+    padding:6px 4px calc(6px + env(safe-area-inset-bottom));
     background:var(--glass-bg);
     backdrop-filter:blur(var(--glass-blur)) saturate(180%);
     -webkit-backdrop-filter:blur(var(--glass-blur)) saturate(180%);
-    border-right:1px solid var(--glass-border);
-    box-shadow:4px 0 24px var(--glass-shadow), inset -1px 0 0 var(--glass-highlight);
-    display:flex;flex-direction:column;align-items:center;gap:10px;padding:18px 8px;
-    position:sticky;top:65px;align-self:flex-start;height:calc(100vh - 65px);overflow-y:auto;
+    border-top:1px solid var(--glass-border);
+    box-shadow:0 -4px 24px var(--glass-shadow), inset 0 1px 0 var(--glass-highlight);
   }
   .bubble-btn{
-    width:64px;display:flex;flex-direction:column;align-items:center;gap:5px;
-    background:none;border:none;cursor:pointer;padding:8px 4px;border-radius:14px;
+    flex:1;max-width:88px;display:flex;flex-direction:column;align-items:center;gap:4px;
+    background:none;border:none;cursor:pointer;padding:6px 2px;border-radius:14px;
     transition:background .2s,transform .15s;color:var(--text2);
   }
-  .bubble-btn:hover{background:var(--glass-bg);transform:translateY(-2px);}
+  .bubble-btn:hover{background:var(--glass-bg);transform:translateY(-1px);}
   .bubble-btn.active{background:var(--glass-bg);color:var(--text);}
   .bubble-icon{
-    width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-    font-size:20px;position:relative;
+    width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-size:18px;position:relative;
     background:var(--glass-bg-strong);
     backdrop-filter:blur(var(--glass-blur-light)) saturate(170%);
     -webkit-backdrop-filter:blur(var(--glass-blur-light)) saturate(170%);
@@ -796,7 +798,25 @@
     padding:0 4px;border:2px solid var(--surface);
   }
 
-  .app-content{flex:1;min-width:0;padding:24px;}
+  /* Sheet "Thêm" — trượt lên từ đáy, chứa lưới toàn bộ tính năng phụ */
+  .more-sheet-overlay{
+    position:fixed;inset:0;z-index:700;display:none;align-items:flex-end;justify-content:center;
+    background:rgba(0,0,0,.45);
+  }
+  .more-sheet-overlay.show{display:flex;}
+  .more-sheet-box{
+    width:100%;max-width:720px;background:var(--surface);border-radius:20px 20px 0 0;
+    padding:14px 18px calc(18px + env(safe-area-inset-bottom));max-height:78vh;overflow-y:auto;
+    box-shadow:0 -10px 40px rgba(0,0,0,.35);animation:moreSheetUp .22s ease;
+  }
+  @keyframes moreSheetUp{from{transform:translateY(24px);opacity:.5}to{transform:translateY(0);opacity:1}}
+  .more-sheet-handle{width:38px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 14px;}
+  .more-sheet-title{font-size:13px;font-weight:700;color:var(--text2);margin-bottom:14px;text-transform:uppercase;letter-spacing:.4px;}
+  .more-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px 6px;}
+  .more-grid .bubble-btn{max-width:none;}
+
+  /* Nội dung trang cần chừa khoảng trống phía dưới để không bị bottom bar che */
+  .app-content{padding:24px 24px calc(24px + 74px);}
   .app-page{display:none;}
   .app-page.active{display:block;}
 
@@ -1122,6 +1142,113 @@
 
       <div class="modal-actions" style="margin-top:14px;">
         <button class="modal-btn-cancel" onclick="closeThuChiModal()">Đóng</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TÍCH ĐIỂM KHÁCH HÀNG GỬI HÀNG MODAL -->
+<div class="modal-overlay" id="tichDiemModal">
+  <div class="modal-box thuchi-modal-box login-mode" id="tichDiemModalBox">
+
+    <!-- LOGIN VIEW -->
+    <div id="tichDiemLoginView">
+      <div class="modal-title">🎁 Tích điểm khách hàng gửi hàng</div>
+      <div class="modal-sub">Chọn tên và nhập passcode cá nhân (dùng chung với phiếu lương)</div>
+      <select id="tichDiemNVSelect" style="display:none;"></select>
+      <label class="field-label" style="margin-top:0;">Văn phòng / Tên nhân viên</label>
+      <div class="nv-picker-row">
+        <select id="tichDiemVPSelect" class="nv-picker-vp" onchange="onNVPickerVPChange('tichDiem')"></select>
+        <input type="text" id="tichDiemNVInput" class="nv-picker-ten" list="tichDiemNVDatalist"
+               placeholder="Gõ hoặc chọn tên..." autocomplete="off"
+               oninput="onNVPickerInput('tichDiem')" onchange="onNVPickerInput('tichDiem')">
+        <datalist id="tichDiemNVDatalist"></datalist>
+      </div>
+      <label class="field-label">Passcode</label>
+      <input type="password" id="tichDiemPasscodeInput" maxlength="6" inputmode="numeric" placeholder="Passcode 6 số" autocomplete="off">
+      <div class="modal-err" id="tichDiemLoginErr">Passcode không đúng hoặc không tìm thấy nhân viên.</div>
+      <div class="modal-actions">
+        <button class="modal-btn-cancel" onclick="closeTichDiemModal()">Hủy</button>
+        <button class="modal-btn-confirm" onclick="submitTichDiemLogin()">Đăng nhập</button>
+      </div>
+    </div>
+
+    <!-- CONTENT VIEW -->
+    <div id="tichDiemContentView" class="thuchi-content" style="display:none;">
+      <span class="back-link" onclick="closeTichDiemModal()">‹ Đóng</span>
+
+      <div class="thuchi-tabs">
+        <div class="thuchi-tab active" id="tichDiemTabTongQuan" onclick="switchTichDiemTab('tongquan')">📊 Tổng quan</div>
+        <div class="thuchi-tab" id="tichDiemTabDanhSach" onclick="switchTichDiemTab('danhsach')">👥 Danh sách khách</div>
+        <div class="thuchi-tab" id="tichDiemTabNhap" style="display:none;" onclick="switchTichDiemTab('nhap')">➕ Nhập data D-1</div>
+      </div>
+
+      <!-- TAB: TỔNG QUAN -->
+      <div id="tichDiemPaneTongQuan">
+        <div class="thuchi-filter-row">
+          <input type="date" id="tichDiemTongQuanTu" title="Từ ngày">
+          <input type="date" id="tichDiemTongQuanDen" title="Đến ngày">
+          <button type="button" class="tab" style="font-size:11px;padding:8px 12px;" onclick="loadTichDiemReport()">🔍 Lọc</button>
+        </div>
+
+        <div class="thuchi-kpis" style="grid-template-columns:repeat(4,1fr);">
+          <div class="thuchi-kpi thu">
+            <div class="thuchi-kpi-label">Tổng khách</div>
+            <div class="thuchi-kpi-value" id="tdKpiTongKhach">0</div>
+          </div>
+          <div class="thuchi-kpi net">
+            <div class="thuchi-kpi-label">Tổng doanh thu</div>
+            <div class="thuchi-kpi-value" id="tdKpiDoanhThu">0 đ</div>
+          </div>
+          <div class="thuchi-kpi thu">
+            <div class="thuchi-kpi-label">Tổng đơn</div>
+            <div class="thuchi-kpi-value" id="tdKpiTongDon">0</div>
+          </div>
+          <div class="thuchi-kpi chi">
+            <div class="thuchi-kpi-label">Khách Kim Cương</div>
+            <div class="thuchi-kpi-value" id="tdKpiKimCuong">0</div>
+          </div>
+        </div>
+
+        <div style="margin:14px 0 8px;font-size:12px;font-weight:700;color:var(--text2);">Phân bổ theo hạng</div>
+        <div class="table-scroll" style="max-height:150px;">
+          <table class="thuchi-table">
+            <thead><tr><th>Hạng</th><th>Số khách</th></tr></thead>
+            <tbody id="tdPhanBoHangBody"><tr><td class="thuchi-empty" colspan="2">Chưa có dữ liệu.</td></tr></tbody>
+          </table>
+        </div>
+
+        <div style="margin:14px 0 8px;font-size:12px;font-weight:700;color:var(--text2);">Top 10 khách điểm cao nhất</div>
+        <div class="table-scroll" style="max-height:320px;">
+          <table class="thuchi-table">
+            <thead><tr><th>SĐT</th><th>Tên</th><th>Điểm</th><th>Tần suất</th><th>Hạng</th></tr></thead>
+            <tbody id="tdTopKhachBody"><tr><td class="thuchi-empty" colspan="5">Chưa có dữ liệu.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB: DANH SÁCH KHÁCH -->
+      <div id="tichDiemPaneDanhSach" style="display:none;">
+        <input type="text" id="tichDiemSearchInput" placeholder="🔍 Tìm theo SĐT hoặc tên..." oninput="renderTichDiemDanhSach()" style="margin-bottom:10px;">
+        <div class="table-scroll" style="max-height:460px;">
+          <table class="thuchi-table">
+            <thead><tr><th>SĐT</th><th>Tên</th><th>Tổng tiền cước</th><th>Điểm</th><th>Tần suất</th><th>Hạng</th></tr></thead>
+            <tbody id="tdDanhSachBody"><tr><td class="thuchi-empty" colspan="6">Chưa có dữ liệu.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB: NHẬP DATA D-1 (chỉ Quản lý/S.Quản lý) -->
+      <div id="tichDiemPaneNhap" style="display:none;">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px;line-height:1.6;">
+          Dán mỗi dòng theo thứ tự, cách nhau bằng <b>Tab</b> (copy trực tiếp từ Excel/Sheet là tự đúng Tab):<br>
+          <b>SĐT&nbsp;&nbsp;Tên người gửi&nbsp;&nbsp;Tiền cước (nghìn đ)&nbsp;&nbsp;Tuyến&nbsp;&nbsp;Ngày (yyyy-mm-dd, để trống = hôm nay)</b>
+        </div>
+        <textarea id="tichDiemPasteBox" placeholder="0909123456	Nguyễn Văn A	120	SG-QN	2026-07-29" style="min-height:180px;font-family:monospace;font-size:12px;"></textarea>
+        <div class="modal-actions" style="margin-top:6px;">
+          <button class="modal-btn-confirm" style="width:100%;" id="tichDiemUploadBtn" onclick="submitTichDiemUpload()">Ghi nhận vào hệ thống</button>
+        </div>
+        <div class="thuchi-msg" id="tichDiemUploadMsg"></div>
       </div>
     </div>
   </div>
@@ -1704,44 +1831,62 @@
 
 <div class="app-shell">
 
-  <!-- SIDEBAR BONG BÓNG (kiểu Messenger) -->
-  <div class="app-sidebar" id="appSidebar">
+  <!-- BOTTOM TAB BAR — chỉ ghim 3 trang hay dùng nhất + nút "Thêm" -->
+  <div class="app-bottombar" id="appBottombar">
     <button class="bubble-btn active" data-page="tintuc" onclick="switchPage('tintuc')">
       <div class="bubble-icon">📰</div>
       <div class="bubble-label">Tin tức</div>
     </button>
     <button class="bubble-btn" data-page="lich" onclick="switchPage('lich')">
       <div class="bubble-icon">📅</div>
-      <div class="bubble-label">Lịch làm việc</div>
+      <div class="bubble-label">Lịch</div>
     </button>
     <button class="bubble-btn" data-page="chamcong" onclick="switchPage('chamcong')">
       <div class="bubble-icon">⏱️</div>
       <div class="bubble-label">Chấm công</div>
     </button>
-    <button class="bubble-btn" onclick="openPayrollModal()">
-      <div class="bubble-icon">💵</div>
-      <div class="bubble-label">Phiếu lương</div>
+    <button class="bubble-btn" id="moreTabBtn" onclick="openMoreMenu()">
+      <div class="bubble-icon">☰</div>
+      <div class="bubble-label">Thêm</div>
     </button>
-    <button class="bubble-btn" onclick="openThuChiModal()">
-      <div class="bubble-icon">💰</div>
-      <div class="bubble-label">Thu-Chi</div>
-    </button>
-    <button class="bubble-btn" onclick="openQRThanhToanModal()">
-      <div class="bubble-icon">💳</div>
-      <div class="bubble-label">QR Thanh toán</div>
-    </button>
-    <button class="bubble-btn" onclick="openDoiCaModal()">
-      <div class="bubble-icon">🔄</div>
-      <div class="bubble-label">Đổi ca</div>
-    </button>
-    <button class="bubble-btn" onclick="openNongDoConModal()">
-      <div class="bubble-icon">🍺</div>
-      <div class="bubble-label">Đo nồng độ cồn</div>
-    </button>
-    <button class="bubble-btn" onclick="openLineDTModal()">
-      <div class="bubble-icon">📞</div>
-      <div class="bubble-label">Báo cáo Line ĐT</div>
-    </button>
+  </div>
+
+  <!-- SHEET "THÊM" — trượt lên từ đáy, chứa toàn bộ tính năng còn lại -->
+  <div class="more-sheet-overlay" id="moreSheetOverlay" onclick="if(event.target===this)closeMoreMenu()">
+    <div class="more-sheet-box">
+      <div class="more-sheet-handle"></div>
+      <div class="more-sheet-title">Tất cả tính năng</div>
+      <div class="more-grid">
+        <button class="bubble-btn" onclick="closeMoreMenu();openPayrollModal()">
+          <div class="bubble-icon">💵</div>
+          <div class="bubble-label">Phiếu lương</div>
+        </button>
+        <button class="bubble-btn" onclick="closeMoreMenu();openThuChiModal()">
+          <div class="bubble-icon">💰</div>
+          <div class="bubble-label">Thu-Chi</div>
+        </button>
+        <button class="bubble-btn" onclick="closeMoreMenu();openQRThanhToanModal()">
+          <div class="bubble-icon">💳</div>
+          <div class="bubble-label">QR Thanh toán</div>
+        </button>
+        <button class="bubble-btn" onclick="closeMoreMenu();openDoiCaModal()">
+          <div class="bubble-icon">🔄</div>
+          <div class="bubble-label">Đổi ca</div>
+        </button>
+        <button class="bubble-btn" onclick="closeMoreMenu();openNongDoConModal()">
+          <div class="bubble-icon">🍺</div>
+          <div class="bubble-label">Nồng độ cồn</div>
+        </button>
+        <button class="bubble-btn" onclick="closeMoreMenu();openLineDTModal()">
+          <div class="bubble-icon">📞</div>
+          <div class="bubble-label">Line ĐT</div>
+        </button>
+        <button class="bubble-btn" onclick="closeMoreMenu();openTichDiemModal()">
+          <div class="bubble-icon">🎁</div>
+          <div class="bubble-label">Tích điểm KH</div>
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- KHUNG NỘI DUNG -->
@@ -4293,6 +4438,188 @@ function closeThuChiModal(){
   document.getElementById('thuChiModal').classList.remove('show');
 }
 
+/* ================= TÍCH ĐIỂM KHÁCH HÀNG GỬI HÀNG ================= */
+// nv/passcode lưu tạm trong biến này (không lưu localStorage) — mỗi lần mở modal
+// phải đăng nhập lại, giống Thu-Chi/Line ĐT. Server luôn tự xác định lại quyền
+// (isManager/isSuperManager) từ Master_NV, KHÔNG tin theo bất cứ gì gửi từ client.
+let tichDiemUser=null;
+let tichDiemLastData=null; // cache kết quả lần load gần nhất để render tab Danh sách
+
+async function openTichDiemModal(){
+  document.getElementById('tichDiemNVInput').value='';
+  document.getElementById('tichDiemNVSelect').innerHTML='';
+  await populateNVPicker('tichDiem');
+
+  document.getElementById('tichDiemPasscodeInput').value='';
+  document.getElementById('tichDiemLoginErr').style.display='none';
+
+  const today=fmtDate(new Date());
+  document.getElementById('tichDiemTongQuanTu').value=fmtDate(new Date(new Date().setDate(new Date().getDate()-30)));
+  document.getElementById('tichDiemTongQuanDen').value=today;
+
+  if(tichDiemUser){
+    showTichDiemContent();
+    loadTichDiemReport();
+  }else{
+    document.getElementById('tichDiemLoginView').style.display='block';
+    document.getElementById('tichDiemContentView').style.display='none';
+    document.getElementById('tichDiemModalBox').classList.add('login-mode');
+  }
+  document.getElementById('tichDiemModal').classList.add('show');
+  setTimeout(()=>document.getElementById('tichDiemPasscodeInput')?.focus(),100);
+}
+function closeTichDiemModal(){
+  document.getElementById('tichDiemModal').classList.remove('show');
+}
+function showTichDiemContent(){
+  document.getElementById('tichDiemLoginView').style.display='none';
+  document.getElementById('tichDiemContentView').style.display='block';
+  document.getElementById('tichDiemModalBox').classList.remove('login-mode');
+}
+
+async function submitTichDiemLogin(){
+  const nv=document.getElementById('tichDiemNVSelect').value;
+  const passcode=document.getElementById('tichDiemPasscodeInput').value.trim();
+  const errEl=document.getElementById('tichDiemLoginErr');
+  errEl.style.display='none';
+
+  if(!nv){errEl.textContent='Vui lòng gõ hoặc chọn tên nhân viên.';errEl.style.display='block';return;}
+  if(!passcode||passcode.length!==6){errEl.textContent='Vui lòng nhập đủ 6 số passcode.';errEl.style.display='block';return;}
+
+  tichDiemUser={nv:nv,passcode:passcode};
+  showLoading('Đang xác thực...');
+  try{
+    await loadTichDiemReport(); // action=getTichDiemReport tự xác thực passcode luôn, khỏi gọi checkPasscode riêng
+    switchTichDiemTab('tongquan');
+    showTichDiemContent();
+  }catch(e){
+    tichDiemUser=null;
+    errEl.textContent='Lỗi: '+e.message;
+    errEl.style.display='block';
+  }
+  hideLoading();
+}
+
+const TICH_DIEM_TAB_SUFFIX={tongquan:'TongQuan', danhsach:'DanhSach', nhap:'Nhap'};
+function switchTichDiemTab(tab){
+  Object.keys(TICH_DIEM_TAB_SUFFIX).forEach(t=>{
+    const suf=TICH_DIEM_TAB_SUFFIX[t];
+    document.getElementById('tichDiemPane'+suf).style.display=(t===tab)?'block':'none';
+    document.getElementById('tichDiemTab'+suf).classList.toggle('active', t===tab);
+  });
+  if(tab==='danhsach')renderTichDiemDanhSach();
+}
+
+async function loadTichDiemReport(){
+  if(!tichDiemUser)return;
+  const tu=document.getElementById('tichDiemTongQuanTu').value;
+  const den=document.getElementById('tichDiemTongQuanDen').value;
+  showLoading('Đang tải dữ liệu tích điểm...');
+  try{
+    const url=CONFIG.payrollUrl+'?action=getTichDiemReport&nv='+encodeURIComponent(tichDiemUser.nv)
+      +'&passcode='+encodeURIComponent(tichDiemUser.passcode)
+      +'&tu='+encodeURIComponent(tu||'')+'&den='+encodeURIComponent(den||'');
+    const json=await fetchJSONP(url);
+    if(json.status!=='ok')throw new Error(json.message||'Không tải được dữ liệu.');
+    tichDiemLastData=json.data;
+    document.getElementById('tichDiemTabNhap').style.display=json.data.isManager?'block':'none';
+    renderTichDiemTongQuan(json.data);
+  }catch(e){
+    throw e;
+  }finally{
+    hideLoading();
+  }
+}
+
+function fmtMoneyVND(n){
+  return (Math.round(n||0)).toLocaleString('vi-VN')+' đ';
+}
+
+const TICH_DIEM_HANG_ORDER=['KIM CƯƠNG','VÀNG','BẠC','THÂN THIẾT'];
+
+function renderTichDiemTongQuan(data){
+  document.getElementById('tdKpiTongKhach').textContent=data.tongQuan.tongKhach.toLocaleString('vi-VN');
+  document.getElementById('tdKpiDoanhThu').textContent=fmtMoneyVND(data.tongQuan.tongDoanhThu);
+  document.getElementById('tdKpiTongDon').textContent=data.tongQuan.tongDon.toLocaleString('vi-VN');
+  document.getElementById('tdKpiKimCuong').textContent=data.tongQuan.khachKimCuong.toLocaleString('vi-VN');
+
+  const phanBoBody=document.getElementById('tdPhanBoHangBody');
+  phanBoBody.innerHTML=TICH_DIEM_HANG_ORDER.map(h=>
+    `<tr><td><span class="thuchi-badge" style="background:var(--surface2);color:var(--text);">${h}</span></td><td>${(data.phanBoHang[h]||0).toLocaleString('vi-VN')}</td></tr>`
+  ).join('')||'<tr><td class="thuchi-empty" colspan="2">Chưa có dữ liệu.</td></tr>';
+
+  const topBody=document.getElementById('tdTopKhachBody');
+  topBody.innerHTML=(data.topKhach||[]).map(k=>
+    `<tr><td>${k.sdt}</td><td>${escHtml(k.ten)}</td><td>${k.diem.toLocaleString('vi-VN')}</td><td>${k.tanSuat}</td><td>${k.hang}</td></tr>`
+  ).join('')||'<tr><td class="thuchi-empty" colspan="5">Chưa có dữ liệu.</td></tr>';
+}
+
+function escHtml(s){
+  return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function renderTichDiemDanhSach(){
+  if(!tichDiemLastData)return;
+  const q=(document.getElementById('tichDiemSearchInput').value||'').trim().toLowerCase();
+  let rows=tichDiemLastData.danhSachKhach||[];
+  if(q)rows=rows.filter(k=>k.sdt.toLowerCase().includes(q)||k.ten.toLowerCase().includes(q));
+
+  const body=document.getElementById('tdDanhSachBody');
+  body.innerHTML=rows.map(k=>
+    `<tr><td>${k.sdt}</td><td>${escHtml(k.ten)}</td><td class="thuchi-amount">${fmtMoneyVND(k.tongTienCuoc)}</td>`
+    +`<td>${k.diem.toLocaleString('vi-VN')}</td><td>${k.tanSuat}</td><td>${k.hang}</td></tr>`
+  ).join('')||'<tr><td class="thuchi-empty" colspan="6">Không tìm thấy khách phù hợp.</td></tr>';
+}
+
+// Nhập data D-1 — chỉ hiện tab này nếu server xác nhận isManager (đã ẩn/hiện ở loadTichDiemReport).
+// Vẫn phòng hờ: server (submitTichDiemDaily) TỰ kiểm tra lại quyền, không tin theo UI ẩn/hiện.
+async function submitTichDiemUpload(){
+  if(!tichDiemUser)return;
+  const msgEl=document.getElementById('tichDiemUploadMsg');
+  msgEl.className='thuchi-msg';msgEl.style.display='none';
+
+  const raw=document.getElementById('tichDiemPasteBox').value;
+  const lines=raw.split('\n').map(l=>l.trim()).filter(Boolean);
+  if(lines.length===0){
+    msgEl.textContent='Chưa có dòng dữ liệu nào.';msgEl.className='thuchi-msg error';return;
+  }
+
+  const rows=lines.map(line=>{
+    const cols=line.split('\t');
+    return {
+      sdt: (cols[0]||'').trim(),
+      ten: (cols[1]||'').trim(),
+      tienCuocNghin: parseFloat((cols[2]||'').trim().replace(/,/g,'')),
+      tuyen: (cols[3]||'').trim(),
+      ngay: (cols[4]||'').trim()
+    };
+  });
+
+  showLoading('Đang ghi dữ liệu...');
+  try{
+    const res=await fetch(CONFIG.payrollUrl,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({
+        action:'submitTichDiemDaily',
+        nv:tichDiemUser.nv, passcode:tichDiemUser.passcode,
+        rows:rows
+      })
+    });
+    const json=await res.json();
+    if(json.status!=='ok')throw new Error(json.message||'Ghi dữ liệu thất bại.');
+    msgEl.textContent='✅ '+json.message;
+    msgEl.className='thuchi-msg success';
+    document.getElementById('tichDiemPasteBox').value='';
+    loadTichDiemReport(); // tự tải lại tổng quan sau khi ghi xong
+  }catch(e){
+    msgEl.textContent='Lỗi: '+e.message;
+    msgEl.className='thuchi-msg error';
+  }finally{
+    hideLoading();
+  }
+}
+
 /* ================= QR THANH TOÁN ĐỘNG (VietQR) ================= */
 // Dùng cổng ảnh QR miễn phí của VietQR (chuẩn Napas 247, ngân hàng nào cũng quét được),
 // không mất phí, không cần đăng ký, không qua bên thứ 3 ăn hoa hồng.
@@ -6817,6 +7144,14 @@ function switchPage(pageId){
 
   if(pageId==='tintuc')loadNewsFeed();
   if(pageId==='chamcong')prepChamCongPage();
+}
+
+// Sheet "Thêm" — lưới chứa các tính năng phụ, mở dạng trượt lên từ đáy màn hình
+function openMoreMenu(){
+  document.getElementById('moreSheetOverlay').classList.add('show');
+}
+function closeMoreMenu(){
+  document.getElementById('moreSheetOverlay').classList.remove('show');
 }
 
 // ============================================================
