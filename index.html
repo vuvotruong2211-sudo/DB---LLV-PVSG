@@ -1180,7 +1180,6 @@
       <div class="thuchi-tabs">
         <div class="thuchi-tab active" id="tichDiemTabTongQuan" onclick="switchTichDiemTab('tongquan')">📊 Tổng quan</div>
         <div class="thuchi-tab" id="tichDiemTabDanhSach" onclick="switchTichDiemTab('danhsach')">👥 Danh sách khách</div>
-        <div class="thuchi-tab" id="tichDiemTabNhap" style="display:none;" onclick="switchTichDiemTab('nhap')">➕ Nhập data D-1</div>
       </div>
 
       <!-- TAB: TỔNG QUAN -->
@@ -1225,6 +1224,8 @@
             <tbody id="tdTopKhachBody"><tr><td class="thuchi-empty" colspan="5">Chưa có dữ liệu.</td></tr></tbody>
           </table>
         </div>
+
+        <div id="tdCanhBaoTrung" style="display:none;margin-top:12px;font-size:11px;color:var(--amber);background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:8px 10px;"></div>
       </div>
 
       <!-- TAB: DANH SÁCH KHÁCH -->
@@ -1236,19 +1237,6 @@
             <tbody id="tdDanhSachBody"><tr><td class="thuchi-empty" colspan="6">Chưa có dữ liệu.</td></tr></tbody>
           </table>
         </div>
-      </div>
-
-      <!-- TAB: NHẬP DATA D-1 (chỉ Quản lý/S.Quản lý) -->
-      <div id="tichDiemPaneNhap" style="display:none;">
-        <div style="font-size:11px;color:var(--text3);margin-bottom:8px;line-height:1.6;">
-          Dán mỗi dòng theo thứ tự, cách nhau bằng <b>Tab</b> (copy trực tiếp từ Excel/Sheet là tự đúng Tab):<br>
-          <b>SĐT&nbsp;&nbsp;Tên người gửi&nbsp;&nbsp;Tiền cước (nghìn đ)&nbsp;&nbsp;Tuyến&nbsp;&nbsp;Ngày (yyyy-mm-dd, để trống = hôm nay)</b>
-        </div>
-        <textarea id="tichDiemPasteBox" placeholder="0909123456	Nguyễn Văn A	120	SG-QN	2026-07-29" style="min-height:180px;font-family:monospace;font-size:12px;"></textarea>
-        <div class="modal-actions" style="margin-top:6px;">
-          <button class="modal-btn-confirm" style="width:100%;" id="tichDiemUploadBtn" onclick="submitTichDiemUpload()">Ghi nhận vào hệ thống</button>
-        </div>
-        <div class="thuchi-msg" id="tichDiemUploadMsg"></div>
       </div>
     </div>
   </div>
@@ -4500,7 +4488,7 @@ async function submitTichDiemLogin(){
   hideLoading();
 }
 
-const TICH_DIEM_TAB_SUFFIX={tongquan:'TongQuan', danhsach:'DanhSach', nhap:'Nhap'};
+const TICH_DIEM_TAB_SUFFIX={tongquan:'TongQuan', danhsach:'DanhSach'};
 function switchTichDiemTab(tab){
   Object.keys(TICH_DIEM_TAB_SUFFIX).forEach(t=>{
     const suf=TICH_DIEM_TAB_SUFFIX[t];
@@ -4522,7 +4510,6 @@ async function loadTichDiemReport(){
     const json=await fetchJSONP(url);
     if(json.status!=='ok')throw new Error(json.message||'Không tải được dữ liệu.');
     tichDiemLastData=json.data;
-    document.getElementById('tichDiemTabNhap').style.display=json.data.isManager?'block':'none';
     renderTichDiemTongQuan(json.data);
   }catch(e){
     throw e;
@@ -4552,6 +4539,15 @@ function renderTichDiemTongQuan(data){
   topBody.innerHTML=(data.topKhach||[]).map(k=>
     `<tr><td>${k.sdt}</td><td>${escHtml(k.ten)}</td><td>${k.diem.toLocaleString('vi-VN')}</td><td>${k.tanSuat}</td><td>${k.hang}</td></tr>`
   ).join('')||'<tr><td class="thuchi-empty" colspan="5">Chưa có dữ liệu.</td></tr>';
+
+  const canhBaoEl=document.getElementById('tdCanhBaoTrung');
+  const soTrung=data.tongQuan.soDongTrungMaDon||0;
+  if(soTrung>0){
+    canhBaoEl.style.display='block';
+    canhBaoEl.textContent='⚠️ Phát hiện '+soTrung.toLocaleString('vi-VN')+' dòng trùng Mã đơn hàng trong Sheet RawImport_TichDiem (đã tự loại khi tính điểm) — kiểm tra lại xem có dán trùng khối data ngày nào không.';
+  }else{
+    canhBaoEl.style.display='none';
+  }
 }
 
 function escHtml(s){
@@ -4571,54 +4567,6 @@ function renderTichDiemDanhSach(){
   ).join('')||'<tr><td class="thuchi-empty" colspan="6">Không tìm thấy khách phù hợp.</td></tr>';
 }
 
-// Nhập data D-1 — chỉ hiện tab này nếu server xác nhận isManager (đã ẩn/hiện ở loadTichDiemReport).
-// Vẫn phòng hờ: server (submitTichDiemDaily) TỰ kiểm tra lại quyền, không tin theo UI ẩn/hiện.
-async function submitTichDiemUpload(){
-  if(!tichDiemUser)return;
-  const msgEl=document.getElementById('tichDiemUploadMsg');
-  msgEl.className='thuchi-msg';msgEl.style.display='none';
-
-  const raw=document.getElementById('tichDiemPasteBox').value;
-  const lines=raw.split('\n').map(l=>l.trim()).filter(Boolean);
-  if(lines.length===0){
-    msgEl.textContent='Chưa có dòng dữ liệu nào.';msgEl.className='thuchi-msg error';return;
-  }
-
-  const rows=lines.map(line=>{
-    const cols=line.split('\t');
-    return {
-      sdt: (cols[0]||'').trim(),
-      ten: (cols[1]||'').trim(),
-      tienCuocNghin: parseFloat((cols[2]||'').trim().replace(/,/g,'')),
-      tuyen: (cols[3]||'').trim(),
-      ngay: (cols[4]||'').trim()
-    };
-  });
-
-  showLoading('Đang ghi dữ liệu...');
-  try{
-    const res=await fetch(CONFIG.payrollUrl,{
-      method:'POST',
-      headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body:JSON.stringify({
-        action:'submitTichDiemDaily',
-        nv:tichDiemUser.nv, passcode:tichDiemUser.passcode,
-        rows:rows
-      })
-    });
-    const json=await res.json();
-    if(json.status!=='ok')throw new Error(json.message||'Ghi dữ liệu thất bại.');
-    msgEl.textContent='✅ '+json.message;
-    msgEl.className='thuchi-msg success';
-    document.getElementById('tichDiemPasteBox').value='';
-    loadTichDiemReport(); // tự tải lại tổng quan sau khi ghi xong
-  }catch(e){
-    msgEl.textContent='Lỗi: '+e.message;
-    msgEl.className='thuchi-msg error';
-  }finally{
-    hideLoading();
-  }
-}
 
 /* ================= QR THANH TOÁN ĐỘNG (VietQR) ================= */
 // Dùng cổng ảnh QR miễn phí của VietQR (chuẩn Napas 247, ngân hàng nào cũng quét được),
