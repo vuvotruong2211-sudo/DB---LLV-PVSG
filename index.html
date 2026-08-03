@@ -2069,7 +2069,7 @@
   </div>
 
   <!-- MAIN GRID -->
-  <div class="main-grid">
+  <div class="main-grid" style="grid-template-columns:1fr;">
     <div class="card">
       <div class="card-header">
         <div>
@@ -2102,18 +2102,6 @@
         <div class="empty-state" id="scheduleEmpty" style="display:none;">
           <div class="empty-icon">📋</div>Không có dữ liệu
         </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <div class="card-title">📊 Phân bổ theo ca</div>
-          <div class="card-sub">Tuần hiện tại — theo từng văn phòng</div>
-        </div>
-      </div>
-      <div class="card-body" id="officeSummary">
-        <div class="empty-state"><div class="empty-icon">📊</div>Chờ dữ liệu...</div>
       </div>
     </div>
   </div>
@@ -3127,7 +3115,6 @@ function renderAll(){
   updateWeekLabel();
   renderKPIs();
   renderSchedule();
-  renderOfficeSummary();
   renderStatTable();
   renderOtStats();
   renderOffYearTable();
@@ -3331,7 +3318,7 @@ function renderGanttCell(rowsHere,shift,width){
   </div>`;
   const grid=axisTicks.map(h=>`<div style="position:absolute;left:${(h/24*100).toFixed(2)}%;top:0;bottom:0;width:1px;background:var(--border);"></div>`).join('');
 
-  const bars=rowsHere.map(r=>{
+  const renderBar=(r)=>{
     const parsed=parseCaLamViecJS(r.caLam);
     let startMin=parsed?parsed.startMin:0;
     let endMin=parsed?parsed.endMin:24*60;
@@ -3347,14 +3334,31 @@ function renderGanttCell(rowsHere,shift,width){
         <span style="font-size:9px;color:#fff;font-weight:600;text-shadow:0 1px 1px rgba(0,0,0,.35);">${r.nv}</span>
       </div>
     </div>`;
+  };
+
+  // Nhóm theo VĂN PHÒNG (boPhan) ngay trong ô — nhân viên ở VP nào nhìn vào ô Ca Sáng
+  // là thấy ngay VP mình có bao nhiêu người, làm với ai, khung giờ nào, khỏi phải lọc/chọn gì thêm.
+  const byOffice={};
+  rowsHere.forEach(r=>{
+    const office=r.boPhan||'Khác';
+    if(!byOffice[office])byOffice[office]=[];
+    byOffice[office].push(r);
+  });
+  const offices=Object.keys(byOffice).sort((a,b)=>byOffice[b].length-byOffice[a].length);
+
+  const groupsHtml=offices.map(office=>{
+    const rows=byOffice[office];
+    return`
+      <div style="font-size:9px;font-weight:700;color:var(--text2);margin-top:5px;padding-left:4px;border-left:2px solid ${barColor};">${shortOffice(office)} · ${rows.length}</div>
+      <div style="position:relative;margin-top:2px;">
+        ${grid}
+        ${rows.map(renderBar).join('')}
+      </div>`;
   }).join('');
 
   return`<div style="min-width:${w}px;">
     ${axis}
-    <div style="position:relative;">
-      ${grid}
-      ${bars}
-    </div>
+    ${groupsHtml}
   </div>`;
 }
 
@@ -3397,57 +3401,6 @@ function renderMonthView(){
       return`<td style="text-align:center;padding:2px 1px;${bg}"><span class="ca-badge ${cls}" style="padding:1px 3px;font-size:9px;">${ab}</span></td>`;
     }).join('');
     return`<tr><td><div class="nv-name" style="font-size:11px;">${nv}</div></td>${cells}</tr>`;
-  }).join('');
-}
-
-// ============================================================
-// OFFICE SUMMARY
-// ============================================================
-const SHIFT_BADGE_DOT={'Ca Sáng':'var(--ca-sang)','Ca Tối':'var(--ca-toi)','Ca Lỡ':'var(--ca-lo)','Trực đêm':'var(--truc-dem)'};
-
-// Nhóm theo LOẠI CA trước (Ca Sáng lên đầu — theo SHIFT_ORDER), trong mỗi ca liệt kê
-// breakdown theo từng văn phòng nhỏ (boPhan) ngay tại chỗ — nhìn là biết Ca Sáng có ở
-// VP nào luôn, khỏi cần chọn VP qua dropdown mới thấy.
-function renderOfficeSummary(){
-  const ws=currentWeekStart,we=addDays(ws,6);
-  const wsDStr3=fmtDate(ws),weDStr3=fmtDate(we);
-  const rows=filteredData.filter(r=>{
-    if(!r.date)return false;
-    const ds=fmtDate(r.date);
-    return ds>=wsDStr3&&ds<=weDStr3&&r.loaiCa!=='OFF'&&r.boPhan!=='OFF';
-  });
-
-  const map={};
-  rows.forEach(r=>{
-    if(!map[r.loaiCa])map[r.loaiCa]={total:0,byOffice:{}};
-    map[r.loaiCa].total++;
-    map[r.loaiCa].byOffice[r.boPhan]=(map[r.loaiCa].byOffice[r.boPhan]||0)+1;
-  });
-
-  const shiftsPresent=[...SHIFT_ORDER.filter(s=>s!=='OFF'&&map[s]),
-                       ...Object.keys(map).filter(s=>!SHIFT_ORDER.includes(s))];
-
-  const el=document.getElementById('officeSummary');
-  if(!shiftsPresent.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">📊</div>Không có dữ liệu</div>';return;}
-
-  const maxT=Math.max(...shiftsPresent.map(s=>map[s].total));
-
-  el.innerHTML=shiftsPresent.map(shift=>{
-    const s=map[shift];
-    const cls=getLoaiCaClass(shift);
-    const dotColor=SHIFT_BADGE_DOT[shift]||'var(--accent)';
-    const officesSorted=Object.entries(s.byOffice).sort((a,b)=>b[1]-a[1]);
-    return`
-    <div class="office-item">
-      <div class="office-top">
-        <div class="office-name"><span class="ca-badge ${cls}" style="font-size:10px;">${shift}</span></div>
-        <div class="office-count">${s.total} ca</div>
-      </div>
-      <div class="office-bar"><div class="office-fill" style="width:${(s.total/maxT*100).toFixed(0)}%"></div></div>
-      <div class="office-breakdown">
-        ${officesSorted.map(([office,cnt])=>`<div class="breakdown-item"><span class="breakdown-dot" style="background:${dotColor}"></span>${shortOffice(office)}: ${cnt}</div>`).join('')}
-      </div>
-    </div>`;
   }).join('');
 }
 
