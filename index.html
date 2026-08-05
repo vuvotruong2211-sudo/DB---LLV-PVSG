@@ -3223,10 +3223,11 @@ function renderOfficeView(days,weekRows){
   const empty=document.getElementById('scheduleEmpty');
   const thu=['T2','T3','T4','T5','T6','T7','CN'];
 
+  const DIV='border-left:1px solid var(--border);';
   head.innerHTML=`<tr>
     <th style="min-width:150px;">B.Phận</th>
     <th style="min-width:100px;">Thời gian<br>làm việc</th>
-    ${days.map((d,i)=>`<th class="day-col"><div class="day-header">${fmtDisp(d)}</div><div class="day-date">${thu[i]}</div></th>`).join('')}
+    ${days.map((d,i)=>`<th class="day-col" style="${DIV}"><div class="day-header">${fmtDisp(d)}</div><div class="day-date">${thu[i]}</div></th>`).join('')}
   </tr>`;
 
   if(!weekRows.length){body.innerHTML='';empty.style.display='block';return;}
@@ -3284,20 +3285,20 @@ function renderOfficeView(days,weekRows){
         const e=(byDate[ds]||[])[i];
         const locked=isDateLocked(d, e?e.nv:null);
         if(locked){
-          return`<td style="background:${rowBg};" class="locked-td">
+          return`<td style="background:${rowBg};${DIV}" class="locked-td">
             <div class="locked-cell"><span class="ca-badge ca-off">···</span></div>
             <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:14px;">🔒</div>
           </td>`;
         }
-        if(!e)return`<td style="background:${rowBg};text-align:center;"><span style="color:var(--text3);font-size:10px;">—</span></td>`;
+        if(!e)return`<td style="background:${rowBg};text-align:center;${DIV}"><span style="color:var(--text3);font-size:10px;">—</span></td>`;
         const diffTime=e.caLam&&repTime&&e.caLam!==repTime;
-        return`<td style="background:${rowBg};text-align:center;">
+        return`<td style="background:${rowBg};text-align:center;${DIV}">
           <div style="font-weight:700;font-size:12px;">${e.nv}${diffTime?` <span style="font-weight:400;font-size:9px;color:var(--text3);">(${e.caLam})</span>`:''}</div>
         </td>`;
       }).join('');
       bodyHtml+=`<tr>
-        ${i===0?`<td rowspan="${maxRows}" style="font-weight:700;font-size:12px;vertical-align:middle;background:var(--surface2);">${office}</td>`:''}
-        <td style="background:${rowBg};font-weight:600;font-size:11px;white-space:nowrap;">${repTime}</td>
+        ${i===0?`<td rowspan="${maxRows}" style="font-weight:700;font-size:12px;text-align:center;vertical-align:middle;background:var(--surface2);">${office}</td>`:''}
+        <td style="background:${rowBg};font-weight:600;font-size:11px;white-space:nowrap;text-align:center;">${repTime}</td>
         ${cells}
       </tr>`;
     }
@@ -3317,13 +3318,13 @@ function renderOfficeView(days,weekRows){
     const d=days[di];
     const locked=isDateLocked(d,null);
     if(locked){
-      return`<td style="background:rgba(239,68,68,.1);" class="locked-td">
+      return`<td style="background:rgba(239,68,68,.1);${DIV}" class="locked-td">
         <div class="locked-cell"><span class="ca-badge ca-off">···</span></div>
         <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:14px;">🔒</div>
       </td>`;
     }
     const names=(offByDate[ds]||[]).sort((a,b)=>a.localeCompare(b,'vi'));
-    return`<td style="background:rgba(239,68,68,.12);text-align:center;font-weight:700;font-size:11px;color:#dc2626;">${names.join(' + ')||'—'}</td>`;
+    return`<td style="background:rgba(239,68,68,.12);text-align:center;font-weight:700;font-size:11px;color:#dc2626;${DIV}">${names.join(' + ')||'—'}</td>`;
   }).join('');
   bodyHtml+=`<tr>
     <td colspan="2" style="background:rgba(239,68,68,.18);color:#dc2626;font-weight:800;text-align:center;">OFF</td>
