@@ -3260,6 +3260,10 @@ function renderShiftView(weekDays,weekRowsFull){
   if(!weekRows.length){body.innerHTML='';empty.style.display='block';return;}
   empty.style.display='none';
 
+  // Map VP nhỏ -> VP lớn, tính 1 lần dùng chung cho cả block ngày đang xem
+  // (Theo Ca gom nhóm theo VP LỚN: VP HCM / VPQN / VP Đà Lạt cho gọn, dễ nhìn)
+  const officeToVPLon=buildOfficeToVPLonMap();
+
   // Gom các loại ca thực tế xuất hiện trong khoảng đang xem, giữ đúng thứ tự chuẩn,
   // và thêm vào cuối nếu sheet có loại ca lạ không nằm trong SHIFT_ORDER
   const presentShifts=[...new Set(weekRows.map(r=>r.loaiCa).filter(Boolean))];
@@ -3296,7 +3300,7 @@ function renderShiftView(weekDays,weekRowsFull){
           </div>
         </td>`;
       }
-      return`<td style="${bg}vertical-align:top;padding:4px 6px;">${renderGanttCell(rowsHere,shift,ganttWidth)}</td>`;
+      return`<td style="${bg}vertical-align:top;padding:4px 6px;">${renderGanttCell(rowsHere,shift,ganttWidth,officeToVPLon)}</td>`;
     }).join('');
     const countTotal=weekRows.filter(r=>r.loaiCa===shift).length;
     return`<tr><td>
@@ -3309,7 +3313,7 @@ function renderShiftView(weekDays,weekRowsFull){
 const SHIFT_COLOR_VAR={'Ca Sáng':'--ca-sang','Ca Tối':'--ca-toi','Ca Lỡ':'--ca-lo','Trực đêm':'--truc-dem','OFF':'--off'};
 
 // Mini-Gantt: vẽ timeline 0h-24h, mỗi NV 1 thanh ngang đặt đúng vị trí giờ làm
-function renderGanttCell(rowsHere,shift,width){
+function renderGanttCell(rowsHere,shift,width,officeToVPLonMap){
   const w=width||220;
   const barColor=`var(${SHIFT_COLOR_VAR[shift]||'--accent'})`;
   const axisTicks=[0,6,12,18,24];
@@ -3336,30 +3340,46 @@ function renderGanttCell(rowsHere,shift,width){
     </div>`;
   };
 
-  // Nhóm theo VĂN PHÒNG (boPhan) ngay trong ô — nhân viên ở VP nào nhìn vào ô Ca Sáng
-  // là thấy ngay VP mình có bao nhiêu người, làm với ai, khung giờ nào, khỏi phải lọc/chọn gì thêm.
-  const byOffice={};
+  // Nhóm theo VP LỚN (VP HCM / VPQN / VP Đà Lạt) thay vì VP nhỏ — gọn hơn hẳn,
+  // ai nhìn cũng hiểu ngay VP mình có bao nhiêu người, khỏi phải phân biệt hàng chục
+  // VP nhỏ. Trục giờ 0-24h chỉ vẽ 1 lần dùng chung cho cả ô (trước đây vẽ lặp lại
+  // theo từng nhóm nhỏ -> rối mắt).
+  const officeToVPLon=officeToVPLonMap||{};
+  const byVP={};
   rowsHere.forEach(r=>{
-    const office=r.boPhan||'Khác';
-    if(!byOffice[office])byOffice[office]=[];
-    byOffice[office].push(r);
+    const vpNorm=(r.vanPhong&&r.vanPhong.trim())?normVP(r.vanPhong):(officeToVPLon[r.boPhan]||'');
+    const vp=vpDisplay(vpNorm);
+    if(!byVP[vp])byVP[vp]=[];
+    byVP[vp].push(r);
   });
-  const offices=Object.keys(byOffice).sort((a,b)=>byOffice[b].length-byOffice[a].length);
+  const vps=Object.keys(byVP).sort((a,b)=>VP_LON_ORDER.indexOf(a)-VP_LON_ORDER.indexOf(b));
 
-  const groupsHtml=offices.map(office=>{
-    const rows=byOffice[office];
-    return`
-      <div style="font-size:9px;font-weight:700;color:var(--text2);margin-top:5px;padding-left:4px;border-left:2px solid ${barColor};">${shortOffice(office)} · ${rows.length}</div>
-      <div style="position:relative;margin-top:2px;">
-        ${grid}
+  // Dải badge tổng quan ở đầu ô: thấy ngay mỗi VP có bao nhiêu người mà không cần đọc từng thanh
+  const badgesHtml=`<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:4px;">
+    ${vps.map(vp=>`<span style="font-size:8px;font-weight:700;color:#fff;background:${VP_LON_COLOR[vp]||'#64748b'};padding:1px 6px;border-radius:8px;white-space:nowrap;">${vp} · ${byVP[vp].length}</span>`).join('')}
+  </div>`;
+
+  const groupsHtml=vps.map(vp=>{
+    const rows=byVP[vp];
+    return`<div style="padding-left:4px;border-left:2px solid ${VP_LON_COLOR[vp]||'#64748b'};margin-bottom:2px;">
         ${rows.map(renderBar).join('')}
       </div>`;
   }).join('');
 
   return`<div style="min-width:${w}px;">
     ${axis}
-    ${groupsHtml}
+    ${badgesHtml}
+    <div style="position:relative;">
+      ${grid}
+      ${groupsHtml}
+    </div>
   </div>`;
+}
+const VP_LON_ORDER=['VP HCM','VPQN','VP Đà Lạt','Khác'];
+const VP_LON_COLOR={'VP HCM':'#4f6ef7','VPQN':'#f97316','VP Đà Lạt':'#16a34a','Khác':'#64748b'};
+function vpDisplay(norm){
+  const map={'vp hcm':'VP HCM','vpqn':'VPQN','vp đà lạt':'VP Đà Lạt'};
+  return map[norm]||'Khác';
 }
 
 function renderMonthView(){
