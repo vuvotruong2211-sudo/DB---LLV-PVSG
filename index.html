@@ -2095,7 +2095,7 @@
           <button type="button" class="admin-btn" onclick="shiftSpanNav(1)" style="padding:6px 10px;">▶</button>
         </div>
       </div>
-      <div class="table-scroll">
+      <div class="table-scroll" id="scheduleTableScroll" style="max-height:64vh;overflow-y:auto;">
         <table class="schedule-table">
           <thead id="scheduleHead"></thead>
           <tbody id="scheduleBody"></tbody>
@@ -3212,73 +3212,125 @@ function renderWeekView(days,weekRows){
 }
 
 // ============================================================
-// OFFICE VIEW (Lịch theo Văn Phòng) - mỗi khối là 1 VP nhỏ (Bà Điểm, Lê Hồng Phong, Gò Dưa...),
-// trong khối liệt kê từng NV + lịch ca trong tuần. Dành cho Quản lý xem tổng quan
-// nhân sự tại từng VP mà không phải lọc filter Văn phòng thủ công.
+// OFFICE VIEW (Lịch theo Văn Phòng) - đúng layout ảnh mẫu anh gửi:
+// hàng = từng khung giờ làm việc thực tế tại VP đó (sắp theo giờ bắt đầu),
+// cột = từng ngày, ô = tên NV làm khung giờ đó ngày đó.
+// B.Phận merge theo chiều dọc cho cả khối VP. Hàng OFF gộp chung ở cuối bảng.
 // ============================================================
 function renderOfficeView(days,weekRows){
   const head=document.getElementById('scheduleHead');
   const body=document.getElementById('scheduleBody');
   const empty=document.getElementById('scheduleEmpty');
   const thu=['T2','T3','T4','T5','T6','T7','CN'];
-  const today=fmtDate(new Date());
 
-  head.innerHTML=`<tr><th>Nhân viên</th>${days.map((d,i)=>`<th class="day-col"><div class="day-header">${thu[i]}</div><div class="day-date">${fmtDisp(d)}</div></th>`).join('')}</tr>`;
+  head.innerHTML=`<tr>
+    <th style="min-width:150px;">B.Phận</th>
+    <th style="min-width:100px;">Thời gian<br>làm việc</th>
+    ${days.map((d,i)=>`<th class="day-col"><div class="day-header">${fmtDisp(d)}</div><div class="day-date">${thu[i]}</div></th>`).join('')}
+  </tr>`;
 
-  // NV thường chỉ thấy lịch của chính mình — Quản lý thấy tất cả VP mình quản
-  const isMgr=currentUser&&currentUser.isManager;
-  const myNv=currentUser?currentUser.nv:'';
-
-  const lk={};
-  weekRows.forEach(r=>{if(r.date)lk[r.nv+'|'+fmtDate(r.date)]=r;});
-
-  // Mỗi NV thuộc 1 VP nhỏ chính (VP xuất hiện nhiều nhất trong tuần đang xem)
-  const allNvsInWeek=[...new Set(weekRows.map(r=>r.nv))].sort();
-  const nvs=isMgr ? allNvsInWeek : allNvsInWeek.filter(n=>n===myNv);
-  if(!nvs.length){body.innerHTML='';empty.style.display='block';return;}
+  if(!weekRows.length){body.innerHTML='';empty.style.display='block';return;}
   empty.style.display='none';
 
-  const byOffice={};
-  nvs.forEach(nv=>{
-    const mainOff=weekRows.find(r=>r.nv===nv&&r.boPhan&&r.boPhan!=='OFF')?.boPhan||'Chưa xác định VP';
-    if(!byOffice[mainOff])byOffice[mainOff]=[];
-    byOffice[mainOff].push(nv);
-  });
-  const offices=Object.keys(byOffice).sort((a,b)=>byOffice[b].length-byOffice[a].length);
+  // NV thường chỉ thấy lịch của chính mình — Quản lý thấy tất cả
+  const isMgr=currentUser&&currentUser.isManager;
+  const myNv=currentUser?currentUser.nv:'';
+  const visibleNvs=isMgr?[...new Set(weekRows.map(r=>r.nv))]:[myNv];
+  const dsList=days.map(d=>fmtDate(d));
 
-  body.innerHTML=offices.map(office=>{
-    const groupHeader=`<tr class="office-group-row">
-      <td colspan="${days.length+1}" style="background:var(--surface2);font-size:11px;font-weight:700;color:var(--text2);padding:6px 12px;border-top:1px solid var(--border);">
-        🏢 ${office} <span style="font-weight:400;color:var(--text3);">· ${byOffice[office].length} nhân viên</span>
-      </td>
-    </tr>`;
-    const rows=byOffice[office].sort((a,b)=>a.localeCompare(b,'vi')).map(nv=>{
-      const cells=days.map(d=>{
-        const isToday=fmtDate(d)===today;
-        const bg=isToday?'background:rgba(79,110,247,.08);':'';
-        const locked=isDateLocked(d, nv);
+  // Gom theo VP (boPhan) -> theo ngày -> danh sách NV làm ca hôm đó (không tính OFF),
+  // mỗi ngày sắp theo giờ bắt đầu ca để hàng nào cũng thẳng theo trình tự thời gian trong ngày.
+  const byOffice={};
+  weekRows.forEach(r=>{
+    if(!r.nv||!visibleNvs.includes(r.nv))return;
+    if(!r.boPhan||r.boPhan==='OFF'||r.loaiCa==='OFF')return;
+    const ds=fmtDate(r.date);
+    if(!dsList.includes(ds))return;
+    if(!byOffice[r.boPhan])byOffice[r.boPhan]={};
+    if(!byOffice[r.boPhan][ds])byOffice[r.boPhan][ds]=[];
+    byOffice[r.boPhan][ds].push(r);
+  });
+  Object.values(byOffice).forEach(byDate=>{
+    Object.values(byDate).forEach(list=>list.sort((a,b)=>{
+      const pa=parseCaLamViecJS(a.caLam),pb=parseCaLamViecJS(b.caLam);
+      const sa=pa?pa.startMin:9999,sb=pb?pb.startMin:9999;
+      return sa-sb||a.nv.localeCompare(b.nv,'vi');
+    }));
+  });
+  // VP đông người nhất lên trên, giống cách sắp trong ảnh mẫu
+  const officeNames=Object.keys(byOffice).sort((a,b)=>{
+    const ca=Math.max(0,...Object.values(byOffice[a]).map(l=>l.length));
+    const cb=Math.max(0,...Object.values(byOffice[b]).map(l=>l.length));
+    return cb-ca;
+  });
+
+  const ROW_BG={'Ca Sáng':'rgba(16,185,129,.13)','Ca Tối':'rgba(245,158,11,.16)',
+    'Ca Lỡ':'rgba(59,130,246,.13)','Ca Giữa':'rgba(59,130,246,.13)','Trực đêm':'rgba(139,92,246,.17)'};
+
+  let bodyHtml='';
+  officeNames.forEach(office=>{
+    const byDate=byOffice[office];
+    const maxRows=Math.max(0,...dsList.map(ds=>(byDate[ds]||[]).length));
+    for(let i=0;i<maxRows;i++){
+      // Thời gian đại diện cho cả hàng = giờ ca của ngày đầu tiên có dữ liệu ở vị trí này
+      let repTime='',repShift='';
+      for(const ds of dsList){
+        const e=(byDate[ds]||[])[i];
+        if(e){repTime=e.caLam||'';repShift=e.loaiCa||'';break;}
+      }
+      const rowBg=ROW_BG[repShift]||'transparent';
+      const cells=dsList.map((ds,di)=>{
+        const d=days[di];
+        const e=(byDate[ds]||[])[i];
+        const locked=isDateLocked(d, e?e.nv:null);
         if(locked){
-          return`<td style="${bg}" class="locked-td">
+          return`<td style="background:${rowBg};" class="locked-td">
             <div class="locked-cell"><span class="ca-badge ca-off">···</span></div>
             <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:14px;">🔒</div>
           </td>`;
         }
-        const r=lk[nv+'|'+fmtDate(d)];
-        if(!r)return`<td style="${bg}"><span style="color:var(--text3);font-size:10px;">—</span></td>`;
-        const cls=getLoaiCaClass(r.loaiCa);
-        const diffOffice=r.boPhan&&r.boPhan!=='OFF'&&r.boPhan!==office;
-        return`<td style="${bg}">
-          <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
-            <span class="ca-badge ${cls}">${r.loaiCa}</span>
-            ${r.caLam&&r.caLam!=='OFF'?`<div class="time-text">${r.caLam}</div>`:''}
-            ${diffOffice?`<div style="font-size:9px;color:var(--text3);">${shortOffice(r.boPhan)}</div>`:''}
-          </div>
+        if(!e)return`<td style="background:${rowBg};text-align:center;"><span style="color:var(--text3);font-size:10px;">—</span></td>`;
+        const diffTime=e.caLam&&repTime&&e.caLam!==repTime;
+        return`<td style="background:${rowBg};text-align:center;">
+          <div style="font-weight:700;font-size:12px;">${e.nv}${diffTime?` <span style="font-weight:400;font-size:9px;color:var(--text3);">(${e.caLam})</span>`:''}</div>
         </td>`;
       }).join('');
-      return`<tr><td><div class="nv-name">${nv}</div></td>${cells}</tr>`;
-    }).join('');
-    return groupHeader+rows;
+      bodyHtml+=`<tr>
+        ${i===0?`<td rowspan="${maxRows}" style="font-weight:700;font-size:12px;vertical-align:middle;background:var(--surface2);">${office}</td>`:''}
+        <td style="background:${rowBg};font-weight:600;font-size:11px;white-space:nowrap;">${repTime}</td>
+        ${cells}
+      </tr>`;
+    }
+  });
+
+  // Hàng OFF gộp chung toàn công ty ở cuối bảng — giống ảnh mẫu, khỏi lặp OFF theo từng VP
+  const offByDate={};
+  weekRows.forEach(r=>{
+    if(!r.nv||!visibleNvs.includes(r.nv))return;
+    if(r.boPhan!=='OFF'&&r.loaiCa!=='OFF')return;
+    const ds=fmtDate(r.date);
+    if(!dsList.includes(ds))return;
+    if(!offByDate[ds])offByDate[ds]=[];
+    offByDate[ds].push(r.nv);
+  });
+  const offCells=dsList.map((ds,di)=>{
+    const d=days[di];
+    const locked=isDateLocked(d,null);
+    if(locked){
+      return`<td style="background:rgba(239,68,68,.1);" class="locked-td">
+        <div class="locked-cell"><span class="ca-badge ca-off">···</span></div>
+        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:14px;">🔒</div>
+      </td>`;
+    }
+    const names=(offByDate[ds]||[]).sort((a,b)=>a.localeCompare(b,'vi'));
+    return`<td style="background:rgba(239,68,68,.12);text-align:center;font-weight:700;font-size:11px;color:#dc2626;">${names.join(' + ')||'—'}</td>`;
   }).join('');
+  bodyHtml+=`<tr>
+    <td colspan="2" style="background:rgba(239,68,68,.18);color:#dc2626;font-weight:800;text-align:center;">OFF</td>
+    ${offCells}
+  </tr>`;
+
+  body.innerHTML=bodyHtml;
 }
 
 // ============================================================
