@@ -2080,6 +2080,7 @@
           <button class="tab active" onclick="switchView('week',this)">Tuần</button>
           <button class="tab" onclick="switchView('month',this)">Tháng</button>
           <button class="tab" id="tabByShift" onclick="switchView('shift',this)">Theo Ca</button>
+          <button class="tab" id="tabByOffice" onclick="switchView('office',this)">Theo Văn Phòng</button>
         </div>
       </div>
       <div id="shiftViewControls" style="display:none;padding:10px 18px;border-bottom:1px solid var(--border);align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
@@ -3156,6 +3157,7 @@ function renderSchedule(){
   if(currentView!=='shift'&&shiftControls)shiftControls.style.display='none';
   if(currentView==='week')renderWeekView(days,weekR);
   else if(currentView==='shift')renderShiftView(days,weekR);
+  else if(currentView==='office')renderOfficeView(days,weekR);
   else renderMonthView();
 }
 
@@ -3210,6 +3212,76 @@ function renderWeekView(days,weekRows){
 }
 
 // ============================================================
+// OFFICE VIEW (Lịch theo Văn Phòng) - mỗi khối là 1 VP nhỏ (Bà Điểm, Lê Hồng Phong, Gò Dưa...),
+// trong khối liệt kê từng NV + lịch ca trong tuần. Dành cho Quản lý xem tổng quan
+// nhân sự tại từng VP mà không phải lọc filter Văn phòng thủ công.
+// ============================================================
+function renderOfficeView(days,weekRows){
+  const head=document.getElementById('scheduleHead');
+  const body=document.getElementById('scheduleBody');
+  const empty=document.getElementById('scheduleEmpty');
+  const thu=['T2','T3','T4','T5','T6','T7','CN'];
+  const today=fmtDate(new Date());
+
+  head.innerHTML=`<tr><th>Nhân viên</th>${days.map((d,i)=>`<th class="day-col"><div class="day-header">${thu[i]}</div><div class="day-date">${fmtDisp(d)}</div></th>`).join('')}</tr>`;
+
+  // NV thường chỉ thấy lịch của chính mình — Quản lý thấy tất cả VP mình quản
+  const isMgr=currentUser&&currentUser.isManager;
+  const myNv=currentUser?currentUser.nv:'';
+
+  const lk={};
+  weekRows.forEach(r=>{if(r.date)lk[r.nv+'|'+fmtDate(r.date)]=r;});
+
+  // Mỗi NV thuộc 1 VP nhỏ chính (VP xuất hiện nhiều nhất trong tuần đang xem)
+  const allNvsInWeek=[...new Set(weekRows.map(r=>r.nv))].sort();
+  const nvs=isMgr ? allNvsInWeek : allNvsInWeek.filter(n=>n===myNv);
+  if(!nvs.length){body.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+
+  const byOffice={};
+  nvs.forEach(nv=>{
+    const mainOff=weekRows.find(r=>r.nv===nv&&r.boPhan&&r.boPhan!=='OFF')?.boPhan||'Chưa xác định VP';
+    if(!byOffice[mainOff])byOffice[mainOff]=[];
+    byOffice[mainOff].push(nv);
+  });
+  const offices=Object.keys(byOffice).sort((a,b)=>byOffice[b].length-byOffice[a].length);
+
+  body.innerHTML=offices.map(office=>{
+    const groupHeader=`<tr class="office-group-row">
+      <td colspan="${days.length+1}" style="background:var(--surface2);font-size:11px;font-weight:700;color:var(--text2);padding:6px 12px;border-top:1px solid var(--border);">
+        🏢 ${office} <span style="font-weight:400;color:var(--text3);">· ${byOffice[office].length} nhân viên</span>
+      </td>
+    </tr>`;
+    const rows=byOffice[office].sort((a,b)=>a.localeCompare(b,'vi')).map(nv=>{
+      const cells=days.map(d=>{
+        const isToday=fmtDate(d)===today;
+        const bg=isToday?'background:rgba(79,110,247,.08);':'';
+        const locked=isDateLocked(d, nv);
+        if(locked){
+          return`<td style="${bg}" class="locked-td">
+            <div class="locked-cell"><span class="ca-badge ca-off">···</span></div>
+            <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:14px;">🔒</div>
+          </td>`;
+        }
+        const r=lk[nv+'|'+fmtDate(d)];
+        if(!r)return`<td style="${bg}"><span style="color:var(--text3);font-size:10px;">—</span></td>`;
+        const cls=getLoaiCaClass(r.loaiCa);
+        const diffOffice=r.boPhan&&r.boPhan!=='OFF'&&r.boPhan!==office;
+        return`<td style="${bg}">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+            <span class="ca-badge ${cls}">${r.loaiCa}</span>
+            ${r.caLam&&r.caLam!=='OFF'?`<div class="time-text">${r.caLam}</div>`:''}
+            ${diffOffice?`<div style="font-size:9px;color:var(--text3);">${shortOffice(r.boPhan)}</div>`:''}
+          </div>
+        </td>`;
+      }).join('');
+      return`<tr><td><div class="nv-name">${nv}</div></td>${cells}</tr>`;
+    }).join('');
+    return groupHeader+rows;
+  }).join('');
+}
+
+// ============================================================
 // SHIFT VIEW (Lịch theo Ca) - mỗi dòng là 1 loại ca, ô liệt kê tên NV
 // ============================================================
 const SHIFT_ORDER=['Ca Sáng','Ca Lỡ','Ca Tối','Trực đêm','OFF'];
@@ -3260,10 +3332,6 @@ function renderShiftView(weekDays,weekRowsFull){
   if(!weekRows.length){body.innerHTML='';empty.style.display='block';return;}
   empty.style.display='none';
 
-  // Map VP nhỏ -> VP lớn, tính 1 lần dùng chung cho cả block ngày đang xem
-  // (Theo Ca gom nhóm theo VP LỚN: VP HCM / VPQN / VP Đà Lạt cho gọn, dễ nhìn)
-  const officeToVPLon=buildOfficeToVPLonMap();
-
   // Gom các loại ca thực tế xuất hiện trong khoảng đang xem, giữ đúng thứ tự chuẩn,
   // và thêm vào cuối nếu sheet có loại ca lạ không nằm trong SHIFT_ORDER
   const presentShifts=[...new Set(weekRows.map(r=>r.loaiCa).filter(Boolean))];
@@ -3300,7 +3368,7 @@ function renderShiftView(weekDays,weekRowsFull){
           </div>
         </td>`;
       }
-      return`<td style="${bg}vertical-align:top;padding:4px 6px;">${renderGanttCell(rowsHere,shift,ganttWidth,officeToVPLon)}</td>`;
+      return`<td style="${bg}vertical-align:top;padding:4px 6px;">${renderGanttCell(rowsHere,shift,ganttWidth)}</td>`;
     }).join('');
     const countTotal=weekRows.filter(r=>r.loaiCa===shift).length;
     return`<tr><td>
@@ -3313,7 +3381,7 @@ function renderShiftView(weekDays,weekRowsFull){
 const SHIFT_COLOR_VAR={'Ca Sáng':'--ca-sang','Ca Tối':'--ca-toi','Ca Lỡ':'--ca-lo','Trực đêm':'--truc-dem','OFF':'--off'};
 
 // Mini-Gantt: vẽ timeline 0h-24h, mỗi NV 1 thanh ngang đặt đúng vị trí giờ làm
-function renderGanttCell(rowsHere,shift,width,officeToVPLonMap){
+function renderGanttCell(rowsHere,shift,width){
   const w=width||220;
   const barColor=`var(${SHIFT_COLOR_VAR[shift]||'--accent'})`;
   const axisTicks=[0,6,12,18,24];
@@ -3340,46 +3408,30 @@ function renderGanttCell(rowsHere,shift,width,officeToVPLonMap){
     </div>`;
   };
 
-  // Nhóm theo VP LỚN (VP HCM / VPQN / VP Đà Lạt) thay vì VP nhỏ — gọn hơn hẳn,
-  // ai nhìn cũng hiểu ngay VP mình có bao nhiêu người, khỏi phải phân biệt hàng chục
-  // VP nhỏ. Trục giờ 0-24h chỉ vẽ 1 lần dùng chung cho cả ô (trước đây vẽ lặp lại
-  // theo từng nhóm nhỏ -> rối mắt).
-  const officeToVPLon=officeToVPLonMap||{};
-  const byVP={};
+  // Nhóm theo VĂN PHÒNG (boPhan) ngay trong ô — nhân viên ở VP nào nhìn vào ô Ca Sáng
+  // là thấy ngay VP mình có bao nhiêu người, làm với ai, khung giờ nào, khỏi phải lọc/chọn gì thêm.
+  const byOffice={};
   rowsHere.forEach(r=>{
-    const vpNorm=(r.vanPhong&&r.vanPhong.trim())?normVP(r.vanPhong):(officeToVPLon[r.boPhan]||'');
-    const vp=vpDisplay(vpNorm);
-    if(!byVP[vp])byVP[vp]=[];
-    byVP[vp].push(r);
+    const office=r.boPhan||'Khác';
+    if(!byOffice[office])byOffice[office]=[];
+    byOffice[office].push(r);
   });
-  const vps=Object.keys(byVP).sort((a,b)=>VP_LON_ORDER.indexOf(a)-VP_LON_ORDER.indexOf(b));
+  const offices=Object.keys(byOffice).sort((a,b)=>byOffice[b].length-byOffice[a].length);
 
-  // Dải badge tổng quan ở đầu ô: thấy ngay mỗi VP có bao nhiêu người mà không cần đọc từng thanh
-  const badgesHtml=`<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:4px;">
-    ${vps.map(vp=>`<span style="font-size:8px;font-weight:700;color:#fff;background:${VP_LON_COLOR[vp]||'#64748b'};padding:1px 6px;border-radius:8px;white-space:nowrap;">${vp} · ${byVP[vp].length}</span>`).join('')}
-  </div>`;
-
-  const groupsHtml=vps.map(vp=>{
-    const rows=byVP[vp];
-    return`<div style="padding-left:4px;border-left:2px solid ${VP_LON_COLOR[vp]||'#64748b'};margin-bottom:2px;">
+  const groupsHtml=offices.map(office=>{
+    const rows=byOffice[office];
+    return`
+      <div style="font-size:9px;font-weight:700;color:var(--text2);margin-top:5px;padding-left:4px;border-left:2px solid ${barColor};">${shortOffice(office)} · ${rows.length}</div>
+      <div style="position:relative;margin-top:2px;">
+        ${grid}
         ${rows.map(renderBar).join('')}
       </div>`;
   }).join('');
 
   return`<div style="min-width:${w}px;">
     ${axis}
-    ${badgesHtml}
-    <div style="position:relative;">
-      ${grid}
-      ${groupsHtml}
-    </div>
+    ${groupsHtml}
   </div>`;
-}
-const VP_LON_ORDER=['VP HCM','VPQN','VP Đà Lạt','Khác'];
-const VP_LON_COLOR={'VP HCM':'#4f6ef7','VPQN':'#f97316','VP Đà Lạt':'#16a34a','Khác':'#64748b'};
-function vpDisplay(norm){
-  const map={'vp hcm':'VP HCM','vpqn':'VPQN','vp đà lạt':'VP Đà Lạt'};
-  return map[norm]||'Khác';
 }
 
 function renderMonthView(){
