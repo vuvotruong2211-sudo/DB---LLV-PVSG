@@ -3251,13 +3251,7 @@ function renderOfficeView(days,weekRows){
     if(!byOffice[r.boPhan][ds])byOffice[r.boPhan][ds]=[];
     byOffice[r.boPhan][ds].push(r);
   });
-  Object.values(byOffice).forEach(byDate=>{
-    Object.values(byDate).forEach(list=>list.sort((a,b)=>{
-      const pa=parseCaLamViecJS(a.caLam),pb=parseCaLamViecJS(b.caLam);
-      const sa=pa?pa.startMin:9999,sb=pb?pb.startMin:9999;
-      return sa-sb||a.nv.localeCompare(b.nv,'vi');
-    }));
-  });
+  // (Không còn cần sort chung ở đây — việc sắp xếp giờ/tên được xử lý riêng theo từng khung giờ bên dưới)
   // VP đông người nhất lên trên, giống cách sắp trong ảnh mẫu
   const officeNames=Object.keys(byOffice).sort((a,b)=>{
     const ca=Math.max(0,...Object.values(byOffice[a]).map(l=>l.length));
@@ -3266,54 +3260,56 @@ function renderOfficeView(days,weekRows){
   });
 
   const ROW_BG={'Ca Sáng':'rgba(16,185,129,.13)','Ca Tối':'rgba(245,158,11,.16)',
-    'Ca Lỡ':'rgba(59,130,246,.13)','Ca Giữa':'rgba(59,130,246,.13)','Trực đêm':'rgba(139,92,246,.17)'};
-  const SHIFT_ROW_ORDER=['Ca Sáng','Ca Lỡ','Ca Giữa','Ca Tối','Trực đêm'];
+    'Ca Lỡ':'rgba(59,130,246,.13)','Ca Lỡ Tối':'rgba(59,130,246,.13)','Ca Giữa':'rgba(59,130,246,.13)',
+    'Trực đêm':'rgba(139,92,246,.17)'};
+  const timeKey=s=>String(s||'').replace(/\s+/g,'').toLowerCase();
 
   let bodyHtml='';
   officeNames.forEach(office=>{
     const byDate=byOffice[office];
-    // QUAN TRỌNG: gom theo đúng LOẠI CA (cột I sheet) trước, rồi mới sắp theo giờ trong
-    // từng nhóm loại ca — để Ca Tối luôn nằm hàng Ca Tối, Trực đêm luôn nằm hàng Trực đêm,
-    // không bị lệch qua nhau dù ngày đó thiếu/thừa người ở vị trí nào.
-    const shiftsPresent=[...new Set(
-      dsList.flatMap(ds=>(byDate[ds]||[]).map(r=>r.loaiCa))
-    )].filter(Boolean);
-    const shiftsOrdered=[
-      ...SHIFT_ROW_ORDER.filter(s=>shiftsPresent.includes(s)),
-      ...shiftsPresent.filter(s=>!SHIFT_ROW_ORDER.includes(s))
-    ];
 
-    // Tổng số hàng của cả VP = tổng maxRows của từng nhóm loại ca (để rowspan B.Phận đúng)
+    // QUAN TRỌNG: mỗi dòng = 1 khung giờ làm việc CHÍNH XÁC (ví dụ đúng "6:00 - 14:30"),
+    // không đoán/ghép theo vị trí hay theo nhóm Loại ca nữa — nên không bao giờ lệch ca,
+    // dù Loại ca ghi trên sheet có đặt tên khác nhau (Ca Lỡ Tối, Ca Tối...) hay đổi giờ theo ngày.
+    const templateMeta={}; // key giờ chuẩn hoá -> {display, startMin, maxCount, loaiCaSample}
+    dsList.forEach(ds=>{
+      const counts={};
+      (byDate[ds]||[]).forEach(r=>{
+        const key=timeKey(r.caLam);
+        counts[key]=(counts[key]||0)+1;
+        if(!templateMeta[key]){
+          const p=parseCaLamViecJS(r.caLam);
+          templateMeta[key]={display:r.caLam||'(không rõ giờ)',startMin:p?p.startMin:9999,maxCount:0,loaiCaSample:r.loaiCa};
+        }
+      });
+      Object.entries(counts).forEach(([key,c])=>{if(c>templateMeta[key].maxCount)templateMeta[key].maxCount=c;});
+    });
+    const templateKeys=Object.keys(templateMeta).sort((a,b)=>
+      templateMeta[a].startMin-templateMeta[b].startMin||templateMeta[a].display.localeCompare(templateMeta[b].display,'vi'));
+
     let totalRows=0;
-    const perShiftRows=shiftsOrdered.map(sh=>{
-      const maxRows=Math.max(0,...dsList.map(ds=>(byDate[ds]||[]).filter(r=>r.loaiCa===sh).length));
-      totalRows+=maxRows;
-      return maxRows;
+    templateKeys.forEach(k=>totalRows+=templateMeta[k].maxCount);
+
+    // Bucket sẵn theo (ngày -> khung giờ) để lấy nhanh, cùng khung giờ trong 1 ngày sắp theo tên
+    const byDateByKey={};
+    dsList.forEach(ds=>{
+      byDateByKey[ds]={};
+      (byDate[ds]||[]).forEach(r=>{
+        const key=timeKey(r.caLam);
+        if(!byDateByKey[ds][key])byDateByKey[ds][key]=[];
+        byDateByKey[ds][key].push(r);
+      });
+      Object.values(byDateByKey[ds]).forEach(list=>list.sort((a,b)=>a.nv.localeCompare(b.nv,'vi')));
     });
 
     let isFirstRowOfOffice=true;
-    shiftsOrdered.forEach((sh,si)=>{
-      const maxRows=perShiftRows[si];
-      const byDateThisShift={};
-      dsList.forEach(ds=>{
-        byDateThisShift[ds]=(byDate[ds]||[]).filter(r=>r.loaiCa===sh)
-          .sort((a,b)=>{
-            const pa=parseCaLamViecJS(a.caLam),pb=parseCaLamViecJS(b.caLam);
-            const sa=pa?pa.startMin:9999,sb=pb?pb.startMin:9999;
-            return sa-sb||a.nv.localeCompare(b.nv,'vi');
-          });
-      });
-      const rowBg=ROW_BG[sh]||'transparent';
-      for(let i=0;i<maxRows;i++){
-        // Thời gian đại diện cho hàng = giờ ca của ngày đầu tiên có dữ liệu ở vị trí này TRONG CÙNG nhóm loại ca
-        let repTime='';
-        for(const ds of dsList){
-          const e=byDateThisShift[ds][i];
-          if(e){repTime=e.caLam||'';break;}
-        }
+    templateKeys.forEach(key=>{
+      const meta=templateMeta[key];
+      const rowBg=ROW_BG[meta.loaiCaSample]||'transparent';
+      for(let i=0;i<meta.maxCount;i++){
         const cells=dsList.map((ds,di)=>{
           const d=days[di];
-          const e=byDateThisShift[ds][i];
+          const e=(byDateByKey[ds][key]||[])[i];
           const locked=isDateLocked(d, e?e.nv:null);
           if(locked){
             return`<td style="background:${rowBg};${DIV}" class="locked-td">
@@ -3322,14 +3318,13 @@ function renderOfficeView(days,weekRows){
             </td>`;
           }
           if(!e)return`<td style="background:${rowBg};text-align:center;${DIV}"><span style="color:var(--text3);font-size:10px;">—</span></td>`;
-          const diffTime=e.caLam&&repTime&&e.caLam!==repTime;
           return`<td style="background:${rowBg};text-align:center;${DIV}">
-            <div style="font-weight:700;font-size:12px;">${e.nv}${diffTime?` <span style="font-weight:400;font-size:9px;color:var(--text3);">(${e.caLam})</span>`:''}</div>
+            <div style="font-weight:700;font-size:12px;">${e.nv}</div>
           </td>`;
         }).join('');
         bodyHtml+=`<tr>
           ${isFirstRowOfOffice?`<td rowspan="${totalRows}" style="font-weight:700;font-size:12px;text-align:center;vertical-align:middle;background:var(--surface2);">${office}</td>`:''}
-          <td style="background:${rowBg};font-weight:600;font-size:11px;white-space:nowrap;text-align:center;">${repTime}</td>
+          <td style="background:${rowBg};font-weight:600;font-size:11px;white-space:nowrap;text-align:center;">${meta.display}</td>
           ${cells}
         </tr>`;
         isFirstRowOfOffice=false;
