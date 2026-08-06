@@ -3258,10 +3258,11 @@ function renderOfficeView(weekDaysIgnored,weekRowsIgnored){
   window.__officeViewCtx={days,weekRows}; // lưu lại để dùng cho popup lịch tuần khi click tên NV
 
   const DIV='border-left:1px solid var(--border);';
+  const thuOf=(d)=>{const jsDay=d.getDay();return jsDay===0?6:jsDay-1;}; // tính Thứ theo NGÀY THẬT, không theo vị trí cột
   head.innerHTML=`<tr>
     <th style="min-width:150px;">B.Phận</th>
     <th style="min-width:100px;">Thời gian<br>làm việc</th>
-    ${days.map((d,i)=>`<th class="day-col" style="${DIV}"><div class="day-header">${fmtDisp(d)}</div><div class="day-date">${thu[i]}</div></th>`).join('')}
+    ${days.map((d)=>`<th class="day-col" style="${DIV}"><div class="day-header">${fmtDisp(d)}</div><div class="day-date">${thu[thuOf(d)]}</div></th>`).join('')}
   </tr>`;
 
   if(!weekRows.length){body.innerHTML='';empty.style.display='block';return;}
@@ -3473,7 +3474,8 @@ function showNvWeek(nv){
   if(!ctx)return;
   const {days,weekRows}=ctx;
   const thu=['T2','T3','T4','T5','T6','T7','CN'];
-  const rowsHtml=days.map((d,i)=>{
+  const thuOf=(d)=>{const jsDay=d.getDay();return jsDay===0?6:jsDay-1;}; // tính Thứ theo NGÀY THẬT
+  const rowsHtml=days.map((d)=>{
     const ds=fmtDate(d);
     const entries=weekRows.filter(r=>r.nv===nv&&fmtDate(r.date)===ds);
     const isOff=!entries.length||entries.every(e=>e.boPhan==='OFF'||e.loaiCa==='OFF');
@@ -3482,7 +3484,7 @@ function showNvWeek(nv){
     else if(isOff)content=`<span style="color:#dc2626;font-weight:700;">OFF</span>`;
     else content=entries.filter(e=>e.boPhan!=='OFF'&&e.loaiCa!=='OFF')
       .map(e=>`<div>${shortOffice(e.boPhan)} · <b>${e.caLam||''}</b></div>`).join('');
-    return`<tr><td style="text-align:left;padding-left:10px;font-weight:600;width:90px;">${thu[i]} ${fmtDisp(d)}</td><td>${content}</td></tr>`;
+    return`<tr><td style="text-align:left;padding-left:10px;font-weight:600;width:90px;">${thu[thuOf(d)]} ${fmtDisp(d)}</td><td>${content}</td></tr>`;
   }).join('');
   document.getElementById('nvWeekModalTitle').textContent=`📋 Lịch tuần — ${nv}`;
   document.getElementById('nvWeekModalSub').textContent=`${fmtDisp(days[0])} – ${fmtDisp(days[days.length-1])}`;
