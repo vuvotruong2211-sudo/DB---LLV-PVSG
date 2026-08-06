@@ -3307,6 +3307,14 @@ function renderOfficeView(weekDaysIgnored,weekRowsIgnored){
     if(nonTrucDem.length<2)return null;
     return nonTrucDem.map(x=>`${x.boPhan||''} ${x.caLam||''}`.trim()).join(' | ');
   };
+  // Làm 2 ca hợp lệ trong ngày (VD: Ca Sáng + Trực đêm ở lại) — không phải lỗi, nhưng đáng để
+  // đánh dấu nhẹ cho dễ nhận biết, phân biệt với cảnh báo trùng ca (đỏ) và người chỉ làm 1 ca.
+  const doubleShiftInfo=(nv,ds)=>{
+    const list=nvDateEntries[nv+'|'+ds]||[];
+    if(list.length<2)return null;
+    if(conflictInfo(nv,ds))return null; // đã là lỗi trùng ca thật thì không gắn badge này nữa
+    return list.map(x=>`${x.boPhan||''} ${x.caLam||''}`.trim()).join(' + ');
+  };
 
   // (Không còn cần sort chung ở đây — việc sắp xếp giờ/tên được xử lý riêng theo từng khung giờ bên dưới)
   // VP đông người nhất lên trên, giống cách sắp trong ảnh mẫu
@@ -3378,9 +3386,13 @@ function renderOfficeView(weekDaysIgnored,weekRowsIgnored){
         if(!list.length)return`<td style="background:${rowBg};text-align:center;${DIV}"><span style="color:var(--text3);font-size:10px;">—</span></td>`;
         const names=list.map(e=>{
           const conflict=conflictInfo(e.nv,ds);
+          const dbl=doubleShiftInfo(e.nv,ds);
           const nvSafe=e.nv.replace(/'/g,"\\'");
           if(conflict){
             return`<span onclick="showNvWeek('${nvSafe}')" style="cursor:pointer;border:1.5px solid #ef4444;border-radius:4px;padding:0 3px;background:rgba(239,68,68,.12);" title="⚠️ Trùng ca: ${conflict}">⚠️ ${e.nv}</span>`;
+          }
+          if(dbl){
+            return`<span onclick="showNvWeek('${nvSafe}')" style="cursor:pointer;border:1.5px solid #3b82f6;border-radius:4px;padding:0 3px;background:rgba(59,130,246,.12);" title="Làm 2 ca hôm nay: ${dbl}">${e.nv}</span>`;
           }
           return`<span onclick="showNvWeek('${nvSafe}')" style="cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px;">${e.nv}</span>`;
         }).join(' + ');
