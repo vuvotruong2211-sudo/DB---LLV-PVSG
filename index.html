@@ -3978,6 +3978,17 @@ function renderPayrollContent(data, nv, m, y){
   html+=`<tr class="payslip-total"><td>THỰC LÃNH</td><td>${fmtMoney(thucLanh)}</td></tr>`;
   html+=`</table>`;
 
+  // TỔNG PHÚT TĂNG CA / ĐI TRỄ-VỀ SỚM theo RAW chấm công — CHỈ THAM KHẢO,
+  // không cộng/trừ vào tiền lương ở trên (a tự điều chỉnh tay theo quan sát).
+  const attSummary=computeAttendanceSummary(data, nv, m, y);
+  html+=`
+    <div class="payslip-section-title" style="margin-top:10px;">📋 Tổng hợp theo RAW chấm công (tham khảo)</div>
+    <table class="payslip-table">
+      <tr><td>Tổng phút tăng ca</td><td>${attSummary.tongPhutTangCa} phút</td></tr>
+      <tr><td>Tổng phút đi trễ/về sớm</td><td>${attSummary.tongPhutDiTreVeSom} phút</td></tr>
+    </table>
+    <div style="font-size:11px;color:var(--text3);margin:2px 0 8px;">* Số liệu tính trực tiếp từ dữ liệu chấm công thực tế (Raw_ChamCong), không qua chỉnh sửa/ghi đè. Không tự động tính vào tiền lương ở bảng trên.</div>`;
+
   // BẢNG CHẤM CÔNG ĐỐI CHIẾU LỊCH (dùng chung hàm renderChamCongTable bên dưới
   // — để trang "Chấm công" riêng trong sidebar có thể tái sử dụng đúng logic này)
   html+=`<div class="payslip-section-title">⏱️ Chấm công thực tế vs Lịch làm việc</div>`;
@@ -4100,6 +4111,69 @@ ${idx===0?`<td class="att-date-cell"${isMultiShift?` rowspan="${entries.length}"
   });
   html+=`</tbody></table>`;
   return html;
+}
+
+// ============================================================
+// TỔNG HỢP PHÚT TĂNG CA / ĐI TRỄ-VỀ SỚM THEO RAW CHẤM CÔNG (THÁNG)
+// Dùng CHUNG logic so khớp lịch-chấm công với renderChamCongTable() ở trên,
+// để số tổng luôn khớp với bảng chi tiết bên dưới. CHỈ mang tính THAM KHẢO —
+// KHÔNG dùng để tự động trừ/cộng tiền (phần lương do a tự điều chỉnh tay).
+// ============================================================
+function computeAttendanceSummary(data, nv, m, y){
+  const chamCong=data.chamCong||{};
+  const chamCongDates=Object.keys(chamCong);
+  const gioChuanPhut=data.gioChuanPhut||510;
+
+  const normNV=(s)=>String(s||'').trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/đ/g,'d').replace(/[^a-z0-9]/g,'');
+  const nvNorm=normNV(nv);
+
+  let tongPhutTangCa=0;     // OT (lech>30)
+  let tongPhutDiTreVeSom=0; // trễ giờ vào (tre>0) + về sớm (lech<-1)
+
+  chamCongDates.forEach(ds=>{
+    const entries=Array.isArray(chamCong[ds])?chamCong[ds]:[chamCong[ds]];
+
+    const lichRows=allData.filter(r=>
+      normNV(r.nv)===nvNorm &&
+      r.date && fmtDate(r.date)===ds &&
+      r.loaiCa!=='OFF'
+    );
+    const lichSorted=lichRows.map(r=>({row:r, parsed:parseCaLamViecJS(r.caLam)}))
+      .sort((a,b)=>{
+        const av=a.parsed?a.parsed.startMin:9999;
+        const bv=b.parsed?b.parsed.startMin:9999;
+        return av-bv;
+      });
+
+    entries.forEach((cc,idx)=>{
+      const matched=lichSorted[idx]||lichSorted[lichSorted.length-1]||null;
+      const ca=matched?matched.parsed:null;
+
+      const vaoMin=(cc.vaoMin!==null&&cc.vaoMin!==undefined&&!isNaN(cc.vaoMin))?Number(cc.vaoMin):null;
+      const raMin=(cc.raMin!==null&&cc.raMin!==undefined&&!isNaN(cc.raMin))?Number(cc.raMin):null;
+
+      // Đi trễ giờ vào
+      if(ca&&vaoMin!==null){
+        const tre=vaoMin-ca.startMin;
+        if(tre>0) tongPhutDiTreVeSom+=tre;
+      }
+
+      // Về sớm / OT
+      if(ca&&!ca.khongTinhOT&&vaoMin!==null&&raMin!==null){
+        const diTre=vaoMin>ca.startMin;
+        const mocKetThuc=diTre?(vaoMin+gioChuanPhut):ca.endMin;
+        let raMinAdj=raMin;
+        if(mocKetThuc>=24*60&&raMinAdj<ca.startMin)raMinAdj+=24*60;
+        const lech=raMinAdj-mocKetThuc;
+        if(lech<-1) tongPhutDiTreVeSom+=Math.abs(lech);
+        else if(lech>30) tongPhutTangCa+=lech;
+      }
+    });
+  });
+
+  return { tongPhutTangCa, tongPhutDiTreVeSom };
 }
 
 
