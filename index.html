@@ -903,6 +903,7 @@
   .nv-picker-ten::placeholder{color:var(--text3);}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
 
@@ -1187,6 +1188,21 @@
 </div>
 
 <!-- TÍCH ĐIỂM KHÁCH HÀNG GỬI HÀNG MODAL -->
+<div class="modal-overlay" id="nvWeekModal" onclick="if(event.target===this)closeNvWeekModal()">
+  <div class="modal-box" style="max-width:420px;">
+    <div class="modal-title" id="nvWeekModalTitle">📋 Lịch tuần</div>
+    <div class="modal-sub" id="nvWeekModalSub">—</div>
+    <div class="table-scroll" style="max-height:50vh;margin-top:10px;">
+      <table class="schedule-table" style="table-layout:auto;">
+        <tbody id="nvWeekModalBody"></tbody>
+      </table>
+    </div>
+    <div class="modal-actions" style="margin-top:14px;">
+      <button class="modal-btn-cancel" onclick="closeNvWeekModal()">Đóng</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="tichDiemModal">
   <div class="modal-box thuchi-modal-box login-mode" id="tichDiemModalBox">
 
@@ -2081,6 +2097,7 @@
           <button class="tab" onclick="switchView('month',this)">Tháng</button>
           <button class="tab" id="tabByShift" onclick="switchView('shift',this)">Theo Ca</button>
           <button class="tab" id="tabByOffice" onclick="switchView('office',this)">Theo Văn Phòng</button>
+          <button class="tab" id="officeExportAllBtn" onclick="exportOfficeImage(null)" style="display:none;">📸 Xuất cả bảng</button>
         </div>
       </div>
       <div id="shiftViewControls" style="display:none;padding:10px 18px;border-bottom:1px solid var(--border);align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
@@ -3218,6 +3235,7 @@ function renderWeekView(days,weekRows){
 // B.Phận merge theo chiều dọc cho cả khối VP. Hàng OFF gộp chung ở cuối bảng.
 // ============================================================
 function renderOfficeView(days,weekRows){
+  window.__officeViewCtx={days,weekRows}; // lưu lại để dùng cho popup lịch tuần khi click tên NV
   const head=document.getElementById('scheduleHead');
   const body=document.getElementById('scheduleBody');
   const empty=document.getElementById('scheduleEmpty');
@@ -3251,6 +3269,29 @@ function renderOfficeView(days,weekRows){
     if(!byOffice[r.boPhan][ds])byOffice[r.boPhan][ds]=[];
     byOffice[r.boPhan][ds].push(r);
   });
+  // Phát hiện TRÙNG CA: 1 NV có từ 2 dòng làm việc trở lên trong cùng 1 ngày (thường là do lỡ xếp
+  // 2 VP cùng lúc, hoặc nhập trùng dữ liệu) — gom TOÀN CÔNG TY (không chỉ trong 1 VP) vì lỗi này
+  // hay xảy ra chéo giữa 2 VP khác nhau.
+  const nvDateEntries={};
+  weekRows.forEach(r=>{
+    if(!r.nv||!visibleNvs.includes(r.nv))return;
+    if(!r.boPhan||r.boPhan==='OFF'||r.loaiCa==='OFF')return;
+    const ds=fmtDate(r.date);
+    if(!dsList.includes(ds))return;
+    const k=r.nv+'|'+ds;
+    if(!nvDateEntries[k])nvDateEntries[k]=[];
+    nvDateEntries[k].push(r);
+  });
+  const conflictInfo=(nv,ds)=>{
+    const list=nvDateEntries[nv+'|'+ds]||[];
+    if(list.length<2)return null;
+    // Loại trừ trường hợp hợp lệ: Ca Sáng/Ca Tối + Trực đêm (ở lại VP trực đêm) không phải lỗi trùng ca,
+    // chỉ cảnh báo khi có từ 2 ca "không phải trực đêm" trở lên trong cùng 1 ngày (lỗi xếp thật sự).
+    const nonTrucDem=list.filter(x=>x.loaiCa!=='Trực đêm'&&!/trực đêm/i.test(x.caLam||''));
+    if(nonTrucDem.length<2)return null;
+    return nonTrucDem.map(x=>`${x.boPhan||''} ${x.caLam||''}`.trim()).join(' | ');
+  };
+
   // (Không còn cần sort chung ở đây — việc sắp xếp giờ/tên được xử lý riêng theo từng khung giờ bên dưới)
   // VP đông người nhất lên trên, giống cách sắp trong ảnh mẫu
   const officeNames=Object.keys(byOffice).sort((a,b)=>{
@@ -3265,8 +3306,10 @@ function renderOfficeView(days,weekRows){
   const timeKey=s=>String(s||'').replace(/\s+/g,'').toLowerCase();
 
   let bodyHtml='';
+  window.__officeBlocksHtml={}; // lưu riêng HTML từng khối VP để phục vụ xuất ảnh (mục 📸)
   officeNames.forEach(office=>{
     const byDate=byOffice[office];
+    let officeBodyHtml=''; // HTML riêng của khối VP này, dùng khi xuất ảnh 1 VP
 
     // QUAN TRỌNG: mỗi dòng = 1 khung giờ làm việc CHÍNH XÁC (ví dụ đúng "6:00 - 14:30"),
     // không đoán/ghép theo vị trí hay theo nhóm Loại ca nữa — nên không bao giờ lệch ca,
@@ -3287,9 +3330,6 @@ function renderOfficeView(days,weekRows){
     const templateKeys=Object.keys(templateMeta).sort((a,b)=>
       templateMeta[a].startMin-templateMeta[b].startMin||templateMeta[a].display.localeCompare(templateMeta[b].display,'vi'));
 
-    let totalRows=0;
-    templateKeys.forEach(k=>totalRows+=templateMeta[k].maxCount);
-
     // Bucket sẵn theo (ngày -> khung giờ) để lấy nhanh, cùng khung giờ trong 1 ngày sắp theo tên
     const byDateByKey={};
     dsList.forEach(ds=>{
@@ -3302,35 +3342,70 @@ function renderOfficeView(days,weekRows){
       Object.values(byDateByKey[ds]).forEach(list=>list.sort((a,b)=>a.nv.localeCompare(b.nv,'vi')));
     });
 
+    // Mỗi khung giờ = 1 dòng duy nhất. Nếu cùng ngày có nhiều người trùng đúng khung giờ đó
+    // (VD LONG + TRANG cùng làm 16:00 - Trực đêm) thì gộp chung 1 ô, nối tên bằng dấu " + ".
+    const totalRows=templateKeys.length;
     let isFirstRowOfOffice=true;
     templateKeys.forEach(key=>{
       const meta=templateMeta[key];
       const rowBg=ROW_BG[meta.loaiCaSample]||'transparent';
-      for(let i=0;i<meta.maxCount;i++){
-        const cells=dsList.map((ds,di)=>{
-          const d=days[di];
-          const e=(byDateByKey[ds][key]||[])[i];
-          const locked=isDateLocked(d, e?e.nv:null);
-          if(locked){
-            return`<td style="background:${rowBg};${DIV}" class="locked-td">
-              <div class="locked-cell"><span class="ca-badge ca-off">···</span></div>
-              <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:14px;">🔒</div>
-            </td>`;
-          }
-          if(!e)return`<td style="background:${rowBg};text-align:center;${DIV}"><span style="color:var(--text3);font-size:10px;">—</span></td>`;
-          return`<td style="background:${rowBg};text-align:center;${DIV}">
-            <div style="font-weight:700;font-size:12px;">${e.nv}</div>
+      const cells=dsList.map((ds,di)=>{
+        const d=days[di];
+        const list=byDateByKey[ds][key]||[];
+        const locked=isDateLocked(d, list[0]?list[0].nv:null);
+        if(locked){
+          return`<td style="background:${rowBg};${DIV}" class="locked-td">
+            <div class="locked-cell"><span class="ca-badge ca-off">···</span></div>
+            <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:14px;">🔒</div>
           </td>`;
-        }).join('');
-        bodyHtml+=`<tr>
-          ${isFirstRowOfOffice?`<td rowspan="${totalRows}" style="font-weight:700;font-size:12px;text-align:center;vertical-align:middle;background:var(--surface2);">${office}</td>`:''}
-          <td style="background:${rowBg};font-weight:600;font-size:11px;white-space:nowrap;text-align:center;">${meta.display}</td>
-          ${cells}
-        </tr>`;
-        isFirstRowOfOffice=false;
-      }
+        }
+        if(!list.length)return`<td style="background:${rowBg};text-align:center;${DIV}"><span style="color:var(--text3);font-size:10px;">—</span></td>`;
+        const names=list.map(e=>{
+          const conflict=conflictInfo(e.nv,ds);
+          const nvSafe=e.nv.replace(/'/g,"\\'");
+          if(conflict){
+            return`<span onclick="showNvWeek('${nvSafe}')" style="cursor:pointer;border:1.5px solid #ef4444;border-radius:4px;padding:0 3px;background:rgba(239,68,68,.12);" title="⚠️ Trùng ca: ${conflict}">⚠️ ${e.nv}</span>`;
+          }
+          return`<span onclick="showNvWeek('${nvSafe}')" style="cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px;">${e.nv}</span>`;
+        }).join(' + ');
+        return`<td style="background:${rowBg};text-align:center;${DIV}">
+          <div style="font-weight:700;font-size:12px;">${names}</div>
+        </td>`;
+      }).join('');
+      bodyHtml+=`<tr>
+        ${isFirstRowOfOffice?`<td rowspan="${totalRows}" style="font-weight:700;font-size:12px;text-align:center;vertical-align:middle;background:var(--surface2);">
+            <div>${office}</div>
+            <button onclick="exportOfficeImage('${office.replace(/'/g,"\\'")}')" title="Xuất ảnh VP này để gửi Zalo" style="margin-top:4px;border:none;background:var(--accent);color:#fff;font-size:10px;padding:3px 7px;border-radius:6px;cursor:pointer;">📸 Ảnh</button>
+          </td>`:''}
+        <td style="background:${rowBg};font-weight:600;font-size:11px;white-space:nowrap;text-align:center;">${meta.display}</td>
+        ${cells}
+      </tr>`;
+      officeBodyHtml+=`<tr>
+        ${isFirstRowOfOffice?`<td rowspan="${totalRows}" style="font-weight:700;font-size:12px;text-align:center;vertical-align:middle;background:#f1f3f9;">${office}</td>`:''}
+        <td style="background:${rowBg};font-weight:600;font-size:11px;white-space:nowrap;text-align:center;">${meta.display}</td>
+        ${cells}
+      </tr>`;
+      isFirstRowOfOffice=false;
     });
+    window.__officeBlocksHtml[office]=officeBodyHtml;
   });
+
+  // Hàng TỔNG SỐ NGƯỜI LÀM mỗi ngày — đếm số NV đang làm việc (không tính OFF), nhìn phát biết
+  // ngày nào quân số bất thường (thiếu/thừa so với các ngày khác trong tuần)
+  const totalCellsHtml=dsList.map(ds=>{
+    const set=new Set();
+    weekRows.forEach(r=>{
+      if(!r.nv||!visibleNvs.includes(r.nv))return;
+      if(!r.boPhan||r.boPhan==='OFF'||r.loaiCa==='OFF')return;
+      if(fmtDate(r.date)!==ds)return;
+      set.add(r.nv);
+    });
+    return`<td style="background:var(--surface2);text-align:center;font-weight:800;font-size:12px;color:var(--accent);${DIV}">${set.size}</td>`;
+  }).join('');
+  bodyHtml+=`<tr>
+    <td colspan="2" style="background:var(--surface2);font-weight:700;font-size:11px;color:var(--text2);text-align:center;">Tổng số người làm</td>
+    ${totalCellsHtml}
+  </tr>`;
 
   // Hàng OFF gộp chung toàn công ty ở cuối bảng — giống ảnh mẫu, khỏi lặp OFF theo từng VP
   const offByDate={};
@@ -3360,6 +3435,67 @@ function renderOfficeView(days,weekRows){
   </tr>`;
 
   body.innerHTML=bodyHtml;
+}
+
+// ============================================================
+// POPUP LỊCH TUẦN THEO NV (click vào tên trong tab Theo Văn Phòng)
+// ============================================================
+function showNvWeek(nv){
+  const ctx=window.__officeViewCtx;
+  if(!ctx)return;
+  const {days,weekRows}=ctx;
+  const thu=['T2','T3','T4','T5','T6','T7','CN'];
+  const rowsHtml=days.map((d,i)=>{
+    const ds=fmtDate(d);
+    const entries=weekRows.filter(r=>r.nv===nv&&fmtDate(r.date)===ds);
+    const isOff=!entries.length||entries.every(e=>e.boPhan==='OFF'||e.loaiCa==='OFF');
+    let content;
+    if(!entries.length)content=`<span style="color:var(--text3);">—</span>`;
+    else if(isOff)content=`<span style="color:#dc2626;font-weight:700;">OFF</span>`;
+    else content=entries.filter(e=>e.boPhan!=='OFF'&&e.loaiCa!=='OFF')
+      .map(e=>`<div>${shortOffice(e.boPhan)} · <b>${e.caLam||''}</b></div>`).join('');
+    return`<tr><td style="text-align:left;padding-left:10px;font-weight:600;width:90px;">${thu[i]} ${fmtDisp(d)}</td><td>${content}</td></tr>`;
+  }).join('');
+  document.getElementById('nvWeekModalTitle').textContent=`📋 Lịch tuần — ${nv}`;
+  document.getElementById('nvWeekModalSub').textContent=`${fmtDisp(days[0])} – ${fmtDisp(days[days.length-1])}`;
+  document.getElementById('nvWeekModalBody').innerHTML=rowsHtml;
+  document.getElementById('nvWeekModal').classList.add('show');
+}
+function closeNvWeekModal(){
+  document.getElementById('nvWeekModal').classList.remove('show');
+}
+
+// ============================================================
+// XUẤT ẢNH tab Theo Văn Phòng — office=null xuất cả bảng, hoặc tên VP để xuất riêng 1 khối
+// ============================================================
+function exportOfficeImage(office){
+  if(typeof html2canvas==='undefined'){
+    alert('Không tải được thư viện xuất ảnh (html2canvas). Anh kiểm tra lại kết nối mạng rồi thử lại nhé.');
+    return;
+  }
+  const headHtml=document.getElementById('scheduleHead')?.innerHTML||'';
+  const rowsHtml=office ? (window.__officeBlocksHtml?.[office]||'') : document.getElementById('scheduleBody').innerHTML;
+  const rangeLabel=document.getElementById('weekRangeLabel')?.textContent||'';
+  const wrapper=document.createElement('div');
+  wrapper.style.cssText='position:fixed;left:-9999px;top:0;background:#ffffff;padding:18px;font-family:inherit;width:max-content;';
+  wrapper.innerHTML=`
+    <div style="font-size:14px;font-weight:700;margin-bottom:8px;color:#111;">🗓️ Lịch làm việc ${office?('— '+office):''} · ${rangeLabel}</div>
+    <table class="schedule-table" style="border-collapse:collapse;color:#111;">
+      <thead>${headHtml}</thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>`;
+  document.body.appendChild(wrapper);
+  html2canvas(wrapper,{backgroundColor:'#ffffff',scale:2}).then(canvas=>{
+    const link=document.createElement('a');
+    const safeName=(office||'TatCa').replace(/\s+/g,'_');
+    link.download=`Lich_${safeName}_${rangeLabel.replace(/\s+/g,'')}.png`;
+    link.href=canvas.toDataURL('image/png');
+    link.click();
+    document.body.removeChild(wrapper);
+  }).catch(err=>{
+    alert('Xuất ảnh lỗi, anh thử lại giúp em: '+err.message);
+    document.body.removeChild(wrapper);
+  });
 }
 
 // ============================================================
@@ -3784,6 +3920,7 @@ function switchView(v,btn){
   currentView=v;
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   btn.classList.add('active');
+  document.getElementById('officeExportAllBtn').style.display=(v==='office')?'inline-block':'none';
   renderSchedule();
 }
 
