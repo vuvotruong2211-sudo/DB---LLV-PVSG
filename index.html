@@ -2097,7 +2097,6 @@
           <button class="tab" onclick="switchView('month',this)">Tháng</button>
           <button class="tab" id="tabByShift" onclick="switchView('shift',this)">Theo Ca</button>
           <button class="tab" id="tabByOffice" onclick="switchView('office',this)">Theo Văn Phòng</button>
-          <button class="tab" id="officeExportAllBtn" onclick="exportOfficeImage(null)" style="display:none;">📸 Xuất cả bảng</button>
         </div>
       </div>
       <div id="shiftViewControls" style="display:none;padding:10px 18px;border-bottom:1px solid var(--border);align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
@@ -2105,6 +2104,7 @@
           <button type="button" class="tab" id="shiftSpan1" onclick="setShiftSpan(1)" style="font-size:11px;padding:6px 10px;">1 ngày</button>
           <button type="button" class="tab" id="shiftSpan3" onclick="setShiftSpan(3)" style="font-size:11px;padding:6px 10px;">3 ngày</button>
           <button type="button" class="tab active" id="shiftSpan7" onclick="setShiftSpan(7)" style="font-size:11px;padding:6px 10px;">Cả tuần</button>
+          <button type="button" class="admin-btn" onclick="goTomorrow()" style="font-size:11px;padding:6px 10px;background:var(--accent);color:#fff;">📅 Ngày mai</button>
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
           <button type="button" class="admin-btn" onclick="shiftSpanNav(-1)" style="padding:6px 10px;">◀</button>
@@ -3171,7 +3171,7 @@ function renderSchedule(){
     return ds>=wsDStr&&ds<=weDStr;
   });
   const shiftControls=document.getElementById('shiftViewControls');
-  if(currentView!=='shift'&&shiftControls)shiftControls.style.display='none';
+  if(currentView!=='shift'&&currentView!=='office'&&shiftControls)shiftControls.style.display='none';
   if(currentView==='week')renderWeekView(days,weekR);
   else if(currentView==='shift')renderShiftView(days,weekR);
   else if(currentView==='office')renderOfficeView(days,weekR);
@@ -3234,12 +3234,28 @@ function renderWeekView(days,weekRows){
 // cột = từng ngày, ô = tên NV làm khung giờ đó ngày đó.
 // B.Phận merge theo chiều dọc cho cả khối VP. Hàng OFF gộp chung ở cuối bảng.
 // ============================================================
-function renderOfficeView(days,weekRows){
-  window.__officeViewCtx={days,weekRows}; // lưu lại để dùng cho popup lịch tuần khi click tên NV
+function renderOfficeView(weekDaysIgnored,weekRowsIgnored){
   const head=document.getElementById('scheduleHead');
   const body=document.getElementById('scheduleBody');
   const empty=document.getElementById('scheduleEmpty');
   const thu=['T2','T3','T4','T5','T6','T7','CN'];
+  const controls=document.getElementById('shiftViewControls');
+  if(controls)controls.style.display='flex';
+
+  // Dùng chung độ rộng ngày (1/3/7) và điều hướng với tab Theo Ca — anh bấm "Ngày mai" hoặc
+  // đổi số ngày ở đây thì tab Theo Văn Phòng cũng theo đúng khoảng ngày đó.
+  if(!shiftAnchorDate)shiftAnchorDate=currentWeekStart;
+  const days=Array.from({length:shiftSpan},(_,i)=>addDays(shiftAnchorDate,i));
+  const wsDStr=fmtDate(days[0]),weDStr=fmtDate(days[days.length-1]);
+  const weekRows=filteredData.filter(r=>{
+    if(!r.date)return false;
+    const ds=fmtDate(r.date);
+    return ds>=wsDStr&&ds<=weDStr;
+  });
+  const label=document.getElementById('shiftSpanLabel');
+  if(label)label.textContent=shiftSpan===1?fmtDisp(days[0]):(fmtDisp(days[0])+' → '+fmtDisp(days[days.length-1]));
+
+  window.__officeViewCtx={days,weekRows}; // lưu lại để dùng cho popup lịch tuần khi click tên NV
 
   const DIV='border-left:1px solid var(--border);';
   head.innerHTML=`<tr>
@@ -3515,6 +3531,14 @@ function setShiftSpan(n){
 function shiftSpanNav(dir){
   const base=shiftAnchorDate||currentWeekStart;
   shiftAnchorDate=addDays(base,dir*shiftSpan);
+  renderSchedule();
+}
+function goTomorrow(){
+  // Xem nhanh lịch NGÀY MAI — hữu ích cho NV/quản lý muốn biết ngay mai mình/VP nào làm gì
+  shiftSpan=1;
+  ['1','3','7'].forEach(s=>document.getElementById('shiftSpan'+s)?.classList.remove('active'));
+  document.getElementById('shiftSpan1')?.classList.add('active');
+  shiftAnchorDate=addDays(new Date(),1);
   renderSchedule();
 }
 
@@ -3920,7 +3944,6 @@ function switchView(v,btn){
   currentView=v;
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   btn.classList.add('active');
-  document.getElementById('officeExportAllBtn').style.display=(v==='office')?'inline-block':'none';
   renderSchedule();
 }
 
