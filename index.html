@@ -1122,8 +1122,9 @@
         </div>
         <div style="font-size:10.5px;color:var(--text3);margin:-8px 0 12px;">Hướng THU/CHI tự động chọn theo "Phân loại giao dịch" bên dưới — vẫn có thể bấm đổi lại tay nếu cần.</div>
 
-        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Nhân viên giao dịch</label>
-        <select id="thuChiFormNV"></select>
+        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Nhân viên giao dịch <span style="color:var(--text3);font-weight:400;">(khoá theo tài khoản đang đăng nhập — không thể đổi, để tránh nhập giùm/gian lận)</span></label>
+        <input type="text" id="thuChiFormNV" readonly disabled style="background:var(--surface2);opacity:.85;cursor:not-allowed;">
+        <input type="hidden" id="thuChiFormNVReal">
 
         <div class="thuchi-form-row">
           <div>
@@ -1233,11 +1234,16 @@
 
       <!-- TAB: KIỂM SOÁT D-1 (chỉ Quản lý mới thấy) -->
       <div id="thuChiPaneKiemSoat" style="display:none;">
+        <div style="font-size:11px;color:var(--text3);line-height:1.6;margin-bottom:12px;padding:10px 12px;background:var(--surface2);border-radius:8px;">
+          <strong style="color:var(--text2);">Tab này là gì:</strong> đây là bảng soát nhanh trên web — mở lên là thấy ngay giao dịch của ngày anh chọn (mặc định hôm qua = D-1), tự nhóm theo từng NV, tự nhắc những khoản "chưa phân loại" hoặc thiếu ảnh cần hỏi lại NV. Đây chỉ là <strong>xem nhanh</strong>, không thay được việc anh tự đối chiếu bằng công thức.
+          <br><strong style="color:var(--text2);">Muốn tự chạy công thức đối chiếu (Excel/Google Sheet):</strong> bấm nút "⬇️ Tải Excel" bên dưới để tải đúng dữ liệu ngày đang xem về máy, mở bằng Excel là chạy Pivot/VLOOKUP thoải mái. Hoặc mở thẳng Google Sheet gốc chứa Thu-Chi (không phải qua web app này) — mọi giao dịch nằm ở đó, anh muốn tải nguyên tháng/quý cũng được, không giới hạn theo ngày như tab này.
+        </div>
         <div class="ks-toolbar">
           <button type="button" class="ks-nav-btn" onclick="shiftThuChiKSDate(-1)">‹ Hôm trước</button>
           <input type="date" id="thuChiKSDate">
           <button type="button" class="ks-nav-btn" onclick="shiftThuChiKSDate(1)">Hôm sau ›</button>
           <button type="button" class="tab" style="font-size:11px;padding:8px 12px;" onclick="loadThuChiKiemSoat()">🔄 Soát sổ</button>
+          <button type="button" class="tab" style="font-size:11px;padding:8px 12px;background:var(--accent);color:#fff;" onclick="downloadThuChiKSExcel()">⬇️ Tải Excel</button>
           <span class="ks-today-tag" id="thuChiKSTag"></span>
         </div>
 
@@ -4641,7 +4647,10 @@ let thuChiFormNhomManual=false; // true nếu NV tự tay chọn lại "Phân lo
 // VÀ cho dashboard Kiểm soát D-1 (tự phân loại lại noiDung trả về từ báo cáo,
 // không phụ thuộc field phanLoai THU/CHI cũ của backend).
 // ============================================================
-const THUCHI_CATS=[
+// Danh mục phân loại MẶC ĐỊNH — chỉ dùng làm lưới an toàn (fallback) nếu chưa tải được
+// cấu hình từ server, hoặc lần đầu app chạy trước khi kịp gọi API. Nguồn thật để anh
+// chỉnh sửa là sheet "CauHinhPhanLoaiThuChi" (xem action getPhanLoaiThuChiConfig).
+const THUCHI_CATS_MAC_DINH=[
   {id:'CK_VE',    label:'CK tiền vé → trừ khỏi doanh thu NV',   group:'THU', color:'#10b981', re:/^\s*v[eé]\s*ck\b/i},
   {id:'CK_HANG',  label:'CK tiền hàng → chuyển TK công ty',      group:'THU', color:'#22c55e', re:/^\s*h[aà]ng\s*ck\b/i},
   {id:'VE_SINH',  label:'Vệ sinh/Rác',                           group:'CHI', color:'#64748b', re:/r[aá]c/i},
@@ -4654,6 +4663,29 @@ const THUCHI_CATS=[
   {id:'VAN_HANH', label:'Vận hành xe (thu/chi xe)',               group:'CHI', color:'#6366f1', re:/xe\s*ra\b|v[aậ]n\s*h[aà]nh\s*xe/i},
   {id:'CHUA_PL',  label:'Chưa phân loại - cần kiểm tra',          group:'CHI', color:'#f43f5e', re:null}
 ];
+// THUCHI_CATS là danh mục ĐANG DÙNG THỰC TẾ — khởi tạo = mặc định, sẽ được ghi đè
+// bằng cấu hình thật từ Google Sheet ngay khi mở modal Thu-Chi (xem loadThuChiCatsConfig()).
+let THUCHI_CATS=THUCHI_CATS_MAC_DINH;
+const THUCHI_CAT_COLORS=['#10b981','#22c55e','#64748b','#f59e0b','#ef4444','#a855f7','#0ea5e9','#eab308','#14b8a6','#6366f1','#f43f5e','#8b5cf6','#06b6d4','#84cc16'];
+function escapeRegexThuChi_(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
+// Tải cấu hình phân loại thật từ sheet "CauHinhPhanLoaiThuChi" (anh tự sửa trong đó).
+// Nếu lỗi mạng hoặc sheet trống -> im lặng giữ nguyên bộ mặc định, KHÔNG làm vỡ form nhập liệu.
+async function loadThuChiCatsConfig(){
+  if(!CONFIG.payrollUrl)return;
+  try{
+    const url=CONFIG.payrollUrl+'?action=getPhanLoaiThuChiConfig';
+    const json=await fetchJSONP(url);
+    if(json.status!=='ok'||!Array.isArray(json.data)||!json.data.length)return;
+    THUCHI_CATS=json.data.map((c,idx)=>({
+      id:c.id, label:c.label, group:c.group==='THU'?'THU':'CHI',
+      color:THUCHI_CAT_COLORS[idx%THUCHI_CAT_COLORS.length],
+      re:(c.keywords&&c.keywords.length)?new RegExp('('+c.keywords.map(escapeRegexThuChi_).join('|')+')','i'):null
+    }));
+    populateThuChiNhomSelect(); // đổ lại dropdown nếu modal đang mở với danh mục mới tải được
+  }catch(e){
+    // Giữ nguyên THUCHI_CATS_MAC_DINH, không throw để không chặn luồng mở modal.
+  }
+}
 function classifyThuChiText(text){
   const t=String(text||'').trim();
   if(!t)return THUCHI_CATS[THUCHI_CATS.length-1];
@@ -4685,14 +4717,8 @@ async function openThuChiModal(){
   document.getElementById('thuChiNVInput').value='';
   document.getElementById('thuChiNVSelect').innerHTML='';
   populateThuChiNhomSelect();
+  loadThuChiCatsConfig(); // tải cấu hình phân loại thật từ Google Sheet (không chặn UI, chạy nền)
   await populateNVPicker('thuChi');
-
-  // Đổ option đầy đủ cho select "thuChiFormNV" (chọn nhập hộ ai trong form nhập giao dịch)
-  // — vẫn là dropdown bình thường, lấy nguồn từ masterNVFullList (đã cache ở populateNVPicker)
-  const fullNVOptions=(masterNVFullList.length?masterNVFullList.map(o=>o.ten):[...new Set(allData.map(r=>r.nv))].sort())
-    .map(n=>`<option value="${n}">${n}</option>`).join('');
-  const formNVSelInit=document.getElementById('thuChiFormNV');
-  if(formNVSelInit)formNVSelInit.innerHTML=fullNVOptions;
 
   document.getElementById('thuChiPasscodeInput').value='';
   document.getElementById('thuChiLoginErr').style.display='none';
@@ -4702,9 +4728,11 @@ async function openThuChiModal(){
   if(ksDateEl&&!ksDateEl.value)ksDateEl.value=fmtDate(ksDateInit);
 
   if(thuChiUser){
-    // Đã đăng nhập trong phiên này rồi -> vào thẳng nội dung, không hỏi lại passcode
-    document.getElementById('thuChiFormNV').innerHTML=sel.innerHTML;
+    // Đã đăng nhập trong phiên này rồi -> vào thẳng nội dung, không hỏi lại passcode.
+    // Ô "Nhân viên giao dịch" LUÔN khoá cứng = người vừa đăng nhập, không có cách nào đổi
+    // sang tên khác từ giao diện — chặn tận gốc việc nhập giùm / mượn tên gây gian lận.
     document.getElementById('thuChiFormNV').value=thuChiUser.nv;
+    document.getElementById('thuChiFormNVReal').value=thuChiUser.nv;
     showThuChiContent();
   }else{
     showThuChiLogin();
@@ -5474,7 +5502,10 @@ function showThuChiMsg(type, text){
   msg.style.display='none';
   if(!thuChiUser){showThuChiMsg('error','❌ Phiên đăng nhập đã hết, vui lòng mở lại.');return;}
 
-  const tenGiaoDich=document.getElementById('thuChiFormNV').value;
+  // Không đọc tên NV từ DOM (dù ô đó đã khoá readonly/disabled) — luôn lấy thẳng từ
+  // thuChiUser.nv (biến JS, chỉ set được qua đăng nhập passcode hợp lệ) để không ai
+  // có thể sửa được bằng DevTools/console rồi gửi giùm tên người khác.
+  const tenGiaoDich=thuChiUser.nv;
   const ngay=document.getElementById('thuChiFormNgay').value;
   const soTien=document.getElementById('thuChiFormSoTien').value;
   const noiDung=document.getElementById('thuChiFormNoiDung').value.trim();
@@ -5640,6 +5671,40 @@ function renderThuChiReportTable(){
 // THUCHI_CATS -> không phụ thuộc field phanLoai THU/CHI cũ, luôn khớp thực tế sổ cái.
 // ============================================================
 const THUCHI_ANH_BAT_BUOC_TU=200000; // khoản CHI từ mức này trở lên mà thiếu ảnh bằng chứng -> gắn cờ
+let thuChiKSLastRows=null;   // dữ liệu ngày đang xem (đã phân loại) — dùng để xuất Excel/CSV
+let thuChiKSLastDateStr='';  // ngày đang xem, dùng đặt tên file khi tải
+
+// Xuất đúng dữ liệu ngày đang xem ra file .csv (mở trực tiếp bằng Excel, có kèm BOM để
+// hiển thị đúng tiếng Việt) — để anh tự kéo Pivot Table / viết công thức đối chiếu riêng,
+// không phụ thuộc vào cách tính điểm kiểm soát có sẵn trên web.
+function downloadThuChiKSExcel(){
+  if(!thuChiKSLastRows||!thuChiKSLastRows.length){
+    alert('Chưa có dữ liệu để tải — bấm "Soát sổ" trước đã anh nhé.');
+    return;
+  }
+  const headers=['Ngày','Nhân viên','Khu vực','Phân loại','Hướng THU/CHI','Nội dung','Số tiền','Tuyến','Có ảnh bằng chứng'];
+  const csvEscape=v=>{
+    const s=String(v==null?'':v);
+    return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+  };
+  const lines=[headers.map(csvEscape).join(',')];
+  thuChiKSLastRows.forEach(r=>{
+    lines.push([
+      r.ngay, r.nv, r.khuVuc||'', r.cat.label, r.cat.group,
+      r.noiDung, r.soTien, r.tuyen||'', r.linkAnh?'Có':'Không'
+    ].map(csvEscape).join(','));
+  });
+  const csvContent='\uFEFF'+lines.join('\r\n'); // \uFEFF = BOM, để Excel hiển thị đúng dấu tiếng Việt
+  const blob=new Blob([csvContent],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download='ThuChi_KiemSoat_'+(thuChiKSLastDateStr||fmtDate(new Date()))+'.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
 function shiftThuChiKSDate(days){
   const el=document.getElementById('thuChiKSDate');
@@ -5676,6 +5741,7 @@ async function loadThuChiKiemSoat(){
 
 function renderThuChiKiemSoat(rows, dateStr){
   const listEl=document.getElementById('thuChiKSList');
+  thuChiKSLastDateStr=dateStr; // lưu lại để nút Tải Excel biết đang xem ngày nào
 
   // Gom theo nhân viên, mỗi dòng tự phân loại lại theo noiDung (đúng thực tế sổ cái)
   const byNV={};
@@ -5685,6 +5751,7 @@ function renderThuChiKiemSoat(rows, dateStr){
     const cat=classifyThuChiText(r.noiDung);
     byNV[nv].push({...r, cat});
   });
+  thuChiKSLastRows=Object.values(byNV).flat(); // lưu bản đã phân loại để xuất Excel/CSV
 
   const nvNames=Object.keys(byNV);
   if(!nvNames.length){
