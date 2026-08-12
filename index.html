@@ -3797,8 +3797,12 @@ function showNvWeek(nv){
     const ds=fmtDate(d);
     const entries=weekRows.filter(r=>r.nv===nv&&fmtDate(r.date)===ds);
     const isOff=!entries.length||entries.every(e=>e.boPhan==='OFF'||e.loaiCa==='OFF');
+    // Đồng bộ khoá D+2 với bảng chính: NV thường không được xem trước ca thật của ngày > D+2,
+    // trừ khi ngày đó là OFF (nghỉ phép đã duyệt) — isDateLocked đã tự xử lý ngoại lệ này.
+    const locked=isDateLocked(d, nv);
     let content;
-    if(!entries.length)content=`<span style="color:var(--text3);">—</span>`;
+    if(locked)content=`<span style="color:var(--text3);">🔒 Chưa công bố</span>`;
+    else if(!entries.length)content=`<span style="color:var(--text3);">—</span>`;
     else if(isOff)content=`<span style="color:#dc2626;font-weight:700;">OFF</span>`;
     else content=entries.filter(e=>e.boPhan!=='OFF'&&e.loaiCa!=='OFF')
       .map(e=>`<div>${shortOffice(e.boPhan)} · <b>${e.caLam||''}</b></div>`).join('');
