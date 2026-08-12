@@ -2827,6 +2827,20 @@ document.addEventListener('keydown',(e)=>{
 // isDateLocked: khoá ngày tương lai xa (> D+2) với NV thường
 // NGOẠI LỆ DUY NHẤT: ngày đó có dòng OFF (nghỉ phép đã duyệt) → hiện OFF, không lock
 // Ca thật tương lai (Ca Sáng/Tối/...) vẫn lock — NV không được xem lịch chưa công bố
+// Cache tra cứu "NV nào OFF ngày nào" dạng Set để isDateLocked không phải quét lại
+// toàn bộ filteredData mỗi lần gọi (tab Theo Văn Phòng gọi hàm này rất nhiều lần/lần render
+// — mỗi ô 1 lần — nên nếu để quét mảng từng lần sẽ rất chậm khi data nhiều tháng/năm).
+let __offLockCache={data:null,set:null};
+function getOffLockSet(){
+  if(__offLockCache.data!==filteredData){
+    const s=new Set();
+    filteredData.forEach(r=>{
+      if(r.loaiCa==='OFF'&&r.nv&&r.date)s.add(r.nv+'|'+fmtDate(r.date));
+    });
+    __offLockCache={data:filteredData,set:s};
+  }
+  return __offLockCache.set;
+}
 function isDateLocked(d, nvName){
   if(currentUser&&currentUser.isManager)return false;
   const today=new Date();today.setHours(0,0,0,0);
@@ -2836,10 +2850,7 @@ function isDateLocked(d, nvName){
   // Chỉ unlock nếu NV đó có dòng OFF đúng ngày này (nghỉ phép đã được duyệt)
   if(nvName){
     const ds=fmtDate(dd);
-    const hasOff=filteredData.some(r=>
-      r.nv===nvName && r.date && fmtDate(r.date)===ds && r.loaiCa==='OFF'
-    );
-    if(hasOff)return false;
+    if(getOffLockSet().has(nvName+'|'+ds))return false;
   }
   return true;
 }
@@ -3589,17 +3600,19 @@ function renderOfficeView(weekDaysIgnored,weekRowsIgnored){
   // NV thường chỉ thấy lịch của chính mình — Quản lý thấy tất cả
   const isMgr=currentUser&&currentUser.isManager;
   const myNv=currentUser?currentUser.nv:'';
-  const visibleNvs=isMgr?[...new Set(weekRows.map(r=>r.nv))]:[myNv];
+  const visibleNvsArr=isMgr?[...new Set(weekRows.map(r=>r.nv))]:[myNv];
+  const visibleNvs=new Set(visibleNvsArr); // Set để tra cứu O(1) thay vì .includes() O(n) mỗi dòng
   const dsList=days.map(d=>fmtDate(d));
+  const dsSet=new Set(dsList);
 
   // Gom theo VP (boPhan) -> theo ngày -> danh sách NV làm ca hôm đó (không tính OFF),
   // mỗi ngày sắp theo giờ bắt đầu ca để hàng nào cũng thẳng theo trình tự thời gian trong ngày.
   const byOffice={};
   weekRows.forEach(r=>{
-    if(!r.nv||!visibleNvs.includes(r.nv))return;
+    if(!r.nv||!visibleNvs.has(r.nv))return;
     if(!r.boPhan||r.boPhan==='OFF'||r.loaiCa==='OFF')return;
     const ds=fmtDate(r.date);
-    if(!dsList.includes(ds))return;
+    if(!dsSet.has(ds))return;
     if(!byOffice[r.boPhan])byOffice[r.boPhan]={};
     if(!byOffice[r.boPhan][ds])byOffice[r.boPhan][ds]=[];
     byOffice[r.boPhan][ds].push(r);
@@ -3609,10 +3622,10 @@ function renderOfficeView(weekDaysIgnored,weekRowsIgnored){
   // hay xảy ra chéo giữa 2 VP khác nhau.
   const nvDateEntries={};
   weekRows.forEach(r=>{
-    if(!r.nv||!visibleNvs.includes(r.nv))return;
+    if(!r.nv||!visibleNvs.has(r.nv))return;
     if(!r.boPhan||r.boPhan==='OFF'||r.loaiCa==='OFF')return;
     const ds=fmtDate(r.date);
-    if(!dsList.includes(ds))return;
+    if(!dsSet.has(ds))return;
     const k=r.nv+'|'+ds;
     if(!nvDateEntries[k])nvDateEntries[k]=[];
     nvDateEntries[k].push(r);
@@ -3742,7 +3755,7 @@ function renderOfficeView(weekDaysIgnored,weekRowsIgnored){
   const totalCellsHtml=dsList.map(ds=>{
     const set=new Set();
     weekRows.forEach(r=>{
-      if(!r.nv||!visibleNvs.includes(r.nv))return;
+      if(!r.nv||!visibleNvs.has(r.nv))return;
       if(!r.boPhan||r.boPhan==='OFF'||r.loaiCa==='OFF')return;
       if(fmtDate(r.date)!==ds)return;
       set.add(r.nv);
@@ -3757,10 +3770,10 @@ function renderOfficeView(weekDaysIgnored,weekRowsIgnored){
   // Hàng OFF gộp chung toàn công ty ở cuối bảng — giống ảnh mẫu, khỏi lặp OFF theo từng VP
   const offByDate={};
   weekRows.forEach(r=>{
-    if(!r.nv||!visibleNvs.includes(r.nv))return;
+    if(!r.nv||!visibleNvs.has(r.nv))return;
     if(r.boPhan!=='OFF'&&r.loaiCa!=='OFF')return;
     const ds=fmtDate(r.date);
-    if(!dsList.includes(ds))return;
+    if(!dsSet.has(ds))return;
     if(!offByDate[ds])offByDate[ds]=[];
     offByDate[ds].push(r.nv);
   });
