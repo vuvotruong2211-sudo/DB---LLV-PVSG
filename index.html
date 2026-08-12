@@ -28,7 +28,11 @@
   (function(){
     try{
       const t=localStorage.getItem('llv_theme');
-      if(t==='light')document.documentElement.setAttribute('data-theme','light');
+      let resolved=t;
+      if(t==='auto'){
+        resolved=(window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';
+      }
+      if(resolved==='light'||resolved==='sepia')document.documentElement.setAttribute('data-theme',resolved);
     }catch(e){}
     try{
       const s=localStorage.getItem('llv_skin');
@@ -37,42 +41,42 @@
   })();
 </script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Manrope:wght@600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
   :root {
-    --bg:#0f1117; --surface:#1a1d27; --surface2:#222535; --border:#2e3148;
-    --accent:#4f6ef7; --accent2:#7c3aed;
+    --bg:#0d0f14; --surface:#171a22; --surface2:#1e222d; --border:#2a2f3d;
+    --accent:#3355d8; --accent2:#0ea5a0;
     --green:#10b981; --amber:#f59e0b; --red:#ef4444; --purple:#8b5cf6; --blue:#3b82f6;
-    --text:#e2e8f0; --text2:#94a3b8; --text3:#64748b;
+    --text:#e7eaf1; --text2:#96a0b5; --text3:#66708a;
     --ca-sang:#10b981; --ca-toi:#f59e0b; --ca-lo:#3b82f6; --truc-dem:#8b5cf6; --off:#475569;
     /* ===== LIQUID GLASS — biến hiệu ứng kính (Apple iOS 26 / macOS Tahoe style) ===== */
-    --glass-bg: rgba(255,255,255,0.06);
-    --glass-bg-strong: rgba(255,255,255,0.10);
-    --glass-border: rgba(255,255,255,0.16);
-    --glass-highlight: rgba(255,255,255,0.35);
-    --glass-shadow: rgba(0,0,0,0.45);
+    --glass-bg: rgba(255,255,255,0.05);
+    --glass-bg-strong: rgba(255,255,255,0.09);
+    --glass-border: rgba(255,255,255,0.14);
+    --glass-highlight: rgba(255,255,255,0.32);
+    --glass-shadow: rgba(0,0,0,0.48);
     --glass-blur: 22px;
     --glass-blur-light: 14px;
-    --glass-bg-orb1: rgba(79,110,247,0.55);
-    --glass-bg-orb2: rgba(124,58,237,0.45);
-    --glass-bg-orb3: rgba(16,185,129,0.30);
+    --glass-bg-orb1: rgba(51,85,216,0.50);
+    --glass-bg-orb2: rgba(14,165,160,0.40);
+    --glass-bg-orb3: rgba(16,185,129,0.24);
   }
   [data-theme="light"] {
-    --bg:#f4f5f9; --surface:#ffffff; --surface2:#eef0f5; --border:#dde1ea;
-    --accent:#4f6ef7; --accent2:#7c3aed;
+    --bg:#f3f4f8; --surface:#ffffff; --surface2:#eef0f5; --border:#dde1ea;
+    --accent:#2f4fc4; --accent2:#0d8f89;
     --green:#0f9d6e; --amber:#d97706; --red:#dc2626; --purple:#7c3aed; --blue:#2563eb;
-    --text:#1c2030; --text2:#525a72; --text3:#8a92a8;
+    --text:#1a1e2b; --text2:#525a72; --text3:#8a92a8;
     --ca-sang:#0f9d6e; --ca-toi:#d97706; --ca-lo:#2563eb; --truc-dem:#7c3aed; --off:#94a3b8;
     /* ===== LIQUID GLASS — bản sáng: kính trắng mờ trên nền sáng ===== */
     --glass-bg: rgba(255,255,255,0.55);
     --glass-bg-strong: rgba(255,255,255,0.72);
     --glass-border: rgba(255,255,255,0.65);
     --glass-highlight: rgba(255,255,255,0.85);
-    --glass-shadow: rgba(30,40,70,0.14);
+    --glass-shadow: rgba(30,40,70,0.13);
     --glass-blur: 22px;
     --glass-blur-light: 14px;
-    --glass-bg-orb1: rgba(79,110,247,0.18);
-    --glass-bg-orb2: rgba(124,58,237,0.14);
-    --glass-bg-orb3: rgba(16,185,129,0.12);
+    --glass-bg-orb1: rgba(47,79,196,0.16);
+    --glass-bg-orb2: rgba(13,143,137,0.13);
+    --glass-bg-orb3: rgba(16,185,129,0.10);
   }
 
   /* ===== LIQUID GLASS — SKIN (bảng màu) — đổi cảm giác kính mà không đổi cấu trúc =====
@@ -147,6 +151,69 @@
     --glass-bg-orb1: rgba(34,211,238,0.20);
     --glass-bg-orb2: rgba(217,70,239,0.16);
     --glass-bg-orb3: rgba(163,230,53,0.14);
+  }
+  [data-skin="ruby"] {
+    --accent:#dc2626; --accent2:#f43f5e;
+    --glass-bg-orb1: rgba(220,38,38,0.55);
+    --glass-bg-orb2: rgba(244,63,94,0.40);
+    --glass-bg-orb3: rgba(251,113,133,0.28);
+  }
+  [data-theme="light"][data-skin="ruby"] {
+    --glass-bg-orb1: rgba(220,38,38,0.16);
+    --glass-bg-orb2: rgba(244,63,94,0.13);
+    --glass-bg-orb3: rgba(251,113,133,0.11);
+  }
+  [data-skin="gold"] {
+    --accent:#d97706; --accent2:#eab308;
+    --ca-sang:#0f9d6e; --ca-toi:#eab308; --ca-lo:#3b82f6; --truc-dem:#8b5cf6;
+    --glass-bg-orb1: rgba(217,119,6,0.50);
+    --glass-bg-orb2: rgba(234,179,8,0.40);
+    --glass-bg-orb3: rgba(252,211,77,0.28);
+  }
+  [data-theme="light"][data-skin="gold"] {
+    --glass-bg-orb1: rgba(217,119,6,0.16);
+    --glass-bg-orb2: rgba(234,179,8,0.13);
+    --glass-bg-orb3: rgba(252,211,77,0.11);
+  }
+  [data-skin="sky"] {
+    --accent:#0ea5e9; --accent2:#38bdf8;
+    --glass-bg-orb1: rgba(14,165,233,0.50);
+    --glass-bg-orb2: rgba(56,189,248,0.38);
+    --glass-bg-orb3: rgba(125,211,252,0.26);
+  }
+  [data-theme="light"][data-skin="sky"] {
+    --glass-bg-orb1: rgba(14,165,233,0.16);
+    --glass-bg-orb2: rgba(56,189,248,0.13);
+    --glass-bg-orb3: rgba(125,211,252,0.11);
+  }
+  [data-skin="graphite"] {
+    --accent:#334155; --accent2:#64748b;
+    --glass-bg-orb1: rgba(51,65,85,0.45);
+    --glass-bg-orb2: rgba(100,116,139,0.35);
+    --glass-bg-orb3: rgba(148,163,184,0.22);
+  }
+  [data-theme="light"][data-skin="graphite"] {
+    --glass-bg-orb1: rgba(51,65,85,0.12);
+    --glass-bg-orb2: rgba(100,116,139,0.10);
+    --glass-bg-orb3: rgba(148,163,184,0.09);
+  }
+  /* ===== CHẾ ĐỘ SÁNG/TỐI MỞ RỘNG — thêm "Dịu mắt" (ấm, giảm chói ban đêm) ===== */
+  [data-theme="sepia"] {
+    --bg:#1b140d; --surface:#261c12; --surface2:#302418; --border:#42311f;
+    --accent:#d9a441; --accent2:#c2703a;
+    --green:#8fae5a; --amber:#d9a441; --red:#c85c4a; --purple:#a8825a; --blue:#c2703a;
+    --text:#ecdcc4; --text2:#b8a180; --text3:#84714f;
+    --ca-sang:#8fae5a; --ca-toi:#d9a441; --ca-lo:#c2703a; --truc-dem:#a8825a; --off:#6b5c42;
+    --glass-bg: rgba(217,164,65,0.06);
+    --glass-bg-strong: rgba(217,164,65,0.10);
+    --glass-border: rgba(217,164,65,0.16);
+    --glass-highlight: rgba(236,220,196,0.22);
+    --glass-shadow: rgba(0,0,0,0.5);
+    --glass-blur: 22px;
+    --glass-blur-light: 14px;
+    --glass-bg-orb1: rgba(217,164,65,0.35);
+    --glass-bg-orb2: rgba(194,112,58,0.28);
+    --glass-bg-orb3: rgba(143,174,90,0.18);
   }
   *{margin:0;padding:0;box-sizing:border-box;}
   html{font-size:14px;}
@@ -228,6 +295,39 @@
     border-radius:10px;color:var(--text);font-size:16px;cursor:pointer;transition:all .2s;
   }
   .theme-btn:hover{background:var(--accent);border-color:var(--accent);}
+  .header-right{display:flex;align-items:center;gap:16px;}
+  .header-group{display:flex;align-items:center;gap:8px;}
+  .header-divider{width:1px;align-self:stretch;background:var(--glass-border);margin:2px 0;}
+  .last-sync-text{font-size:11px;color:var(--text3);white-space:nowrap;}
+  .sync-btn{height:38px;box-sizing:border-box;}
+  .user-badge{
+    display:none;align-items:center;gap:8px;font-size:12px;font-weight:600;height:38px;box-sizing:border-box;
+    background:var(--glass-bg);backdrop-filter:blur(var(--glass-blur-light));-webkit-backdrop-filter:blur(var(--glass-blur-light));
+    border:1px solid var(--glass-border);box-shadow:0 2px 10px var(--glass-shadow), inset 0 1px 0 var(--glass-highlight);
+    border-radius:20px;padding:0 12px;color:var(--text);
+  }
+  .user-badge-close{cursor:pointer;color:var(--text3);}
+  .user-badge-close:hover{color:var(--red);}
+  /* ===== Panel chọn bảng màu giao diện — thay cho 7 chấm tròn không tên trước đây ===== */
+  .skin-panel{
+    display:none;position:absolute;top:120%;right:0;z-index:50;
+    background:var(--glass-bg-strong);backdrop-filter:blur(var(--glass-blur)) saturate(180%);-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(180%);
+    border:1px solid var(--glass-border);border-radius:14px;padding:8px;min-width:190px;
+    box-shadow:0 12px 32px var(--glass-shadow), inset 0 1px 0 var(--glass-highlight);
+  }
+  .skin-panel.show{display:flex;flex-direction:column;gap:2px;}
+  .skin-panel-title{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.6px;text-transform:uppercase;color:var(--text3);padding:4px 8px 8px;}
+  .skin-option{
+    display:flex;align-items:center;gap:10px;width:100%;border:none;background:transparent;
+    padding:8px;border-radius:9px;cursor:pointer;text-align:left;transition:background .15s;
+  }
+  .skin-option:hover{background:var(--surface2);}
+  .skin-option.selected{background:var(--surface2);}
+  .skin-swatch{width:20px;height:20px;border-radius:50%;flex:none;box-shadow:inset 0 0 0 1px rgba(255,255,255,.25);}
+  .skin-name{flex:1;font-size:12.5px;font-weight:500;color:var(--text);}
+  .skin-name em{font-style:normal;color:var(--text3);font-size:10.5px;margin-left:4px;}
+  .skin-check{width:14px;font-size:12px;color:var(--accent);opacity:0;flex:none;}
+  .skin-option.selected .skin-check{opacity:1;}
   .admin-btn{
     display:flex;align-items:center;gap:6px;
     background:var(--glass-bg);backdrop-filter:blur(var(--glass-blur-light));-webkit-backdrop-filter:blur(var(--glass-blur-light));
@@ -265,9 +365,18 @@
     background:linear-gradient(135deg, var(--glass-highlight) 0%, transparent 30%, transparent 70%, rgba(255,255,255,0.06) 100%);
     opacity:.45;mix-blend-mode:overlay;
   }
-  .modal-title{font-size:15px;font-weight:600;margin-bottom:6px;}
+  .modal-title{font-family:'Manrope',sans-serif;font-size:16px;font-weight:700;letter-spacing:-.2px;margin-bottom:6px;}
+  /* ===== Nhãn kiểu "màn hình số" (terminal/LCD) — đồng bộ với logo & bảng KPI đã duyệt =====
+     Chỉ thêm font-family/letter-spacing, KHÔNG đổi màu/kích thước/margin đã khai báo ở nơi khác. */
+  .payslip-section-title,.thuchi-kpi-label,.thuchi-table th,.qr-panel-title,
+  .nghiphep-table th,.config-group label,.kpi-label,.more-sheet-title,
+  .attendance-table th{
+    font-family:'JetBrains Mono',monospace;letter-spacing:.6px;
+  }
   .modal-sub{font-size:12px;color:var(--text3);margin-bottom:16px;}
-  .modal-box input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:10px 12px;color:var(--text);font-size:16px;text-align:center;letter-spacing:4px;font-family:'Inter',sans-serif;outline:none;margin-bottom:12px;}
+  .modal-box input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:10px 12px;color:var(--text);font-size:14px;text-align:left;font-family:'Inter',sans-serif;outline:none;margin-bottom:12px;}
+  /* Chỉ ô Passcode 6 số (maxlength=6) mới căn giữa + giãn chữ — KHÔNG áp cho ô ngày/SĐT/tìm kiếm */
+  .modal-box input[maxlength="6"]{font-size:16px;text-align:center;letter-spacing:4px;}
   .modal-box input:focus{border-color:var(--accent);}
   .modal-actions{display:flex;gap:8px;}
   .modal-actions button{flex:1;border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;}
@@ -953,28 +1062,107 @@
       <div class="hsub">Vận tải hành khách & hàng hoá · HCM – QN · HCM – ĐL</div>
     </div>
   </div>
-  <div style="display:flex;gap:10px;align-items:center;">
-    <div id="lastSync" style="font-size:11px;color:var(--text3);">Chưa đồng bộ</div>
-    <button class="sync-btn" onclick="loadData()">
-      <div class="sync-dot"></div>
-      <span>Đồng bộ</span>
-    </button>
-    <div style="position:relative;">
-      <button class="theme-btn" id="skinBtn" onclick="toggleSkinPanel()" title="Đổi bảng màu giao diện">🎨</button>
-      <div id="skinPanel" style="display:none;position:absolute;top:120%;right:0;z-index:50;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:8px;gap:6px;box-shadow:0 8px 24px rgba(0,0,0,.25);flex-wrap:wrap;max-width:150px;">
-        <button onclick="setSkin('aurora')" title="Aurora (mặc định)" style="width:22px;height:22px;border-radius:50%;border:2px solid var(--border);background:linear-gradient(135deg,#4f6ef7,#7c3aed);cursor:pointer;margin:0 3px;"></button>
-        <button onclick="setSkin('sunset')" title="Sunset" style="width:22px;height:22px;border-radius:50%;border:2px solid var(--border);background:linear-gradient(135deg,#f97316,#ec4899);cursor:pointer;margin:0 3px;"></button>
-        <button onclick="setSkin('ocean')" title="Ocean" style="width:22px;height:22px;border-radius:50%;border:2px solid var(--border);background:linear-gradient(135deg,#06b6d4,#22c55e);cursor:pointer;margin:0 3px;"></button>
-        <button onclick="setSkin('mono')" title="Mono" style="width:22px;height:22px;border-radius:50%;border:2px solid var(--border);background:linear-gradient(135deg,#64748b,#94a3b8);cursor:pointer;margin:0 3px;"></button>
-        <button onclick="setSkin('candy')" title="Candy" style="width:22px;height:22px;border-radius:50%;border:2px solid var(--border);background:linear-gradient(135deg,#ec4899,#a78bfa);cursor:pointer;margin:0 3px;"></button>
-        <button onclick="setSkin('forest')" title="Forest" style="width:22px;height:22px;border-radius:50%;border:2px solid var(--border);background:linear-gradient(135deg,#16a34a,#84cc16);cursor:pointer;margin:0 3px;"></button>
-        <button onclick="setSkin('neon')" title="Neon" style="width:22px;height:22px;border-radius:50%;border:2px solid var(--border);background:linear-gradient(135deg,#22d3ee,#d946ef);cursor:pointer;margin:0 3px;"></button>
+  <div class="header-right">
+    <div class="header-group">
+      <div id="lastSync" class="last-sync-text">Chưa đồng bộ</div>
+      <button class="sync-btn" onclick="loadData()">
+        <div class="sync-dot"></div>
+        <span>Đồng bộ</span>
+      </button>
+    </div>
+    <div class="header-divider"></div>
+    <div class="header-group">
+      <div style="position:relative;">
+        <button class="theme-btn" id="skinBtn" onclick="toggleSkinPanel()" title="Đổi bảng màu giao diện">🎨</button>
+        <div id="skinPanel" class="skin-panel">
+          <div class="skin-panel-title">Bảng màu giao diện</div>
+          <button class="skin-option" data-skin="aurora" onclick="setSkin('aurora')">
+            <span class="skin-swatch" style="background:linear-gradient(135deg,#3355d8,#0ea5a0)"></span>
+            <span class="skin-name">Aurora <em>mặc định</em></span>
+            <span class="skin-check">✓</span>
+          </button>
+          <button class="skin-option" data-skin="sunset" onclick="setSkin('sunset')">
+            <span class="skin-swatch" style="background:linear-gradient(135deg,#f97316,#ec4899)"></span>
+            <span class="skin-name">Hoàng hôn</span>
+            <span class="skin-check">✓</span>
+          </button>
+          <button class="skin-option" data-skin="ocean" onclick="setSkin('ocean')">
+            <span class="skin-swatch" style="background:linear-gradient(135deg,#06b6d4,#22c55e)"></span>
+            <span class="skin-name">Đại dương</span>
+            <span class="skin-check">✓</span>
+          </button>
+          <button class="skin-option" data-skin="forest" onclick="setSkin('forest')">
+            <span class="skin-swatch" style="background:linear-gradient(135deg,#16a34a,#84cc16)"></span>
+            <span class="skin-name">Rừng xanh</span>
+            <span class="skin-check">✓</span>
+          </button>
+          <button class="skin-option" data-skin="candy" onclick="setSkin('candy')">
+            <span class="skin-swatch" style="background:linear-gradient(135deg,#ec4899,#a78bfa)"></span>
+            <span class="skin-name">Kẹo ngọt</span>
+            <span class="skin-check">✓</span>
+          </button>
+          <button class="skin-option" data-skin="neon" onclick="setSkin('neon')">
+            <span class="skin-swatch" style="background:linear-gradient(135deg,#22d3ee,#d946ef)"></span>
+            <span class="skin-name">Neon</span>
+            <span class="skin-check">✓</span>
+          </button>
+          <button class="skin-option" data-skin="mono" onclick="setSkin('mono')">
+            <span class="skin-swatch" style="background:linear-gradient(135deg,#64748b,#94a3b8)"></span>
+            <span class="skin-name">Đơn sắc</span>
+            <span class="skin-check">✓</span>
+          </button>
+          <button class="skin-option" data-skin="ruby" onclick="setSkin('ruby')">
+            <span class="skin-swatch" style="background:linear-gradient(135deg,#dc2626,#f43f5e)"></span>
+            <span class="skin-name">Ruby</span>
+            <span class="skin-check">✓</span>
+          </button>
+          <button class="skin-option" data-skin="gold" onclick="setSkin('gold')">
+            <span class="skin-swatch" style="background:linear-gradient(135deg,#d97706,#eab308)"></span>
+            <span class="skin-name">Vàng đồng</span>
+            <span class="skin-check">✓</span>
+          </button>
+          <button class="skin-option" data-skin="sky" onclick="setSkin('sky')">
+            <span class="skin-swatch" style="background:linear-gradient(135deg,#0ea5e9,#38bdf8)"></span>
+            <span class="skin-name">Xanh trời</span>
+            <span class="skin-check">✓</span>
+          </button>
+          <button class="skin-option" data-skin="graphite" onclick="setSkin('graphite')">
+            <span class="skin-swatch" style="background:linear-gradient(135deg,#334155,#64748b)"></span>
+            <span class="skin-name">Than chì</span>
+            <span class="skin-check">✓</span>
+          </button>
+        </div>
+      </div>
+      <div style="position:relative;">
+        <button class="theme-btn" id="themeBtn" onclick="toggleThemePanel()" title="Đổi chế độ sáng/tối">🌙</button>
+        <div id="themePanel" class="skin-panel">
+          <div class="skin-panel-title">Chế độ hiển thị</div>
+          <button class="theme-option skin-option" data-theme-opt="dark" onclick="setTheme('dark')">
+            <span class="skin-swatch" style="background:linear-gradient(135deg,#0d0f14,#171a22)"></span>
+            <span class="skin-name">Tối <em>mặc định</em></span>
+            <span class="skin-check">✓</span>
+          </button>
+          <button class="theme-option skin-option" data-theme-opt="light" onclick="setTheme('light')">
+            <span class="skin-swatch" style="background:linear-gradient(135deg,#f3f4f8,#ffffff)"></span>
+            <span class="skin-name">Sáng</span>
+            <span class="skin-check">✓</span>
+          </button>
+          <button class="theme-option skin-option" data-theme-opt="sepia" onclick="setTheme('sepia')">
+            <span class="skin-swatch" style="background:linear-gradient(135deg,#1b140d,#d9a441)"></span>
+            <span class="skin-name">Dịu mắt <em>ấm, ban đêm</em></span>
+            <span class="skin-check">✓</span>
+          </button>
+          <button class="theme-option skin-option" data-theme-opt="auto" onclick="setTheme('auto')">
+            <span class="skin-swatch" style="background:linear-gradient(135deg,#171a22,#f3f4f8)"></span>
+            <span class="skin-name">Tự động <em>theo máy</em></span>
+            <span class="skin-check">✓</span>
+          </button>
+        </div>
       </div>
     </div>
-    <button class="theme-btn" id="themeBtn" onclick="toggleTheme()" title="Đổi giao diện sáng/tối">🌙</button>
-    <div id="userBadge" style="display:none;align-items:center;gap:8px;font-size:12px;font-weight:600;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:6px 12px;">
+    <div id="userBadge" class="user-badge">
       <span id="userBadgeText"></span>
-      <span style="cursor:pointer;color:var(--text3);" onclick="logoutSchedule()" title="Đăng xuất">✕</span>
+      <span class="user-badge-close" onclick="logoutSchedule()" title="Đăng xuất">✕</span>
     </div>
   </div>
 </div>
@@ -1122,7 +1310,7 @@
         </div>
         <div style="font-size:10.5px;color:var(--text3);margin:-8px 0 12px;">Hướng THU/CHI tự động chọn theo "Phân loại giao dịch" bên dưới — vẫn có thể bấm đổi lại tay nếu cần.</div>
 
-        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Nhân viên giao dịch <span style="color:var(--text3);font-weight:400;">(Kiểm tra tên đăng nhập)</span></label>
+        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Nhân viên giao dịch <span style="color:var(--text3);font-weight:400;">(khoá theo tài khoản đang đăng nhập — không thể đổi, để tránh nhập giùm/gian lận)</span></label>
         <input type="text" id="thuChiFormNV" readonly disabled style="background:var(--surface2);opacity:.85;cursor:not-allowed;">
         <input type="hidden" id="thuChiFormNVReal">
 
@@ -2378,54 +2566,93 @@ let selectedOffices = []; // [] = tất cả văn phòng
 // ============================================================
 // THEME (sáng/tối)
 // ============================================================
+const THEME_LIST=['dark','light','sepia','auto'];
+const THEME_ICON={dark:'🌙',light:'☀️',sepia:'📜',auto:'🔄'};
+function systemPrefersLight(){
+  try{return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;}catch(e){return false;}
+}
 function applyTheme(theme){
-  if(theme==='light'){
-    document.documentElement.setAttribute('data-theme','light');
-    document.getElementById('themeBtn').textContent='☀️';
+  if(!THEME_LIST.includes(theme))theme='dark';
+  const resolved = theme==='auto' ? (systemPrefersLight()?'light':'dark') : theme;
+  if(resolved==='light'||resolved==='sepia'){
+    document.documentElement.setAttribute('data-theme',resolved);
   }else{
     document.documentElement.removeAttribute('data-theme');
-    document.getElementById('themeBtn').textContent='🌙';
   }
+  const btn=document.getElementById('themeBtn');
+  if(btn)btn.textContent=THEME_ICON[theme]||'🌙';
   try{localStorage.setItem('llv_theme',theme);}catch(e){}
+  markSelectedTheme(theme);
 }
-function toggleTheme(){
-  const cur=document.documentElement.getAttribute('data-theme')==='light'?'light':'dark';
-  applyTheme(cur==='light'?'dark':'light');
+function setTheme(theme){
+  applyTheme(theme);
+  toggleThemePanel(false);
+}
+function markSelectedTheme(theme){
+  document.querySelectorAll('.theme-option').forEach(b=>{
+    b.classList.toggle('selected', b.getAttribute('data-theme-opt')===theme);
+  });
+}
+function toggleThemePanel(force){
+  const p=document.getElementById('themePanel');
+  if(!p)return;
+  const show = force===undefined ? !p.classList.contains('show') : force;
+  p.classList.toggle('show', show);
 }
 function initTheme(){
   let saved='dark';
   try{saved=localStorage.getItem('llv_theme')||'dark';}catch(e){}
   applyTheme(saved);
+  try{
+    window.matchMedia('(prefers-color-scheme: light)').addEventListener('change',()=>{
+      let cur='dark';
+      try{cur=localStorage.getItem('llv_theme')||'dark';}catch(e){}
+      if(cur==='auto')applyTheme('auto');
+    });
+  }catch(e){}
 }
+document.addEventListener('click',(e)=>{
+  const panel=document.getElementById('themePanel');
+  const btn=document.getElementById('themeBtn');
+  if(panel && panel.classList.contains('show') && !panel.contains(e.target) && e.target!==btn){
+    panel.classList.remove('show');
+  }
+});
 
 // ============================================================
 // SKIN (bảng màu Liquid Glass) — Aurora / Sunset / Ocean / Mono
 // ============================================================
-const SKIN_LIST=['aurora','sunset','ocean','mono','candy','forest','neon'];
+const SKIN_LIST=['aurora','sunset','ocean','mono','candy','forest','neon','ruby','gold','sky','graphite'];
+function markSelectedSkin(skin){
+  document.querySelectorAll('.skin-option').forEach(b=>{
+    b.classList.toggle('selected', b.getAttribute('data-skin')===skin);
+  });
+}
 function setSkin(skin){
   if(!SKIN_LIST.includes(skin))skin='aurora';
   if(skin==='aurora')document.documentElement.removeAttribute('data-skin');
   else document.documentElement.setAttribute('data-skin',skin);
   try{localStorage.setItem('llv_skin',skin);}catch(e){}
-  document.querySelectorAll('#skinPanel button').forEach(b=>b.style.outline='none');
+  markSelectedSkin(skin);
   toggleSkinPanel(false);
 }
 function initSkin(){
   let saved='aurora';
   try{saved=localStorage.getItem('llv_skin')||'aurora';}catch(e){}
   if(saved!=='aurora')document.documentElement.setAttribute('data-skin',saved);
+  markSelectedSkin(saved);
 }
 function toggleSkinPanel(force){
   const p=document.getElementById('skinPanel');
   if(!p)return;
-  const show = force===undefined ? (p.style.display==='none'||!p.style.display) : force;
-  p.style.display = show ? 'flex' : 'none';
+  const show = force===undefined ? !p.classList.contains('show') : force;
+  p.classList.toggle('show', show);
 }
 document.addEventListener('click',(e)=>{
   const panel=document.getElementById('skinPanel');
   const btn=document.getElementById('skinBtn');
-  if(panel && panel.style.display==='flex' && !panel.contains(e.target) && e.target!==btn){
-    panel.style.display='none';
+  if(panel && panel.classList.contains('show') && !panel.contains(e.target) && e.target!==btn){
+    panel.classList.remove('show');
   }
 });
 
