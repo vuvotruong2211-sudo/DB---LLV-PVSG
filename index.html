@@ -5379,6 +5379,27 @@ async function generateQRThanhToan(){
   if(!soTien||soTien<=0){statusEl.textContent='Vui lòng nhập số tiền cần thu hợp lệ.';statusEl.className='qr-copy-status err';return;}
   if(!preset){statusEl.textContent='Chưa có mẫu nội dung — kiểm tra sheet CauHinhQR.';statusEl.className='qr-copy-status err';return;}
 
+  // CẢNH BÁO NHẦM ĐƠN VỊ: ô nhập tính theo NGHÌN đồng (VD: gõ 1100 = 1.100.000đ).
+  // NV hay lỡ gõ dư số 0 (VD: gõ 500000 tưởng là 500K nhưng thành 500.000.000đ)
+  // -> chặn lại, bắt xác nhận thủ công nếu 1 lệnh vượt 15 triệu để tránh tạo nhầm QR số tiền lớn.
+  const NGUONG_CANH_BAO_QR=15000000;
+  if(soTien>NGUONG_CANH_BAO_QR){
+    const xacNhan=confirm(
+      '⚠️ CẢNH BÁO SỐ TIỀN LỚN BẤT THƯỜNG\n\n'+
+      'Số tiền: '+soTien.toLocaleString('vi-VN')+' đ\n'+
+      '(vượt ngưỡng 15.000.000đ/lệnh)\n\n'+
+      'Ô nhập tính theo NGHÌN đồng — rất có thể anh/chị đã gõ dư số 0 '+
+      '(VD: định gõ 500K nhưng lỡ thành 500 triệu).\n\n'+
+      'Bấm OK nếu số tiền này CHÍNH XÁC.\n'+
+      'Bấm Huỷ để quay lại kiểm tra và sửa lại.'
+    );
+    if(!xacNhan){
+      statusEl.textContent='Đã huỷ tạo QR — vui lòng kiểm tra lại số tiền trước khi tạo lại.';
+      statusEl.className='qr-copy-status err';
+      return;
+    }
+  }
+
   // Nội dung = SĐT nhân viên nhập + mẫu soạn sẵn trong Sheet, ví dụ: "0919892211 THANH TOAN VE"
   const addInfo=removeVietnameseTones(`${sdt} ${preset}`);
   const qrUrl=`https://img.vietqr.io/image/${bank}-${accNo}-qr_only.png?amount=${soTien}&addInfo=${encodeURIComponent(addInfo)}&accountName=${encodeURIComponent(accName)}`;
