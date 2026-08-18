@@ -2269,7 +2269,7 @@
     🔓 <span id="adminBannerText">Đang đăng nhập với quyền Quản lý.</span>
   </div>
   <div id="userOfficeBanner" style="display:none;background:rgba(79,110,247,.1);border:1px solid var(--accent);border-radius:8px;padding:8px 14px;margin-bottom:12px;font-size:12px;color:var(--accent);font-weight:600;">
-    👤 <span id="userOfficeBannerText">Bạn đang xem lịch của văn phòng mình — chỉ xem được tới hết hôm nay; lịch ngày mai chỉ mở từ 20:00 tối nay.</span>
+    👤 <span id="userOfficeBannerText">Bạn đang xem lịch của văn phòng mình — chỉ xem được tới hết hôm nay; lịch ngày mai chỉ mở từ 17:00 tối nay.</span>
   </div>
 
 
@@ -2806,8 +2806,8 @@ function updateUserBadge(){
       if(oText){
         oText.textContent = currentUser.boPhan
           ? (currentUser.isManager
-              ? 'Đang đăng nhập với quyền Quản lý văn phòng "'+currentUser.boPhan+'" — chỉ xem được lịch của văn phòng này tới hết hôm nay; lịch ngày mai chỉ mở từ 20:00 tối nay.'
-              : 'Bạn đang xem lịch của văn phòng "'+currentUser.boPhan+'" — chỉ xem được tới hết hôm nay; lịch ngày mai chỉ mở từ 20:00 tối nay.')
+              ? 'Đang đăng nhập với quyền Quản lý văn phòng "'+currentUser.boPhan+'" — chỉ xem được lịch của văn phòng này tới hết hôm nay; lịch ngày mai chỉ mở từ 17:00 tối nay.'
+              : 'Bạn đang xem lịch của văn phòng "'+currentUser.boPhan+'" — chỉ xem được tới hết hôm nay; lịch ngày mai chỉ mở từ 17:00 tối nay.')
           : '⚠️ Chưa xác định được văn phòng của bạn — vui lòng đăng xuất/đăng nhập lại hoặc báo Admin kiểm tra Master_NV.';
       }
     }
@@ -2823,7 +2823,7 @@ document.addEventListener('keydown',(e)=>{
 });
 
 // isDateLocked: chỉ mở tới hết HÔM NAY cho mọi vai trò (kể cả Quản lý văn phòng).
-// Lịch NGÀY MAI (D+1) chỉ mở khi giờ hiện tại từ 20:00 trở đi.
+// Lịch NGÀY MAI (D+1) chỉ mở khi giờ hiện tại từ 17:00 trở đi.
 // NGOẠI LỆ DUY NHẤT: ngày đó có dòng OFF (nghỉ phép đã duyệt) → hiện OFF, không lock.
 // Chỉ S.Quản Lý mới xem được không giới hạn (cả tuần/mọi ngày).
 // Cache tra cứu "NV nào OFF ngày nào" dạng Set để isDateLocked không phải quét lại
@@ -2847,7 +2847,7 @@ function isDateLocked(d, nvName){
   const nowHour=new Date().getHours();
   const dd=new Date(d);dd.setHours(0,0,0,0);
   if(dd.getTime()<=today.getTime())return false; // hôm nay & quá khứ → không khoá
-  if(dd.getTime()===tomorrow.getTime()&&nowHour>=20)return false; // D+1 mở từ 20:00
+  if(dd.getTime()===tomorrow.getTime()&&nowHour>=17)return false; // D+1 mở từ 17:00
   // Chỉ unlock nếu NV đó có dòng OFF đúng ngày này (nghỉ phép đã được duyệt)
   if(nvName){
     const ds=fmtDate(dd);
@@ -3812,7 +3812,7 @@ function showNvWeek(nv){
     const entries=weekRows.filter(r=>r.nv===nv&&fmtDate(r.date)===ds);
     const isOff=!entries.length||entries.every(e=>e.boPhan==='OFF'||e.loaiCa==='OFF');
     // Đồng bộ khoá lịch với bảng chính: NV/Quản lý không được xem trước ca thật của ngày
-    // vượt giới hạn (chỉ tới hết hôm nay; ngày mai mở từ 20:00 tối nay),
+    // vượt giới hạn (chỉ tới hết hôm nay; ngày mai mở từ 17:00 tối nay),
     // trừ khi ngày đó là OFF (nghỉ phép đã duyệt) — isDateLocked đã tự xử lý ngoại lệ này.
     const locked=isDateLocked(d, nv);
     let content;
@@ -7040,7 +7040,7 @@ function updateLineDTRotationSuggestion(){
   // CHẶN RÒ RỈ LỊCH LÀM VIỆC: khung gợi ý này liệt kê tên + giờ vào/ra ca của cả VP —
   // nếu NV chọn ngày vượt giới hạn cho phép (lịch chưa công bố), TUYỆT ĐỐI không hiển
   // thị/tự điền, vì sẽ lộ ai làm ca sáng/chiều ngày đó ra ngoài, phá luật khoá lịch chính.
-  // Quy tắc: chỉ xem được tới hết HÔM NAY; lịch NGÀY MAI (D+1) chỉ mở từ 20:00 tối nay.
+  // Quy tắc: chỉ xem được tới hết HÔM NAY; lịch NGÀY MAI (D+1) chỉ mở từ 17:00 tối nay.
   // Chỉ S.Quản Lý (đăng nhập đúng tài khoản S.Quản Lý ở Line ĐT) mới được bỏ qua khoá này.
   const today=new Date();today.setHours(0,0,0,0);
   const tomorrow=addDays(today,1); // D+1
@@ -7048,10 +7048,10 @@ function updateLineDTRotationSuggestion(){
   const ddCheck=new Date(dateObj);ddCheck.setHours(0,0,0,0);
   const isSuperManagerHere = currentUser && currentUser.isSuperManager && currentUser.nv===lineDTUser?.nv;
   let dayIsLocked = ddCheck.getTime()>today.getTime(); // mặc định: mọi ngày tương lai đều khoá
-  if(ddCheck.getTime()===tomorrow.getTime() && nowHour>=20) dayIsLocked=false; // D+1 mở từ 20:00
+  if(ddCheck.getTime()===tomorrow.getTime() && nowHour>=20) dayIsLocked=false; // D+1 mở từ 17:00
   if(dayIsLocked && !isSuperManagerHere){
     box.innerHTML='<div style="background:var(--surface2);border-radius:8px;padding:8px 10px;font-size:11px;color:var(--text3);">'
-      +'🔒 Lịch ngày này chưa công bố (chỉ xem tới hết hôm nay; ngày mai mở từ 20:00 tối nay) — vui lòng tự nhập số line/bàn.'
+      +'🔒 Lịch ngày này chưa công bố (chỉ xem tới hết hôm nay; ngày mai mở từ 17:00 tối nay) — vui lòng tự nhập số line/bàn.'
       +'</div>';
     return; // không tính toán, không tự điền -> không lộ tên/ca của người khác
   }
