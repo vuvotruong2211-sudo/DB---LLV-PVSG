@@ -1635,8 +1635,8 @@
                 <input type="text" id="qrKhachSDT" placeholder="VD: 0919892211" inputmode="tel">
               </div>
               <div>
-                <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Số tiền cần thu (nhập theo <b>đồng</b>)</label>
-                <input type="number" id="qrSoTienNghin" placeholder="VD: 1100000 → 1.100.000đ" min="0" step="1000" oninput="updateQrSoTienPreview()">
+                <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Số tiền cần thu (nhập theo <b>ngàn đồng</b>)</label>
+                <input type="number" id="qrSoTienNghin" placeholder="VD: 1.100 → 1.100.000đ" min="0" step="1" oninput="updateQrSoTienPreview()">
                 <div id="qrSoTienPreview" style="font-size:11px;color:var(--text3);margin-top:3px;">= 0 đ</div>
               </div>
             </div>
@@ -5168,7 +5168,8 @@ let qrLastReport=null;
 
 function updateQrSoTienPreview(){
   const v=parseInt(document.getElementById('qrSoTienNghin').value,10);
-  const soTien=v||0;
+  const soTienNghin=v||0;
+  const soTien=soTienNghin*1000;
   document.getElementById('qrSoTienPreview').textContent='= '+soTien.toLocaleString('vi-VN')+' đ';
 }
 
@@ -5375,15 +5376,15 @@ async function generateQRThanhToan(){
   const brand=qrConfigCache.brand;
   const sdt=document.getElementById('qrKhachSDT').value.trim();
   const soTienNghin=parseInt(document.getElementById('qrSoTienNghin').value,10);
-  const soTien=soTienNghin||0;
+  const soTien=(soTienNghin||0)*1000;
   const preset=document.getElementById('qrNoiDungLoai').value;
 
   if(!sdt){statusEl.textContent='Vui lòng nhập số điện thoại khách hàng.';statusEl.className='qr-copy-status err';return;}
   if(!soTien||soTien<=0){statusEl.textContent='Vui lòng nhập số tiền cần thu hợp lệ.';statusEl.className='qr-copy-status err';return;}
   if(!preset){statusEl.textContent='Chưa có mẫu nội dung — kiểm tra sheet CauHinhQR.';statusEl.className='qr-copy-status err';return;}
 
-  // CẢNH BÁO NHẦM ĐƠN VỊ: ô nhập tính theo NGHÌN đồng (VD: gõ 1100 = 1.100.000đ).
-  // NV hay lỡ gõ dư số 0 (VD: gõ 500000 tưởng là 500K nhưng thành 500.000.000đ)
+  // CẢNH BÁO NHẦM ĐƠN VỊ: ô nhập tính theo NGÀN đồng (VD: gõ 1.100 = 1.100.000đ).
+  // NV hay lỡ gõ dư số 0 (VD: gõ 500.000 tưởng là 500K nhưng thành 500.000.000đ)
   // -> chặn lại, bắt xác nhận thủ công nếu 1 lệnh vượt 15 triệu để tránh tạo nhầm QR số tiền lớn.
   const NGUONG_CANH_BAO_QR=15000000;
   if(soTien>NGUONG_CANH_BAO_QR){
