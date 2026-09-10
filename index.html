@@ -2334,7 +2334,7 @@
   </div>
 
   <!-- KPI -->
-  <div class="kpi-grid">
+  <div class="kpi-grid" id="kpiGridSection">
     <div class="kpi-card k1">
       <div class="kpi-label">Đi làm hôm nay</div>
       <div class="kpi-val" id="kpi1">—</div>
@@ -2371,10 +2371,10 @@
           <div class="card-sub" id="weekRangeLabel">—</div>
         </div>
         <div class="tabs">
-          <button class="tab active" onclick="switchView('week',this)">Tuần</button>
-          <button class="tab" onclick="switchView('month',this)">Tháng</button>
+          <button class="tab" id="tabByWeek" onclick="switchView('week',this)">Tuần</button>
+          <button class="tab" id="tabByMonth" onclick="switchView('month',this)">Tháng</button>
           <button class="tab" id="tabByShift" onclick="switchView('shift',this)">Theo Ca</button>
-          <button class="tab" id="tabByOffice" onclick="switchView('office',this)">Theo Văn Phòng</button>
+          <button class="tab active" id="tabByOffice" onclick="switchView('office',this)">Theo Văn Phòng</button>
         </div>
       </div>
       <div id="shiftViewControls" style="display:none;padding:10px 18px;border-bottom:1px solid var(--border);align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
@@ -2403,7 +2403,7 @@
   </div>
 
   <!-- BOTTOM: THỐNG KÊ CÁ NHÂN - FULL WIDTH -->
-  <div class="bottom-grid">
+  <div class="bottom-grid" id="statCardSection">
     <div class="card">
       <div class="card-header">
         <div>
@@ -2432,29 +2432,31 @@
     </div>
   </div>
 
-  <!-- OFF THEO NĂM - AI CŨNG XEM ĐƯỢC -->
-  <div class="card" style="margin-top:16px;">
+  <!-- OFF THEO NĂM - CHỈ S.QUẢN LÝ -->
+  <div class="card" id="offYearCardSection" style="margin-top:16px;">
     <div class="card-header" style="flex-wrap:wrap;gap:10px;">
       <div>
         <div class="card-title">🌴 Thống kê ngày OFF theo năm</div>
         <div class="card-sub" id="offYearSubTitle">Theo từng tháng trong năm</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-        <select class="filter-select" id="offYearFilterYear" onchange="onOffYearYearChange()" style="min-width:90px;"></select>
-        <div style="position:relative;">
-          <button type="button" class="filter-select" id="offYearMonthBtn" onclick="toggleOffYearMonthDropdown()" style="cursor:pointer;min-width:130px;text-align:left;">Tháng: Cả năm</button>
-          <div id="offYearMonthDropdown" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,.18);min-width:180px;">
-            <div id="offYearMonthChkGrid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:8px;"></div>
-            <div style="display:flex;gap:6px;border-top:1px solid var(--border);padding-top:8px;">
-              <button type="button" class="tab" style="flex:1;font-size:11px;padding:5px 8px;" onclick="setOffYearMonths('all')">Cả năm</button>
-              <button type="button" class="tab" style="flex:1;font-size:11px;padding:5px 8px;" onclick="setOffYearMonths('ytd')">YTD</button>
+        <div id="offYearFilterControls" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <select class="filter-select" id="offYearFilterYear" onchange="onOffYearYearChange()" style="min-width:90px;"></select>
+          <div style="position:relative;">
+            <button type="button" class="filter-select" id="offYearMonthBtn" onclick="toggleOffYearMonthDropdown()" style="cursor:pointer;min-width:130px;text-align:left;">Tháng: Cả năm</button>
+            <div id="offYearMonthDropdown" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,.18);min-width:180px;">
+              <div id="offYearMonthChkGrid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:8px;"></div>
+              <div style="display:flex;gap:6px;border-top:1px solid var(--border);padding-top:8px;">
+                <button type="button" class="tab" style="flex:1;font-size:11px;padding:5px 8px;" onclick="setOffYearMonths('all')">Cả năm</button>
+                <button type="button" class="tab" style="flex:1;font-size:11px;padding:5px 8px;" onclick="setOffYearMonths('ytd')">YTD</button>
+              </div>
             </div>
           </div>
         </div>
         <button type="button" class="nghiphep-btn" onclick="openNghiPhepModal()">🌴 Đăng ký nghỉ</button>
       </div>
     </div>
-    <div class="table-scroll" style="max-height:420px;">
+    <div class="table-scroll" id="offYearTableWrap" style="max-height:420px;">
       <table class="stat-table" id="offYearTable">
         <thead id="offYearHead"></thead>
         <tbody id="offYearBody">
@@ -2805,14 +2807,31 @@ function updateUserBadge(){
       const oText=document.getElementById('userOfficeBannerText');
       if(oText){
         oText.textContent = currentUser.boPhan
-          ? (currentUser.isManager
-              ? 'Đang đăng nhập với quyền Quản lý văn phòng "'+currentUser.boPhan+'" — chỉ xem được lịch của văn phòng này tới hết hôm nay; lịch ngày mai chỉ mở từ 17:00 tối nay.'
-              : 'Bạn đang xem lịch của văn phòng "'+currentUser.boPhan+'" — chỉ xem được tới hết hôm nay; lịch ngày mai chỉ mở từ 17:00 tối nay.')
+          ? 'Bạn đang xem lịch làm việc của CHÍNH MÌNH ở tab "Theo Văn Phòng" — chỉ xem được tới hết hôm nay; lịch ngày mai chỉ mở từ 17:00 tối nay.'
           : '⚠️ Chưa xác định được văn phòng của bạn — vui lòng đăng xuất/đăng nhập lại hoặc báo Admin kiểm tra Master_NV.';
       }
     }
   }
-  if(otCard)otCard.style.display = currentUser.isManager ? 'block' : 'none';
+  // Chỉ S.Quản Lý mới được xem thống kê tổng hợp/lịch của người khác.
+  // Quản lý văn phòng và Nhân viên: CHỈ có tab "Theo Văn Phòng" (và chỉ thấy lịch của chính mình ở đó),
+  // không còn KPI tổng, không tab Tuần/Tháng/Theo Ca, không bảng Thống kê cá nhân, không OT, không OFF theo năm.
+  const canViewAllSchedule = !!(currentUser.isSuperManager);
+  const idsToToggle=['kpiGridSection','tabByWeek','tabByMonth','tabByShift','statCardSection',
+    'offYearFilterControls','offYearTableWrap'];
+  idsToToggle.forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.style.display = canViewAllSchedule ? '' : 'none';
+  });
+  if(otCard)otCard.style.display = canViewAllSchedule ? 'block' : 'none';
+
+  // NV/Quản lý luôn ở tab Theo Văn Phòng (view duy nhất họ được dùng); nếu đang ở view khác
+  // (VD do trước đó đăng nhập bằng tài khoản S.Quản Lý trên cùng máy) thì ép về 'office'.
+  if(!canViewAllSchedule && currentView!=='office'){
+    currentView='office';
+    document.querySelectorAll('.tabs .tab').forEach(t=>t.classList.remove('active'));
+    const officeBtn=document.getElementById('tabByOffice');
+    if(officeBtn)officeBtn.classList.add('active');
+  }
 }
 
 // Enter để submit passcode đăng nhập
@@ -3472,6 +3491,8 @@ function renderAll(){
 // KPI
 // ============================================================
 function renderKPIs(){
+  // KPI là số liệu tổng hợp toàn công ty — chỉ S.Quản Lý được xem.
+  if(!currentUser||!currentUser.isSuperManager)return;
   const today=fmtDate(new Date());
   const ws=currentWeekStart,we=addDays(ws,6);
   const todayR=filteredData.filter(r=>r.date&&fmtDate(r.date)===today);
@@ -3577,8 +3598,16 @@ function renderOfficeView(weekDaysIgnored,weekRowsIgnored){
   if(!shiftAnchorDate)shiftAnchorDate=currentWeekStart;
   const days=Array.from({length:shiftSpan},(_,i)=>addDays(shiftAnchorDate,i));
   const wsDStr=fmtDate(days[0]),weDStr=fmtDate(days[days.length-1]);
+
+  // CHỈ S.Quản Lý được xem lịch của cả văn phòng/công ty ở tab này.
+  // Quản lý văn phòng và Nhân viên: chỉ xem được lịch của CHÍNH MÌNH (trước đây Quản lý
+  // còn xem được cả văn phòng — theo yêu cầu mới thì thu hẹp lại, chỉ S.Quản Lý mới có quyền đó).
+  const isSuperMgrOffice=currentUser&&currentUser.isSuperManager;
+  const myNvOffice=currentUser?currentUser.nv:'';
+
   const weekRows=filteredData.filter(r=>{
     if(!r.date)return false;
+    if(!isSuperMgrOffice&&r.nv!==myNvOffice)return false;
     const ds=fmtDate(r.date);
     return ds>=wsDStr&&ds<=weDStr;
   });
@@ -4080,6 +4109,8 @@ function renderMonthView(){
 // STAT TABLE
 // ============================================================
 function renderStatTable(){
+  // Bảng thống kê cá nhân theo tháng của TẤT CẢ NV — chỉ S.Quản Lý được xem.
+  if(!currentUser||!currentUser.isSuperManager)return;
   const curM=parseInt(document.getElementById('filterMonth').value)||(new Date().getMonth()+1);
   document.getElementById('statSubTitle').textContent='Tháng '+curM;
   const mData=filteredData.filter(r=>r.thang===curM);
@@ -4136,7 +4167,8 @@ function parseCaHours(caLam){
 }
 
 function renderOtStats(){
-  if(!currentUser||!currentUser.isManager)return;
+  // Trước đây Quản lý cũng xem được OT — theo yêu cầu mới chỉ S.Quản Lý mới được xem.
+  if(!currentUser||!currentUser.isSuperManager)return;
   const body=document.getElementById('otStatBody');
   const subTitle=document.getElementById('otSubTitle');
   if(!body)return;
@@ -4250,6 +4282,9 @@ function onOffYearYearChange(){
 }
 
 function renderOffYearTable(){
+  // Bảng OFF theo năm của TẤT CẢ NV — chỉ S.Quản Lý được xem (nút "Đăng ký nghỉ" ở card này
+  // vẫn dùng được cho mọi người, chỉ riêng bảng thống kê là ẩn/không tính).
+  if(!currentUser||!currentUser.isSuperManager)return;
   const head=document.getElementById('offYearHead');
   const body=document.getElementById('offYearBody');
   if(!head||!body)return;
@@ -4300,6 +4335,10 @@ function updateWeekLabel(){
   document.getElementById('weekRangeLabel').textContent=lbl;
 }
 function switchView(v,btn){
+  // Quản lý/Nhân viên chỉ được dùng view "office" (Theo Văn Phòng) — chặn cứng ở đây,
+  // không chỉ ẩn nút, để không bị lách bằng cách gọi switchView() trực tiếp từ console.
+  const canViewAllSchedule = !!(currentUser&&currentUser.isSuperManager);
+  if(!canViewAllSchedule && v!=='office')return;
   currentView=v;
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   btn.classList.add('active');
