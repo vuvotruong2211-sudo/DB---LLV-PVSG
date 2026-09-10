@@ -3907,8 +3907,16 @@ function renderShiftView(weekDays,weekRowsFull){
   if(!shiftAnchorDate)shiftAnchorDate=currentWeekStart;
   const days=Array.from({length:shiftSpan},(_,i)=>addDays(shiftAnchorDate,i));
   const wsDStr=fmtDate(days[0]),weDStr=fmtDate(days[days.length-1]);
+
+  // NV thường chỉ được thấy lịch của chính mình — Quản lý thấy tất cả.
+  // (Đồng bộ đúng logic với renderOfficeView — trước đây tab này thiếu bước lọc này
+  // nên NV thường xem được lịch của TẤT CẢ mọi người/mọi VP, đây là lỗi phân quyền.)
+  const isMgrShift=currentUser&&currentUser.isManager;
+  const myNvShift=currentUser?currentUser.nv:'';
+
   const weekRows=filteredData.filter(r=>{
     if(!r.date)return false;
+    if(!isMgrShift&&r.nv!==myNvShift)return false;
     const ds=fmtDate(r.date);
     return ds>=wsDStr&&ds<=weDStr;
   });
