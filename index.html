@@ -7,9 +7,11 @@
 <script>
   const CONFIG = {
     webAppUrl: "https://script.google.com/macros/s/AKfycbxqRQeV5vAc2iCoaOlJrz0U6jw6vsjy2uDWGjLClxJYaDaYF98NHHRU4yp9FBH29OaA/exec",
-    payrollUrl: "https://script.google.com/macros/s/AKfycbxUEs12zPeJTyHQ6x12SswnA8aUCIxPUYL3y8oGPlbfTFJ_1MPTol-mfPiLWt2IWIbVlQ/exec"
-    // ⬆️ Thu-Chi/Báo cáo doanh số dùng CHUNG payrollUrl ở trên (cùng 1 Apps Script project,
-    // chỉ khác "action" trong URL). Không cần thêm URL riêng.
+    payrollUrl: "https://script.google.com/macros/s/AKfycbxUEs12zPeJTyHQ6x12SswnA8aUCIxPUYL3y8oGPlbfTFJ_1MPTol-mfPiLWt2IWIbVlQ/exec",
+    // ⬆️ Thu-Chi ĐÃ TÁCH RIÊNG khỏi payrollUrl (đọc chéo Passcode/Master_NV qua ID, không copy
+    // dữ liệu lương) — mục đích: nhiều NV cùng thao tác Thu-Chi (25-30/ca, x3 dịp Lễ Tết) không còn
+    // chiếm chung execution pool với Lương/Lịch/Chấm công nữa. Dán URL Web App Thu-Chi mới vào đây:
+    thuChiUrl: "https://script.google.com/macros/s/AKfycbwDG-Zi4kUdyW9vtodlaMy8bHlsp3G7wVp60BykMEU9tqtcfUBZi6Prnm3FZjCrSjYE3w/exec"
   };
 
   // ============================================================
@@ -457,7 +459,13 @@
   .thuchi-modal-box select,.thuchi-modal-box input,.thuchi-modal-box textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:10px 12px;color:var(--text);font-size:13px;font-family:'Inter',sans-serif;outline:none;margin-bottom:12px;}
   .thuchi-modal-box select:focus,.thuchi-modal-box input:focus,.thuchi-modal-box textarea:focus{border-color:var(--accent);}
   .thuchi-content{max-height:78vh;overflow-y:auto;}
-  .thuchi-tabs{display:flex;gap:6px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:10px;}
+  .thuchi-tabs{display:flex;gap:6px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:10px;flex-wrap:wrap;}
+  .thuchi-duyet-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;}
+  .thuchi-duyet-card .top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:6px;}
+  .thuchi-duyet-card .noidung{font-size:13px;margin:4px 0 6px;}
+  .thuchi-duyet-card .meta{font-size:11px;color:var(--text3);line-height:1.6;}
+  .thuchi-duyet-card .btn-duyet{margin-top:10px;width:100%;border:none;border-radius:8px;padding:10px;font-size:12px;font-weight:700;cursor:pointer;background:var(--accent);color:#fff;}
+  .thuchi-duyet-card .btn-duyet:hover{opacity:.88;}
   .thuchi-tab{flex:1;text-align:center;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px;font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;transition:all .2s;}
   .thuchi-tab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
   .thuchi-form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
@@ -1297,6 +1305,8 @@
 
       <div class="thuchi-tabs">
         <div class="thuchi-tab active" id="thuChiTabNhap" onclick="switchThuChiTab('nhap')">➕ Nhập giao dịch</div>
+        <div class="thuchi-tab" id="thuChiTabDuyetCa" onclick="switchThuChiTab('duyetca')" style="display:none;">🕓 Duyệt ca<span id="thuChiBadgeCa" class="nghiphep-status cho" style="display:none;margin-left:5px;"></span></div>
+        <div class="thuchi-tab" id="thuChiTabDuyetKt" onclick="switchThuChiTab('duyetkt')" style="display:none;">✅ Duyệt KT<span id="thuChiBadgeKt" class="nghiphep-status cho" style="display:none;margin-left:5px;"></span></div>
         <div class="thuchi-tab" id="thuChiTabBaoCao" onclick="switchThuChiTab('baocao')">📊 Báo cáo</div>
         <div class="thuchi-tab" id="thuChiTabKiemSoat" onclick="switchThuChiTab('kiemsoat')" style="display:none;">🔎 Kiểm soát D-1</div>
       </div>
@@ -1456,6 +1466,24 @@
         <div id="thuChiKSList">
           <div class="thuchi-empty">Chọn ngày rồi bấm "Soát sổ" để kiểm tra từng nhân viên (mặc định = hôm qua, D-1).</div>
         </div>
+      </div>
+
+      <!-- TAB: DUYỆT CA (Quản lý ca đứng ngoài duyệt lớp 1 — không giới hạn theo VP) -->
+      <div id="thuChiPaneDuyetCa" style="display:none;">
+        <div style="font-size:11px;color:var(--text3);line-height:1.6;margin-bottom:12px;padding:10px 12px;background:var(--surface2);border-radius:8px;">
+          Danh sách giao dịch NV vừa nhập, đang <strong>chờ Quản lý ca duyệt</strong> (lớp 1). Sau khi duyệt, giao dịch chuyển sang chờ Kế toán duyệt tiếp (lớp 2).
+        </div>
+        <div id="thuChiDuyetCaMsg"></div>
+        <div id="thuChiDuyetCaList"><div class="thuchi-empty">Đang tải...</div></div>
+      </div>
+
+      <!-- TAB: DUYỆT KẾ TOÁN (chỉ S.Quản lý — bắt buộc đã qua duyệt ca) -->
+      <div id="thuChiPaneDuyetKt" style="display:none;">
+        <div style="font-size:11px;color:var(--text3);line-height:1.6;margin-bottom:12px;padding:10px 12px;background:var(--surface2);border-radius:8px;">
+          Danh sách giao dịch <strong>đã qua Quản lý ca duyệt</strong>, đang chờ Kế toán duyệt lần cuối (lớp 2). Đúng thứ tự — chưa qua duyệt ca sẽ không hiện ở đây.
+        </div>
+        <div id="thuChiDuyetKtMsg"></div>
+        <div id="thuChiDuyetKtList"><div class="thuchi-empty">Đang tải...</div></div>
       </div>
 
       <div class="modal-actions" style="margin-top:14px;">
@@ -4964,9 +4992,9 @@ function escapeRegexThuChi_(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
 // Tải cấu hình phân loại thật từ sheet "CauHinhPhanLoaiThuChi" (anh tự sửa trong đó).
 // Nếu lỗi mạng hoặc sheet trống -> im lặng giữ nguyên bộ mặc định, KHÔNG làm vỡ form nhập liệu.
 async function loadThuChiCatsConfig(){
-  if(!CONFIG.payrollUrl)return;
+  if(!CONFIG.thuChiUrl)return;
   try{
-    const url=CONFIG.payrollUrl+'?action=getPhanLoaiThuChiConfig';
+    const url=CONFIG.thuChiUrl+'?action=getPhanLoaiThuChiConfig';
     const json=await fetchJSONP(url);
     if(json.status!=='ok'||!Array.isArray(json.data)||!json.data.length)return;
     THUCHI_CATS=json.data.map((c,idx)=>({
@@ -5548,24 +5576,36 @@ async function submitThuChiLogin(){
 
   showLoading('Đang xác thực...');
   try{
-    const url=CONFIG.payrollUrl+'?action=checkPasscode&nv='+encodeURIComponent(nv)+'&passcode='+encodeURIComponent(passcode);
+    // Xác thực THẲNG trên backend Thu-Chi mới (getThongTinNV) — không gọi payrollUrl nữa,
+    // để toàn bộ luồng Thu-Chi (đăng nhập + nhập liệu + duyệt) chạy trên 1 execution pool
+    // riêng, tách hẳn khỏi Lương/Lịch/Chấm công.
+    const url=CONFIG.thuChiUrl+'?action=getThongTinNV&nv='+encodeURIComponent(nv)+'&passcode='+encodeURIComponent(passcode);
     const json=await fetchJSONP(url);
-    if(json.status!=='ok'||!json.data||!json.data.valid)throw new Error('Passcode không đúng.');
+    if(json.status!=='ok')throw new Error(json.message||'Passcode không đúng.');
 
-    thuChiUser={nv:nv,passcode:passcode};
+    thuChiUser={nv:json.data.tenVietTat||nv, passcode:passcode, isManager:!!json.data.isManager, isSuperManager:!!json.data.isSuperManager};
 
     // Dropdown form nhập liệu (thuChiFormNV) đã được đổ đầy đủ danh sách NV
     // ngay từ lúc mở modal (trong openThuChiModal) — ở đây chỉ cần set mặc định
     // = chính người vừa đăng nhập.
     const formNVSel=document.getElementById('thuChiFormNV');
-    if(formNVSel)formNVSel.value=nv;
+    if(formNVSel)formNVSel.value=thuChiUser.nv;
 
     // Set ngày mặc định = hôm nay
     const today=new Date();
     document.getElementById('thuChiFormNgay').value=fmtDate(today);
 
+    // Tab "Duyệt ca" (Quản lý/S.Quản lý) và "Duyệt KT" (chỉ S.Quản lý) — ẩn/hiện
+    // đúng theo quyền vừa xác thực từ backend mới, không dựa vào currentUser cũ.
+    document.getElementById('thuChiTabDuyetCa').style.display=thuChiUser.isManager?'block':'none';
+    document.getElementById('thuChiTabDuyetKt').style.display=thuChiUser.isSuperManager?'block':'none';
+
     switchThuChiTab('nhap');
     showThuChiContent();
+
+    // Tải sẵn số lượng đang chờ duyệt để hiện badge đỏ trên tab, không cần bấm vào mới thấy
+    if(thuChiUser.isManager)capNhatBadgeSoLuongChoDuyet('choduyetca');
+    if(thuChiUser.isSuperManager)capNhatBadgeSoLuongChoDuyet('choduyetkt');
   }catch(e){
     errEl.textContent='Lỗi: '+e.message;
     errEl.style.display='block';
@@ -5574,17 +5614,22 @@ async function submitThuChiLogin(){
 }
 
 function switchThuChiTab(tab){
-  const isNhap=tab==='nhap', isBaoCao=tab==='baocao', isKiemSoat=tab==='kiemsoat';
+  const isNhap=tab==='nhap', isBaoCao=tab==='baocao', isKiemSoat=tab==='kiemsoat',
+        isDuyetCa=tab==='duyetca', isDuyetKt=tab==='duyetkt';
   document.getElementById('thuChiTabNhap').classList.toggle('active',isNhap);
   document.getElementById('thuChiTabBaoCao').classList.toggle('active',isBaoCao);
   document.getElementById('thuChiTabKiemSoat').classList.toggle('active',isKiemSoat);
+  document.getElementById('thuChiTabDuyetCa').classList.toggle('active',isDuyetCa);
+  document.getElementById('thuChiTabDuyetKt').classList.toggle('active',isDuyetKt);
   document.getElementById('thuChiPaneNhap').style.display=isNhap?'block':'none';
   document.getElementById('thuChiPaneBaoCao').style.display=isBaoCao?'block':'none';
   document.getElementById('thuChiPaneKiemSoat').style.display=isKiemSoat?'block':'none';
+  document.getElementById('thuChiPaneDuyetCa').style.display=isDuyetCa?'block':'none';
+  document.getElementById('thuChiPaneDuyetKt').style.display=isDuyetKt?'block':'none';
 
-  // Tab Kiểm soát D-1 chỉ dành cho Quản lý — dùng chính isManager đã xác định được
-  // từ lần checkPasscode/getThuChiReport gần nhất (không tự suy đoán quyền trên client).
-  const isManager=!!(currentUser&&currentUser.isManager&&currentUser.nv===thuChiUser?.nv);
+  // Tab Kiểm soát D-1 dùng quyền từ thuChiUser (xác thực trực tiếp trên backend Thu-Chi
+  // mới, đáng tin cậy hơn currentUser vốn thuộc phiên đăng nhập Lịch làm việc riêng).
+  const isManager=!!(thuChiUser&&thuChiUser.isManager);
   document.getElementById('thuChiTabKiemSoat').style.display=isManager?'block':'none';
 
   if(isBaoCao){
@@ -5594,11 +5639,104 @@ function switchThuChiTab(tab){
   if(isKiemSoat&&isManager&&!document.getElementById('thuChiKSDate').dataset.loaded){
     loadThuChiKiemSoat();
   }
+  if(isDuyetCa)loadThuChiDuyetList('choduyetca');
+  if(isDuyetKt)loadThuChiDuyetList('choduyetkt');
 }
 
 function setThuChiType(type){
   thuChiCurrentType=type;
   document.querySelectorAll('.thuchi-type-btn').forEach(b=>b.classList.toggle('active',b.dataset.type===type));
+}
+
+// ============================================================
+// DUYỆT 2 LỚP THU-CHI (Quản lý ca -> Kế toán/S.Quản lý) — backend Thu-Chi độc lập
+// loaiTab: 'choduyetca' | 'choduyetkt'
+// ============================================================
+// Gọi nhẹ chỉ để lấy số lượng cho badge — không đụng vào list đang hiển thị (nếu có)
+async function capNhatBadgeSoLuongChoDuyet(loaiTab){
+  if(!thuChiUser)return;
+  try{
+    const url=CONFIG.thuChiUrl+'?action=getThuChiChoDuyet&nv='+encodeURIComponent(thuChiUser.nv)
+      +'&passcode='+encodeURIComponent(thuChiUser.passcode)+'&loaiTab='+loaiTab;
+    const json=await fetchJSONP(url);
+    if(json.status==='ok'){
+      hienBadgeThuChi(loaiTab==='choduyetca'?'thuChiBadgeCa':'thuChiBadgeKt', (json.data.rows||[]).length);
+    }
+  }catch(e){/* im lặng, badge chỉ là gợi ý phụ */}
+}
+
+async function loadThuChiDuyetList(loaiTab){
+  if(!thuChiUser)return;
+  const isCa=loaiTab==='choduyetca';
+  const listEl=document.getElementById(isCa?'thuChiDuyetCaList':'thuChiDuyetKtList');
+  const msgEl=document.getElementById(isCa?'thuChiDuyetCaMsg':'thuChiDuyetKtMsg');
+  msgEl.innerHTML='';
+  listEl.innerHTML='<div class="thuchi-empty">Đang tải...</div>';
+  try{
+    const url=CONFIG.thuChiUrl+'?action=getThuChiChoDuyet&nv='+encodeURIComponent(thuChiUser.nv)
+      +'&passcode='+encodeURIComponent(thuChiUser.passcode)+'&loaiTab='+loaiTab;
+    const json=await fetchJSONP(url);
+    if(json.status!=='ok')throw new Error(json.message||'Không tải được danh sách.');
+    const rows=json.data.rows||[];
+    hienBadgeThuChi(isCa?'thuChiBadgeCa':'thuChiBadgeKt', rows.length);
+    if(!rows.length){
+      listEl.innerHTML='<div class="thuchi-empty">Không còn giao dịch nào cần duyệt ở đây 🎉</div>';
+      return;
+    }
+    listEl.innerHTML=rows.map(r=>renderThuChiDuyetCard(r,isCa)).join('');
+  }catch(e){
+    listEl.innerHTML='';
+    msgEl.innerHTML='<div class="thuchi-msg error" style="display:block;">❌ '+escapeHtml(e.message)+'</div>';
+  }
+}
+
+function hienBadgeThuChi(id, soLuong){
+  const el=document.getElementById(id);
+  if(!el)return;
+  if(soLuong>0){el.textContent=soLuong;el.style.display='inline-block';}
+  else el.style.display='none';
+}
+
+function renderThuChiDuyetCard(r, isCa){
+  const soTienFmt=(r.phanLoai==='THU'?'+':'-')+fmtMoney(r.soTien)+' đ';
+  const soTienColor=r.phanLoai==='THU'?'var(--green)':'var(--red)';
+  const anhHtml=r.linkAnh?`<div class="meta">📷 <a href="${r.linkAnh}" target="_blank" rel="noopener">Xem ảnh chứng từ</a></div>`:'';
+  const daDuyetCaHtml=(!isCa&&r.trangThaiCa)?`<div class="meta">✓ Duyệt ca: ${escapeHtml(r.nguoiDuyetCa||'')}</div>`:'';
+  const nutHtml=isCa
+    ? `<button class="btn-duyet" onclick="duyetThuChiGiaoDich('${r.maGD}','ca')">Duyệt ca</button>`
+    : `<button class="btn-duyet" onclick="duyetThuChiGiaoDich('${r.maGD}','kt')">Duyệt Kế toán</button>`;
+  return `<div class="thuchi-duyet-card">
+    <div class="top">
+      <span style="font-weight:700;color:${soTienColor};">${soTienFmt}</span>
+      <span class="meta">${r.ngay}</span>
+    </div>
+    <div class="noidung">${escapeHtml(r.noiDung)}</div>
+    <div class="meta">NV: ${escapeHtml(r.nv)}${r.tuyen?' · '+escapeHtml(r.tuyen):''}${r.khuVuc?' · '+escapeHtml(r.khuVuc):''}</div>
+    ${daDuyetCaHtml}
+    ${anhHtml}
+    ${nutHtml}
+  </div>`;
+}
+
+async function duyetThuChiGiaoDich(maGD, loai){
+  if(!confirm('Xác nhận duyệt giao dịch này?'))return;
+  if(!thuChiUser)return;
+  const action=loai==='ca'?'duyetThuChiCa':'duyetThuChiKeToan';
+  try{
+    const res=await fetch(CONFIG.thuChiUrl,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({action:action, nv:thuChiUser.nv, passcode:thuChiUser.passcode, maGD:maGD})
+    });
+    const json=await res.json();
+    if(json.status!=='ok')throw new Error(json.message||'Duyệt thất bại.');
+    const tabVua=loai==='ca'?'choduyetca':'choduyetkt';
+    loadThuChiDuyetList(tabVua);
+    capNhatBadgeSoLuongChoDuyet(tabVua);
+    if(loai==='ca'&&thuChiUser.isSuperManager)capNhatBadgeSoLuongChoDuyet('choduyetkt'); // duyệt ca xong -> KT có thêm việc
+  }catch(e){
+    alert('Lỗi: '+e.message);
+  }
 }
 
 // Gõ tới đâu, gợi ý phân loại tới đó — giúp NV tự phân loại đúng ngay từ lúc nhập,
@@ -5759,7 +5897,7 @@ async function uploadThuChiPhotoIfAny(){
 
   let res;
   try{
-    res=await fetch(CONFIG.payrollUrl,{
+    res=await fetch(CONFIG.thuChiUrl,{
       method:'POST',
       headers:{'Content-Type':'text/plain;charset=utf-8'}, // tránh CORS preflight phức tạp với Apps Script
       signal:controller.signal,
@@ -5859,7 +5997,7 @@ function showThuChiMsg(type, text){
       // giao dịch thật). Nếu Apps Script backend chưa có cột tương ứng thì cứ bỏ qua, không vỡ luồng cũ.
       ...getDeviceInfo()
     };
-    const url=CONFIG.payrollUrl+'?action=submitThuChi&payload='+encodeURIComponent(JSON.stringify(payload));
+    const url=CONFIG.thuChiUrl+'?action=submitThuChi&payload='+encodeURIComponent(JSON.stringify(payload));
     const json=await fetchJSONP(url);
     if(json.status!=='ok')throw new Error(json.message||'Ghi nhận thất bại');
 
@@ -5883,7 +6021,7 @@ function setupThuChiReportFilters(){
   // Dropdown lọc theo NV trong tab Báo cáo: chỉ hiện nếu người đăng nhập là Quản lý
   // (kết quả isManager trả về từ lần gọi getThuChiReport gần nhất, hoặc loginSchedule nếu có)
   const sel=document.getElementById('thuChiReportNVFilter');
-  const isManager=currentUser&&currentUser.isManager&&currentUser.nv===thuChiUser?.nv;
+  const isManager=!!(thuChiUser&&thuChiUser.isManager);
   if(isManager){
     sel.style.display='inline-block';
     const nvNames=masterNVFullList.length?masterNVFullList.map(o=>o.ten):thuChiNVList;
@@ -5912,7 +6050,7 @@ async function loadThuChiReport(){
   const nvLoc=document.getElementById('thuChiReportNVFilter').value||'';
 
   try{
-    let url=CONFIG.payrollUrl+'?action=getThuChiReport&nv='+encodeURIComponent(thuChiUser.nv)+'&passcode='+encodeURIComponent(thuChiUser.passcode);
+    let url=CONFIG.thuChiUrl+'?action=getThuChiReport&nv='+encodeURIComponent(thuChiUser.nv)+'&passcode='+encodeURIComponent(thuChiUser.passcode);
     if(tu)url+='&tu='+encodeURIComponent(tu);
     if(den)url+='&den='+encodeURIComponent(den);
     if(nvLoc)url+='&nvLoc='+encodeURIComponent(nvLoc);
@@ -6044,7 +6182,7 @@ async function loadThuChiKiemSoat(){
   yTag.textContent=dateStr===today?'(hôm nay)':(new Date(dateStr+'T12:00:00')<new Date(today+'T12:00:00')?'(D-1 / quá khứ)':'(ngày tương lai — chưa có dữ liệu)');
 
   try{
-    let url=CONFIG.payrollUrl+'?action=getThuChiReport&nv='+encodeURIComponent(thuChiUser.nv)+'&passcode='+encodeURIComponent(thuChiUser.passcode)
+    let url=CONFIG.thuChiUrl+'?action=getThuChiReport&nv='+encodeURIComponent(thuChiUser.nv)+'&passcode='+encodeURIComponent(thuChiUser.passcode)
       +'&tu='+encodeURIComponent(dateStr)+'&den='+encodeURIComponent(dateStr)+'&nvLoc=';
     const json=await fetchJSONP(url);
     if(json.status!=='ok')throw new Error(json.message||'Không tải được dữ liệu soát sổ');
