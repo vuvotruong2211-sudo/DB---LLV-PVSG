@@ -2710,7 +2710,7 @@ function initAuth(){
       sessionStorage.removeItem('llv_idle_logout');
       const errEl=document.getElementById('loginErr');
       if(errEl){
-        errEl.textContent='🔒 Đã tự đăng xuất vì không thao tác '+TU_DANG_XUAT_SAU_PHUT+' phút (máy dùng chung). Vui lòng đăng nhập lại.';
+        errEl.textContent='🔒 Đã tự đăng xuất vì không thao tác '+TU_DANG_XUAT_SAU_PHUT+' phút. Vui lòng đăng nhập lại.';
         errEl.style.display='block';
       }
     }
@@ -2823,7 +2823,7 @@ function logoutSchedule(){
 // Không chạm chuột/bàn phím/màn hình quá TU_DANG_XUAT_SAU_PHUT phút -> đăng xuất toàn bộ.
 // Muốn đổi thời gian: sửa số dưới đây (đơn vị: phút).
 // ============================================================
-const TU_DANG_XUAT_SAU_PHUT = 5;
+const TU_DANG_XUAT_SAU_PHUT = 240;
 let __lanThaoTacCuoi = Date.now();
 function ghiNhanThaoTac(){ __lanThaoTacCuoi = Date.now(); }
 function dangCoPhienDangNhap(){
@@ -2890,7 +2890,7 @@ function updateUserBadge(){
       const oText=document.getElementById('userOfficeBannerText');
       if(oText){
         oText.textContent = currentUser.boPhan
-          ? 'Xin chào, lịch làm việc sẽ được hiển thị bên dưới. Chúc bạn luôn hài lòng với mọi thứ trong cuộc sống'
+          ? 'Xin chào, lịch làm việc sẽ được hiển thị bên dưới. Chúc cả nhà nhiều sức khoẻ và bình an'
           : '⚠️ Chưa xác định được văn phòng của bạn — vui lòng đăng xuất/đăng nhập lại hoặc báo Admin kiểm tra Master_NV.';
       }
     }
