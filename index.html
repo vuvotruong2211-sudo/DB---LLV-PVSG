@@ -2693,10 +2693,28 @@ let currentUser=null;
 
 function initAuth(){
   applyBrandConfig();
+  // Phiên đăng nhập chỉ lưu trong THẺ đang mở (sessionStorage): đóng thẻ/trình duyệt là mất.
+  // Xoá luôn phiên cũ kiểu lưu vĩnh viễn (localStorage) của bản trước.
+  try{localStorage.removeItem('llv_user');}catch(e){}
   try{
-    const saved=localStorage.getItem('llv_user');
+    const saved=sessionStorage.getItem('llv_user');
     if(saved)currentUser=JSON.parse(saved);
   }catch(e){currentUser=null;}
+  if(currentUser&&!currentUser.token){ // phiên thiếu token -> bắt đăng nhập lại
+    currentUser=null;
+    try{sessionStorage.removeItem('llv_user');}catch(e){}
+  }
+  // Báo lý do nếu vừa bị tự đăng xuất vì không thao tác
+  try{
+    if(sessionStorage.getItem('llv_idle_logout')){
+      sessionStorage.removeItem('llv_idle_logout');
+      const errEl=document.getElementById('loginErr');
+      if(errEl){
+        errEl.textContent='🔒 Đã tự đăng xuất vì không thao tác '+TU_DANG_XUAT_SAU_PHUT+' phút (máy dùng chung). Vui lòng đăng nhập lại.';
+        errEl.style.display='block';
+      }
+    }
+  }catch(e){}
 
   if(currentUser){
     hideLoginGate();
@@ -2775,7 +2793,8 @@ async function submitLoginSchedule(){
     const json=await fetchJSONP(url);
     if(json.status!=='ok')throw new Error(json.message||'Đăng nhập thất bại');
     currentUser=json.data; // {nv, boPhan, chucVu, isManager}
-    try{localStorage.setItem('llv_user',JSON.stringify(currentUser));}catch(e){}
+    try{sessionStorage.setItem('llv_user',JSON.stringify(currentUser));}catch(e){}
+    ghiNhanThaoTac();
     hideLoginGate();
     updateUserBadge();
     populateFilters(); // đồng bộ lại danh sách Văn phòng/NV trong filter sau khi đăng nhập
@@ -2790,12 +2809,48 @@ async function submitLoginSchedule(){
 }
 
 function logoutSchedule(){
+  // Đăng xuất = xoá phiên + TẢI LẠI TRANG để xoá sạch mọi dữ liệu và mọi phiên đăng nhập
+  // phụ đang giữ passcode trong bộ nhớ (QR, Thu-Chi, Line ĐT, Nghỉ phép, Nồng độ cồn...).
   currentUser=null;
+  allData=[];
+  try{sessionStorage.removeItem('llv_user');}catch(e){}
   try{localStorage.removeItem('llv_user');}catch(e){}
-  updateUserBadge();
-  showLoginGate();
-  applyFilters(); // xoá sạch filteredData khỏi bộ nhớ/UI ngay khi đăng xuất
+  location.reload();
 }
+
+// ============================================================
+// TỰ ĐĂNG XUẤT KHI KHÔNG THAO TÁC — máy dùng chung tại quầy.
+// Không chạm chuột/bàn phím/màn hình quá TU_DANG_XUAT_SAU_PHUT phút -> đăng xuất toàn bộ.
+// Muốn đổi thời gian: sửa số dưới đây (đơn vị: phút).
+// ============================================================
+const TU_DANG_XUAT_SAU_PHUT = 5;
+let __lanThaoTacCuoi = Date.now();
+function ghiNhanThaoTac(){ __lanThaoTacCuoi = Date.now(); }
+function dangCoPhienDangNhap(){
+  // Phiên chính hoặc bất kỳ phiên phụ nào (các biến này giữ passcode trong bộ nhớ)
+  const phu=[
+    typeof thuChiUser!=='undefined'?thuChiUser:null,
+    typeof tichDiemUser!=='undefined'?tichDiemUser:null,
+    typeof qrUser!=='undefined'?qrUser:null,
+    typeof nongDoConUser!=='undefined'?nongDoConUser:null,
+    typeof lineDTUser!=='undefined'?lineDTUser:null,
+    typeof nghiPhepUser!=='undefined'?nghiPhepUser:null,
+    typeof doiCaUser!=='undefined'?doiCaUser:null
+  ];
+  return !!currentUser || phu.some(Boolean);
+}
+function kiemTraTuDangXuat(){
+  if(!dangCoPhienDangNhap())return;
+  if(Date.now()-__lanThaoTacCuoi < TU_DANG_XUAT_SAU_PHUT*60000)return;
+  try{sessionStorage.setItem('llv_idle_logout','1');}catch(e){}
+  logoutSchedule();
+}
+['mousedown','mousemove','keydown','touchstart','scroll','wheel'].forEach(ev=>
+  window.addEventListener(ev, ghiNhanThaoTac, {passive:true, capture:true}));
+// Điện thoại ngủ/khoá màn hình thì bộ đếm tạm dừng -> kiểm tra ngay khi mở lại
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden)kiemTraTuDangXuat(); });
+window.addEventListener('focus', kiemTraTuDangXuat);
+setInterval(kiemTraTuDangXuat, 15000);
 
 function updateUserBadge(){
   const badge=document.getElementById('userBadge');
@@ -2974,9 +3029,10 @@ function normalizeLoaiCa(loai,caLam){
 // ============================================================
 // LOAD TỪ APPS SCRIPT — JSONP (bypass CORS hoàn toàn)
 // ============================================================
+let __jsonpSeq=0; // đếm để 2 request cùng 1 mili-giây không trùng tên callback (lỗi cũ làm mất dữ liệu)
 function fetchJSONP(url){
   return new Promise((resolve,reject)=>{
-    const cb='_cb'+Date.now();
+    const cb='_cb'+Date.now()+'_'+(++__jsonpSeq);
     const script=document.createElement('script');
     const timer=setTimeout(()=>{
       cleanup();
@@ -3147,49 +3203,49 @@ function computeBaDiemLineAssignmentForDay(dateObj){
 }
 
 async function loadData(){
-  // Ưu tiên đọc URL từ CONFIG (set cứng, luôn có sẵn) thay vì từ ô input
-  // để tránh race condition khi auto-load lúc trang mới mở
-  const url=(
-    (typeof CONFIG!=='undefined'&&CONFIG.webAppUrl)
-    ? CONFIG.webAppUrl
-    : (document.getElementById('webAppUrl').value||'').trim()
-  );
-  if(!url){setStatus('⚠️ Chưa nhập Apps Script URL','warn');return;}
+  // Lịch làm việc tải từ Apps Script B (action=getSchedule) — server đã lọc sẵn theo quyền:
+  // S.Quản lý nhận toàn bộ; Quản lý/NV chỉ nhận lịch của chính mình tới ngày được mở.
+  if(!currentUser||!currentUser.token)return; // chưa đăng nhập -> không tải gì
+  if(!CONFIG.payrollUrl){setStatus('⚠️ Chưa cấu hình payrollUrl','warn');return;}
 
-  showLoading('Đang kết nối Apps Script...');
+  showLoading('Đang tải lịch làm việc...');
   document.getElementById('loadBtn').disabled=true;
 
-  try{
-    const json=await fetchJSONP(url);
-    if(json.status!=='ok')throw new Error(json.message||'Apps Script trả về lỗi');
+  const toRow=r=>{
+    const p=String(r[0]).split('-');
+    return {
+      date:new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]),12,0,0),
+      thang:parseInt(r[1])||0, thu:r[2]||'', nv:r[3]||'',
+      boPhan:r[4]||'', vanPhong:r[5]||'', caLam:r[6]||'', loaiCa:r[7]||''
+    };
+  };
 
-    allData=json.data.map(r=>({
-      date:     r.date?(()=>{const p=r.date.split('-');return new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]),12,0,0);})():null,
-      thu:      r.thu||'',
-      nv:       r.nv||'',
-      boPhan:   r.boPhan||'',   // VP nhỏ (Bà Điểm, Gò Dưa...) — hiển thị trên lịch
-      vanPhong: r.vanPhong||'', // VP lớn (HCM, Quảng Ngãi, Đà Lạt) — dùng phân quyền
-      caLam:    r.caLam||'',
-      loaiCa:   r.loaiCa||'',
-      thang:    parseInt(r.thang)||0,
-    })).filter(r=>r.date&&r.nv);
+  try{
+    const url=CONFIG.payrollUrl+'?action=getSchedule&token='+encodeURIComponent(currentUser.token);
+    const json=await fetchJSONP(url);
+    if(json.status!=='ok'){
+      if(String(json.message||'').indexOf('PHIEN_HET_HAN')!==-1){
+        hideLoading();
+        alert('Phiên đăng nhập đã hết hạn hoặc passcode vừa thay đổi. Vui lòng đăng nhập lại.');
+        logoutSchedule();
+        return;
+      }
+      throw new Error(json.message||'Không tải được lịch');
+    }
+
+    allData=(json.data.rows||[]).map(toRow).filter(r=>r.date&&r.nv);
 
     processData();
     const t=new Date();
     document.getElementById('lastSync').textContent=
       'Đồng bộ '+String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');
-    setStatus('✅ '+allData.length.toLocaleString()+' bản ghi · '+
-      [...new Set(allData.map(r=>r.nv))].length+' nhân viên · '+
-      [...new Set(allData.map(r=>r.thang).filter(Boolean))].length+' tháng','ok');
-
-    try{localStorage.setItem('llv_url',url);}catch(e){}
-
+    setStatus('✅ '+allData.length.toLocaleString()+' bản ghi lịch','ok');
   }catch(e){
     setStatus('❌ '+e.message,'err');
+  }finally{
+    hideLoading();
+    document.getElementById('loadBtn').disabled=false;
   }
-
-  hideLoading();
-  document.getElementById('loadBtn').disabled=false;
 }
 
 // ============================================================
@@ -7214,39 +7270,41 @@ async function submitLineDTLogin(){
 // Hiển thị bảng gán line hôm nay (đã tính theo đúng giờ vào/ra thật — ai đang ngồi
 // giữ nguyên line tới lúc ra ca, không bị ép đổi máy giữa chừng) + tự điền gợi ý số
 // line cho đúng NV đang chọn. NV vẫn có thể sửa tay nếu cần.
-function updateLineDTRotationSuggestion(){
+// Gợi ý Line ĐT Bà Điểm: server tự tính (action=getLineDTGoiY) và CHỈ trả kết quả của đúng
+// ngày đang chọn. Ngày chưa công bố (ngày mai trước 17:00, các ngày sau) server từ chối,
+// trừ S.Quản lý. Máy NV không còn nhận lịch thô của người khác.
+let __lineDTGoiYReq=0;
+async function updateLineDTRotationSuggestion(){
   const box=document.getElementById('lineDTRotationBox');
   const ngayStr=document.getElementById('lineDTFormNgay')?.value;
-  if(!box||!ngayStr){if(box)box.innerHTML='';return;}
+  if(!box||!ngayStr||!lineDTUser){if(box)box.innerHTML='';return;}
 
-  const [y,m,d]=ngayStr.split('-').map(Number);
-  const dateObj=new Date(y,m-1,d);
+  const reqId=++__lineDTGoiYReq;
+  box.innerHTML='<div style="font-size:11px;color:var(--text3);padding:4px 2px;">⏳ Đang tính line...</div>';
 
-  // CHẶN RÒ RỈ LỊCH LÀM VIỆC: khung gợi ý này liệt kê tên + giờ vào/ra ca của cả VP —
-  // nếu NV chọn ngày vượt giới hạn cho phép (lịch chưa công bố), TUYỆT ĐỐI không hiển
-  // thị/tự điền, vì sẽ lộ ai làm ca sáng/chiều ngày đó ra ngoài, phá luật khoá lịch chính.
-  // Quy tắc: chỉ xem được tới hết HÔM NAY; lịch NGÀY MAI (D+1) chỉ mở từ 17:00 tối nay.
-  // Chỉ S.Quản Lý (đăng nhập đúng tài khoản S.Quản Lý ở Line ĐT) mới được bỏ qua khoá này.
-  const today=new Date();today.setHours(0,0,0,0);
-  const tomorrow=addDays(today,1); // D+1
-  const nowHour=new Date().getHours();
-  const ddCheck=new Date(dateObj);ddCheck.setHours(0,0,0,0);
-  const isSuperManagerHere = currentUser && currentUser.isSuperManager && currentUser.nv===lineDTUser?.nv;
-  let dayIsLocked = ddCheck.getTime()>today.getTime(); // mặc định: mọi ngày tương lai đều khoá
-  if(ddCheck.getTime()===tomorrow.getTime() && nowHour>=17) dayIsLocked=false; // D+1 mở từ 17:00
-  if(dayIsLocked && !isSuperManagerHere){
+  let data;
+  try{
+    const url=CONFIG.payrollUrl+'?action=getLineDTGoiY&nv='+encodeURIComponent(lineDTUser.nv)
+      +'&passcode='+encodeURIComponent(lineDTUser.passcode)+'&ngay='+encodeURIComponent(ngayStr);
+    const json=await fetchJSONP(url);
+    if(reqId!==__lineDTGoiYReq)return; // đã đổi ngày/NV khác trong lúc chờ
+    if(json.status!=='ok')throw new Error(json.message||'Không tính được line');
+    data=json.data||{};
+  }catch(e){
+    if(reqId!==__lineDTGoiYReq)return;
+    box.innerHTML='<div style="font-size:11px;color:var(--text3);padding:4px 2px;">⚠️ Chưa lấy được gợi ý line ('+escapeHtml(e.message)+') — vui lòng tự nhập số line/bàn.</div>';
+    return;
+  }
+
+  if(data.locked){
     box.innerHTML='<div style="background:var(--surface2);border-radius:8px;padding:8px 10px;font-size:11px;color:var(--text3);">'
       +'🔒 Lịch ngày này chưa công bố (chỉ xem tới hết hôm nay; ngày mai mở từ 17:00 tối nay) — vui lòng tự nhập số line/bàn.'
       +'</div>';
-    return; // không tính toán, không tự điền -> không lộ tên/ca của người khác
-  }
-
-  const assignments=computeBaDiemLineAssignmentForDay(dateObj);
-
-  if(!assignments.length){
-    box.innerHTML=''; // hôm đó không ai trực Bà Điểm theo lịch -> không gợi ý, NV tự nhập tay
     return;
   }
+
+  const assignments=data.rows||[];
+  if(!assignments.length){ box.innerHTML=''; return; } // hôm đó không ai trực Bà Điểm -> NV tự nhập
 
   const nv=document.getElementById('lineDTFormNV')?.value||'';
   const soLineInput=document.getElementById('lineDTFormSoLine');
@@ -8304,7 +8362,7 @@ window.addEventListener('load',()=>{
   const url = (typeof CONFIG!=='undefined'&&CONFIG.webAppUrl) ? CONFIG.webAppUrl : '';
   if(url) {
     document.getElementById('webAppUrl').value=url;
-    loadData();
+    // loadData() đã được initAuth() gọi khi đã đăng nhập — không tải trùng
   }
   updateWeekLabel();
 });
