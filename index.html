@@ -1059,9 +1059,9 @@
   .scan-modal-box select,.scan-modal-box textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:10px 12px;color:var(--text);font-size:13px;font-family:'Inter',sans-serif;outline:none;margin-bottom:12px;}
   .scan-modal-box textarea{resize:vertical;min-height:44px;}
   .scan-capture-row{display:flex;gap:8px;margin:4px 0 12px;}
-  .scan-capture-row label{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:12px 10px;border-radius:12px;font-size:13px;font-weight:600;cursor:pointer;user-select:none;}
-  .scan-capture-row label.scan-btn-main{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;}
-  .scan-capture-row label.scan-btn-sub{background:var(--surface2);border:1px solid var(--border);color:var(--text2);}
+  .scan-capture-row label,.scan-capture-row button{flex:1;border:none;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;padding:12px 10px;border-radius:12px;font-size:13px;font-weight:600;cursor:pointer;user-select:none;}
+  .scan-capture-row .scan-btn-main{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;}
+  .scan-capture-row .scan-btn-sub{background:var(--surface2);border:1px solid var(--border);color:var(--text2);}
   .scan-capture-row input{display:none;}
   .scan-seg{display:flex;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:3px;gap:3px;margin-bottom:12px;}
   .scan-seg button{flex:1;border:none;background:transparent;color:var(--text2);padding:7px 4px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;}
@@ -1088,6 +1088,24 @@
   .scan-crop-hint{font-size:11px;color:var(--text3);text-align:center;margin-bottom:10px;}
   .scan-crop-tools{display:flex;gap:6px;margin-bottom:10px;}
   .scan-crop-tools button{flex:1;border:1px solid var(--border);background:var(--surface2);color:var(--text2);border-radius:8px;padding:8px 4px;font-size:12px;cursor:pointer;}
+
+  /* Camera trực tiếp (tự dò & tự chụp) */
+  .scan-modal-box.scan-fullscreen{position:fixed;inset:0;max-width:none;width:100vw;height:100vh;height:100dvh;max-height:none;border-radius:0;padding:0;overflow:hidden;background:#000;border:none;}
+  .scan-modal-box.scan-fullscreen::before{display:none;}
+  .scan-cam{position:absolute;inset:0;background:#000;overflow:hidden;}
+  .scan-cam video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;}
+  .scan-cam canvas.scan-cam-overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+  .scan-cam-flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .25s;}
+  .scan-cam-top{position:absolute;left:0;right:0;top:0;padding:calc(10px + env(safe-area-inset-top)) 12px 10px;display:flex;align-items:center;gap:8px;background:linear-gradient(rgba(0,0,0,.6),transparent);}
+  .scan-cam-top button{border:none;background:rgba(255,255,255,.18);color:#fff;border-radius:18px;padding:7px 12px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;}
+  .scan-cam-top button.on{background:#f5c518;color:#111;}
+  .scan-cam-hint{flex:1;text-align:center;color:#fff;font-size:13px;font-weight:600;text-shadow:0 1px 3px rgba(0,0,0,.8);}
+  .scan-cam-bottom{position:absolute;left:0;right:0;bottom:0;padding:14px 20px calc(18px + env(safe-area-inset-bottom));display:flex;align-items:center;justify-content:space-between;background:linear-gradient(transparent,rgba(0,0,0,.7));}
+  .scan-cam-thumb{width:54px;height:72px;border-radius:6px;border:2px solid #fff;background:#222 center/cover no-repeat;position:relative;cursor:pointer;}
+  .scan-cam-thumb span{position:absolute;top:-8px;right:-8px;background:#f5c518;color:#111;font-size:11px;font-weight:700;border-radius:10px;min-width:20px;height:20px;line-height:20px;text-align:center;padding:0 4px;}
+  .scan-shutter{width:72px;height:72px;border-radius:50%;border:4px solid #fff;background:rgba(255,255,255,.25);cursor:pointer;padding:0;}
+  .scan-shutter:active{background:#fff;}
+  .scan-cam-done{border:none;background:#f5c518;color:#111;border-radius:20px;padding:10px 16px;font-size:14px;font-weight:700;cursor:pointer;min-width:84px;}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
@@ -1990,9 +2008,8 @@
       <textarea id="scanGhiChu" rows="1" placeholder="VD: Tài xế Võ Ngọc Viên, chuyến 01/10"></textarea>
 
       <div class="scan-capture-row">
-        <label class="scan-btn-main">📷 Chụp trang
-          <input type="file" id="scanInputCamera" accept="image/*" capture="environment" onchange="scanOnFiles(this)">
-        </label>
+        <button type="button" class="scan-btn-main" onclick="scanStartCamera()">📷 Quét bằng camera</button>
+        <input type="file" id="scanInputCamera" accept="image/*" capture="environment" onchange="scanOnFiles(this)" style="display:none;">
         <label class="scan-btn-sub">🖼️ Chọn ảnh có sẵn
           <input type="file" id="scanInputFile" accept="image/*" multiple onchange="scanOnFiles(this)">
         </label>
@@ -2005,13 +2022,32 @@
       </div>
 
       <div id="scanPages" class="scan-pages"></div>
-      <div id="scanEmpty" class="scan-empty">Chưa có trang nào.<br>Bấm <strong>📷 Chụp trang</strong> để bắt đầu — nhiều trang sẽ gộp thành 1 file PDF.</div>
+      <div id="scanEmpty" class="scan-empty">Chưa có trang nào.<br>Bấm <strong>📷 Quét bằng camera</strong>, đưa tờ giấy vào khung — app tự nhận diện &amp; tự chụp.<br>Nhiều trang sẽ gộp thành 1 file PDF.</div>
       <div class="scan-summary" id="scanSummary"></div>
       <div class="scan-msg" id="scanMsg"></div>
 
       <div class="modal-actions">
         <button class="modal-btn-cancel" onclick="closeScanModal()">Đóng</button>
         <button class="modal-btn-confirm" id="scanSendBtn" onclick="scanSend()" disabled>⬆️ Gửi PDF lên Drive</button>
+      </div>
+    </div>
+
+    <!-- CAMERA TRỰC TIẾP: tự dò & tự chụp -->
+    <div id="scanCameraView" style="display:none;">
+      <div class="scan-cam">
+        <video id="scanVideo" playsinline muted autoplay></video>
+        <canvas class="scan-cam-overlay" id="scanOverlay"></canvas>
+        <div class="scan-cam-flash" id="scanFlash"></div>
+        <div class="scan-cam-top">
+          <button onclick="scanCamDone()">✕</button>
+          <div class="scan-cam-hint" id="scanCamHint">Đang mở camera...</div>
+          <button id="scanAutoBtn" class="on" onclick="scanToggleAuto()">Tự động</button>
+        </div>
+        <div class="scan-cam-bottom">
+          <div class="scan-cam-thumb" id="scanCamThumb" onclick="scanCamDone()"><span id="scanCamCount">0</span></div>
+          <button class="scan-shutter" id="scanShutter" onclick="scanCamManual()" aria-label="Chụp"></button>
+          <button class="scan-cam-done" onclick="scanCamDone()">Lưu</button>
+        </div>
       </div>
     </div>
 
@@ -8559,16 +8595,15 @@ function scanImageToCanvas(img,maxPx){
 // ---------- 1) DÒ 4 GÓC TỜ GIẤY ----------
 // Giấy sáng hơn nền: ngưỡng Otsu -> vùng sáng lớn nhất -> bao lồi -> tứ giác diện tích lớn nhất.
 // Trả về 4 góc [TL,TR,BR,BL] theo toạ độ của canvas nguồn; dò không ra thì trả khung lùi vào 4%.
-function scanDetectCorners(srcCanvas){
+function scanFindQuad(srcCanvas,maxPx){
   const W=srcCanvas.width,H=srcCanvas.height;
-  const k=Math.min(1,SCAN_CFG.DETECT_MAX_PX/Math.max(W,H));
+  const k=Math.min(1,(maxPx||SCAN_CFG.DETECT_MAX_PX)/Math.max(W,H));
   const w=Math.max(8,Math.round(W*k)),h=Math.max(8,Math.round(H*k));
   const c=document.createElement('canvas');c.width=w;c.height=h;
   const ctx=c.getContext('2d');ctx.drawImage(srcCanvas,0,0,w,h);
   const d=ctx.getImageData(0,0,w,h).data;
 
-  // Dò không ra -> lấy NGUYÊN khung ảnh (không cắt mất chữ), người dùng tự kéo góc nếu cần
-  const macDinh=()=>[[0,0],[W,0],[W,H],[0,H]];
+  const khongThay=(ly)=>({quad:null,reason:ly});
 
   // Xám + làm mờ hộp bán kính 2 (tích phân ảnh)
   const g=new Float32Array(w*h);
@@ -8593,7 +8628,7 @@ function scanDetectCorners(srcCanvas){
   }
   // Vùng tối & vùng sáng chênh nhau ít -> không có nền bàn rõ ràng, tờ giấy chiếm gần hết khung
   // (vùng "tối" chỉ là bóng đổ trên giấy) -> lấy nguyên khung, tránh cắt mất phần bị bóng.
-  if(meanSang-meanToi<65)return macDinh();
+  if(meanSang-meanToi<65)return khongThay('none');
   // Ngưỡng thấp hơn Otsu để phần giấy bị bóng đổ vẫn được tính là giấy
   thr=Math.round(meanToi+0.35*(meanSang-meanToi));
 
@@ -8613,7 +8648,7 @@ function scanDetectCorners(srcCanvas){
     if(cnt>bestCnt){bestCnt=cnt;bestId=id;}
     id++;
   }
-  if(bestId<0||bestCnt<w*h*0.15)return macDinh();
+  if(bestId<0||bestCnt<w*h*0.08)return khongThay(bestCnt>w*h*0.02?'small':'none');
 
   // Điểm biên trái/phải mỗi dòng -> bao lồi (monotone chain)
   const pts=[];
@@ -8628,7 +8663,7 @@ function scanDetectCorners(srcCanvas){
   for(const p of pts){while(lo.length>=2&&cross(lo[lo.length-2],lo[lo.length-1],p)<=0)lo.pop();lo.push(p);}
   for(let i=pts.length-1;i>=0;i--){const p=pts[i];while(up.length>=2&&cross(up[up.length-2],up[up.length-1],p)<=0)up.pop();up.push(p);}
   const hull=lo.slice(0,-1).concat(up.slice(0,-1));
-  if(hull.length<4)return macDinh();
+  if(hull.length<4)return khongThay('none');
 
   // Khởi tạo từ 4 điểm cực trị, rồi dịch từng đỉnh dọc bao lồi để tứ giác lớn nhất
   const n=hull.length;
@@ -8646,8 +8681,31 @@ function scanDetectCorners(srcCanvas){
   }
   let quad=idx.map(i=>[hull[i][0]/k,hull[i][1]/k]);
   quad=scanSortCorners(quad);
-  if(scanPolyArea(quad)<W*H*0.15)return macDinh();
-  return quad;
+  // Kiểm tra hình dạng: phải là tứ giác lồi, các góc 45°–135°, cạnh đối không chênh quá 2 lần
+  for(let i=0;i<4;i++){
+    const a=quad[(i+3)%4],b=quad[i],c=quad[(i+1)%4];
+    const v1=[a[0]-b[0],a[1]-b[1]],v2=[c[0]-b[0],c[1]-b[1]];
+    const cos=(v1[0]*v2[0]+v1[1]*v2[1])/(Math.hypot(...v1)*Math.hypot(...v2)||1);
+    const deg=Math.acos(Math.max(-1,Math.min(1,cos)))*180/Math.PI;
+    if(deg<45||deg>135)return khongThay('none');
+  }
+  const dd=(p,q)=>Math.hypot(p[0]-q[0],p[1]-q[1]);
+  const r1=dd(quad[0],quad[1])/(dd(quad[3],quad[2])||1),r2=dd(quad[0],quad[3])/(dd(quad[1],quad[2])||1);
+  if(r1<0.5||r1>2||r2<0.5||r2>2)return khongThay('none');
+  const tiLe=scanPolyArea(quad)/(W*H);
+  if(tiLe<0.15)return {quad,reason:'small'};
+  // Góc giấy dính sát mép khung -> có thể tờ giấy còn tràn ra ngoài khung hình
+  const m=0.012*Math.max(W,H);
+  if(quad.some(p=>p[0]<m||p[1]<m||p[0]>W-m||p[1]>H-m))return {quad,reason:'edge'};
+  return {quad,reason:'ok'};
+}
+
+// Dò góc cho ảnh tĩnh: không chắc chắn thì lấy NGUYÊN khung ảnh (không cắt mất chữ),
+// người dùng tự kéo góc nếu cần.
+function scanDetectCorners(srcCanvas){
+  const r=scanFindQuad(srcCanvas);
+  if(r.quad&&r.reason!=='none')return r.quad;
+  return [[0,0],[srcCanvas.width,0],[srcCanvas.width,srcCanvas.height],[0,srcCanvas.height]];
 }
 
 function scanPolyArea(q){let a=0;for(let i=0;i<4;i++){const p=q[i],o=q[(i+1)%4];a+=p[0]*o[1]-o[0]*p[1];}return Math.abs(a)/2;}
@@ -8861,6 +8919,8 @@ function openScanModal(){
   document.getElementById('scanModal').classList.add('show');
 }
 function closeScanModal(){
+  if(typeof scanCamStop==='function')scanCamStop();
+  document.querySelector('#scanModal .scan-modal-box').classList.remove('scan-fullscreen');
   if(scanPagesList.length&&!confirm('Đóng sẽ XOÁ '+scanPagesList.length+' trang chưa gửi. Vẫn đóng?'))return;
   scanReset();
   document.getElementById('scanModal').classList.remove('show');
@@ -8876,6 +8936,7 @@ function scanMsg(type,text){
 }
 function scanShowList(){
   document.getElementById('scanListView').style.display='block';
+  const cv=document.getElementById('scanCameraView');if(cv)cv.style.display='none';
   document.getElementById('scanCropView').style.display='none';
 }
 
@@ -9027,6 +9088,208 @@ async function scanProcessPage(pg,srcCanvas){
   pg.out=await scanCompressPage(c);
   const t=scanImageToCanvas(c,260);
   pg.thumb=t.toDataURL('image/jpeg',0.7);
+}
+
+
+// ============================================================
+// CAMERA TRỰC TIẾP — TỰ DÒ & TỰ CHỤP (giống Quét tài liệu của iOS)
+// Liên tục dò tờ giấy trên khung hình (~8 lần/giây), vẽ khung bám mép giấy.
+// Giấy nằm yên ~0,8 giây -> tự chụp, tự cắt, làm trắng -> chờ trang kế tiếp
+// (chỉ chụp tiếp khi đã đổi sang trang khác / nhấc giấy ra, không chụp trùng).
+// Cần trang web chạy https; không có thì tự quay về cách chụp bằng camera của máy.
+// ============================================================
+const SCAN_LIVE={DETECT_PX:400, INTERVAL_MS:120, STABLE_FRAMES:7, MOVE_TOL:0.022, REARM_DIFF:16};
+let scanCam=null;
+
+function scanCameraSupported(){
+  return !!(window.isSecureContext&&navigator.mediaDevices&&navigator.mediaDevices.getUserMedia);
+}
+async function scanStartCamera(){
+  if(scanPagesList.length>=SCAN_CFG.MAX_PAGES){scanMsg('err','Tối đa '+SCAN_CFG.MAX_PAGES+' trang mỗi file. Vui lòng gửi file này trước.');return;}
+  if(!scanCameraSupported()){document.getElementById('scanInputCamera').click();return;} // dự phòng
+  let stream;
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{
+      facingMode:{ideal:'environment'},width:{ideal:3840},height:{ideal:2160}}});
+  }catch(e){
+    scanMsg('err',(e&&e.name==='NotAllowedError')
+      ?'❌ Chưa cho phép dùng camera. Vào cài đặt trình duyệt cấp quyền Camera cho trang này, hoặc dùng nút "Chọn ảnh có sẵn".'
+      :'❌ Không mở được camera ('+((e&&e.message)||e)+'). Hãy dùng nút "Chọn ảnh có sẵn".');
+    return;
+  }
+  scanCam={stream,running:true,auto:true,busy:false,timer:null,prevQuad:null,smooth:null,stable:0,
+           armed:true,lost:0,sig:null,last:{reason:'none'},det:document.createElement('canvas')};
+  document.getElementById('scanListView').style.display='none';
+  document.getElementById('scanCropView').style.display='none';
+  document.getElementById('scanCameraView').style.display='block';
+  document.querySelector('#scanModal .scan-modal-box').classList.add('scan-fullscreen');
+  document.getElementById('scanAutoBtn').classList.add('on');
+  scanCamUpdateCount();
+  const v=document.getElementById('scanVideo');
+  v.srcObject=stream;
+  try{await v.play();}catch(e){}
+  scanCamHint('Đưa tờ giấy vào khung hình');
+  scanCamLoop();
+}
+function scanCamStop(){
+  if(!scanCam)return;
+  scanCam.running=false;clearTimeout(scanCam.timer);
+  try{scanCam.stream.getTracks().forEach(t=>t.stop());}catch(e){}
+  const v=document.getElementById('scanVideo');if(v)v.srcObject=null;
+  scanCam=null;
+}
+function scanCamDone(){
+  scanCamStop();
+  document.querySelector('#scanModal .scan-modal-box').classList.remove('scan-fullscreen');
+  document.getElementById('scanCameraView').style.display='none';
+  scanShowList();scanRender();
+}
+// Rời app / khoá màn hình -> tắt camera (giữ nguyên các trang đã quét)
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&scanCam)scanCamDone();});
+
+function scanToggleAuto(){
+  if(!scanCam)return;scanCam.auto=!scanCam.auto;
+  document.getElementById('scanAutoBtn').classList.toggle('on',scanCam.auto);
+  document.getElementById('scanAutoBtn').textContent=scanCam.auto?'Tự động':'Thủ công';
+}
+function scanCamHint(t){const e=document.getElementById('scanCamHint');if(e&&e.textContent!==t)e.textContent=t;}
+function scanCamUpdateCount(){
+  const n=scanPagesList.length;
+  document.getElementById('scanCamCount').textContent=n;
+  const th=document.getElementById('scanCamThumb');
+  th.style.backgroundImage=n?'url('+scanPagesList[n-1].thumb+')':'none';
+}
+
+// Chữ ký nhỏ 16x16 của khung hình — dùng để biết đã đổi sang trang khác chưa
+function scanCamSignature(det){
+  const c=document.createElement('canvas');c.width=16;c.height=16;
+  const x=c.getContext('2d');x.drawImage(det,0,0,16,16);
+  const d=x.getImageData(0,0,16,16).data,out=new Uint8Array(256);
+  for(let i=0;i<256;i++)out[i]=(d[i*4]+d[i*4+1]+d[i*4+2])/3;
+  return out;
+}
+function scanSigDiff(a,b){let s=0;for(let i=0;i<a.length;i++)s+=Math.abs(a[i]-b[i]);return s/a.length;}
+
+function scanCamLoop(){
+  if(!scanCam||!scanCam.running)return;
+  const cam=scanCam;
+  cam.timer=setTimeout(scanCamLoop,SCAN_LIVE.INTERVAL_MS);
+  if(cam.busy)return;
+  const v=document.getElementById('scanVideo');
+  if(!v.videoWidth)return;
+  if(typeof ghiNhanThaoTac==='function')ghiNhanThaoTac(); // đang quét = đang dùng máy, không tự đăng xuất
+
+  const k=Math.min(1,SCAN_LIVE.DETECT_PX/Math.max(v.videoWidth,v.videoHeight));
+  const det=cam.det;det.width=Math.round(v.videoWidth*k);det.height=Math.round(v.videoHeight*k);
+  det.getContext('2d',{willReadFrequently:true}).drawImage(v,0,0,det.width,det.height);
+  const r=scanFindQuad(det,SCAN_LIVE.DETECT_PX);
+  cam.last=r;
+
+  // Độ ổn định: 4 góc gần như không đổi so với khung trước
+  const diag=Math.hypot(det.width,det.height);
+  if(r.quad&&r.reason==='ok'&&cam.prevQuad){
+    const move=Math.max(...r.quad.map((p,i)=>Math.hypot(p[0]-cam.prevQuad[i][0],p[1]-cam.prevQuad[i][1])))/diag;
+    cam.stable=move<SCAN_LIVE.MOVE_TOL?cam.stable+1:0;
+  }else cam.stable=0;
+  cam.prevQuad=r.quad?r.quad.map(p=>p.slice()):null;
+  // Làm mượt khung vẽ cho đỡ rung
+  if(r.quad){cam.smooth=cam.smooth?cam.smooth.map((p,i)=>[p[0]*0.5+r.quad[i][0]*0.5,p[1]*0.5+r.quad[i][1]*0.5]):r.quad.map(p=>p.slice());cam.lost=0;}
+  else{cam.lost++;if(cam.lost>2)cam.smooth=null;}
+
+  // Sau 1 lần chụp: chỉ chụp tiếp khi nhấc giấy ra hoặc đã đặt trang khác vào
+  if(!cam.armed){
+    if(cam.lost>=3)cam.armed=true;
+    else if(cam.sig&&scanSigDiff(cam.sig,scanCamSignature(det))>SCAN_LIVE.REARM_DIFF)cam.armed=true;
+  }
+
+  const tienDo=Math.min(1,cam.stable/SCAN_LIVE.STABLE_FRAMES);
+  scanCamDraw(v,det,r,tienDo);
+
+  if(scanPagesList.length>=SCAN_CFG.MAX_PAGES){scanCamHint('Đủ '+SCAN_CFG.MAX_PAGES+' trang — bấm Lưu');return;}
+  if(!cam.armed){scanCamHint('✓ Đã chụp trang '+scanPagesList.length+' — đặt trang tiếp theo');return;}
+  if(r.reason==='none')scanCamHint('Đưa tờ giấy vào khung hình (nên đặt trên nền tối)');
+  else if(r.reason==='small')scanCamHint('Đưa máy lại gần hơn');
+  else if(r.reason==='edge')scanCamHint('Lùi máy ra một chút để thấy đủ 4 góc');
+  else if(!cam.auto)scanCamHint('Đã thấy tờ giấy — bấm nút tròn để chụp');
+  else scanCamHint(tienDo<1?'Giữ yên máy...':'Đang chụp...');
+
+  if(cam.auto&&r.reason==='ok'&&cam.stable>=SCAN_LIVE.STABLE_FRAMES){
+    scanCamCapture(r.quad.map(p=>[p[0]/k,p[1]/k]),det);
+  }
+}
+
+// Vẽ khung bám mép giấy (map toạ độ ảnh dò -> toạ độ màn hình, video hiển thị kiểu "contain")
+function scanCamDraw(v,det,r,tienDo){
+  const ov=document.getElementById('scanOverlay');
+  const cw=ov.clientWidth,ch=ov.clientHeight,dpr=Math.min(2,window.devicePixelRatio||1);
+  if(ov.width!==Math.round(cw*dpr)||ov.height!==Math.round(ch*dpr)){ov.width=Math.round(cw*dpr);ov.height=Math.round(ch*dpr);}
+  const g=ov.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,cw,ch);
+  const q=scanCam&&scanCam.smooth;if(!q)return;
+  const sc=Math.min(cw/v.videoWidth,ch/v.videoHeight);
+  const ox=(cw-v.videoWidth*sc)/2,oy=(ch-v.videoHeight*sc)/2,f=v.videoWidth/det.width*sc;
+  const pts=q.map(p=>[ox+p[0]*f,oy+p[1]*f]);
+  const ok=r.reason==='ok';
+  g.beginPath();pts.forEach((p,i)=>i?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1]));g.closePath();
+  g.fillStyle=ok?'rgba(79,110,247,'+(0.12+0.3*tienDo)+')':'rgba(245,197,24,.15)';g.fill();
+  g.lineWidth=3;g.strokeStyle=ok?'#4f6ef7':'#f5c518';g.stroke();
+  g.fillStyle='#fff';pts.forEach(p=>{g.beginPath();g.arc(p[0],p[1],5,0,Math.PI*2);g.fill();});
+}
+
+// Chụp: lấy khung hình độ phân giải đầy đủ từ camera -> xử lý như trang thường
+async function scanCamCapture(quadVideo,det){
+  const cam=scanCam;if(!cam||cam.busy)return;
+  cam.busy=true;
+  try{
+    const v=document.getElementById('scanVideo');
+    // hiệu ứng chụp
+    const fl=document.getElementById('scanFlash');fl.style.opacity='0.85';setTimeout(()=>{fl.style.opacity='0';},120);
+    try{navigator.vibrate&&navigator.vibrate(60);}catch(e){}
+    scanCamHint('Đang xử lý trang...');
+
+    let src=null,quad=null;
+    // Android/Chrome: chụp ảnh ĐỘ PHÂN GIẢI ĐẦY ĐỦ của camera (nét hơn khung hình video),
+    // rồi dò lại 4 góc trên chính ảnh đó. Dò không chắc chắn thì quay về khung hình video.
+    if(typeof ImageCapture!=='undefined'&&cam.stream){
+      try{
+        const track=cam.stream.getVideoTracks()[0];
+        const blob=await new ImageCapture(track).takePhoto();
+        const img=await scanLoadImage(blob);
+        const photo=scanImageToCanvas(img,SCAN_CFG.SRC_MAX_PX);
+        const r=scanFindQuad(photo);
+        if(r.quad&&r.reason==='ok'){src=photo;quad=r.quad;}
+      }catch(e){/* máy không hỗ trợ -> dùng khung hình video */}
+    }
+    if(!src){
+      const k=Math.min(1,SCAN_CFG.SRC_MAX_PX/Math.max(v.videoWidth,v.videoHeight));
+      src=document.createElement('canvas');
+      src.width=Math.round(v.videoWidth*k);src.height=Math.round(v.videoHeight*k);
+      src.getContext('2d').drawImage(v,0,0,src.width,src.height);
+      quad=quadVideo?quadVideo.map(p=>[p[0]*k,p[1]*k]):scanDetectCorners(src);
+    }
+    quad=scanSortCorners(quad);
+    const srcBlob=await scanCanvasToJpeg(src,0.9);
+    const pg={srcBlob,srcW:src.width,srcH:src.height,quad,rot:0};
+    await scanProcessPage(pg,src);
+    scanPagesList.push(pg);
+    if(scanCam===cam){
+      cam.armed=false;cam.sig=scanCamSignature(det||src);cam.stable=0;
+      scanCamUpdateCount();
+    }
+  }catch(e){
+    scanCamHint('Lỗi chụp: '+e.message);
+  }finally{
+    cam.busy=false;
+  }
+}
+// Nút chụp tay: dùng khung đang thấy (nếu có), không thì tự dò trên ảnh lớn / lấy cả khung
+function scanCamManual(){
+  const cam=scanCam;if(!cam||cam.busy)return;
+  if(scanPagesList.length>=SCAN_CFG.MAX_PAGES)return;
+  const v=document.getElementById('scanVideo');if(!v.videoWidth)return;
+  const r=cam.last;
+  const k=cam.det.width/v.videoWidth;
+  const quad=(r&&r.quad&&r.reason!=='none')?r.quad.map(p=>[p[0]/k,p[1]/k]):null;
+  scanCamCapture(quad,null);
 }
 
 // ---------- Danh sách trang ----------
