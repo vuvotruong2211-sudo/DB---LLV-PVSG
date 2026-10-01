@@ -11,22 +11,7 @@
     // ⬆️ Thu-Chi ĐÃ TÁCH RIÊNG khỏi payrollUrl (đọc chéo Passcode/Master_NV qua ID, không copy
     // dữ liệu lương) — mục đích: nhiều NV cùng thao tác Thu-Chi (25-30/ca, x3 dịp Lễ Tết) không còn
     // chiếm chung execution pool với Lương/Lịch/Chấm công nữa. Dán URL Web App Thu-Chi mới vào đây:
-    thuChiUrl: "https://script.google.com/macros/s/AKfycbwDG-Zi4kUdyW9vtodlaMy8bHlsp3G7wVp60BykMEU9tqtcfUBZi6Prnm3FZjCrSjYE3w/exec",
-
-    // ☁️ BƯỚC 1 — CLOUD RUN (tăng tốc). Dán URL service Cloud Run vào đây.
-    // ĐỂ TRỐNG "" = web chạy 100% bằng Apps Script như cũ (tắt Cloud Run tức thì).
-    // Cloud Run lỗi/quá tải -> web TỰ quay về Apps Script, NV không bị gián đoạn.
-    cloudRunUrl: "https://tuantu-api-qkjobsechq-as.a.run.app",
-    // Các action ĐỌC của payrollUrl chuyển qua Cloud Run (bỏ bớt tên nào thì action đó quay về Apps Script)
-    cloudRunReadActions: [
-      "checkPasscode","loginSchedule","getSchedule","getLineDTGoiY","getPayroll","getMasterNVList",
-      "getNghiPhepList","getGioiHanOffConfig","demOffTheoNgayVP","getNongDoConReport","getLineDTReport",
-      "getDanhSachXeTaiXe","getQRConfig","getQRThanhToanReport","getTichDiemReport"
-    ],
-    // BƯỚC 2 (để dành) — action GHI chạy trên Cloud Run. Chỉ thêm tên vào đây SAU KHI đã bật
-    // ENABLE_WRITES=true trên Cloud Run. Có thể dùng: "submitNongDoCon","submitLineDT",
-    // "submitQRThanhToan","submitNghiPhep","duyetNghiPhep"
-    cloudRunWriteActions: []
+    thuChiUrl: "https://script.google.com/macros/s/AKfycbwDG-Zi4kUdyW9vtodlaMy8bHlsp3G7wVp60BykMEU9tqtcfUBZi6Prnm3FZjCrSjYE3w/exec"
   };
 
   // ============================================================
@@ -1065,6 +1050,44 @@
   }
   .nv-picker-ten:focus{border-color:var(--accent);}
   .nv-picker-ten::placeholder{color:var(--text3);}
+
+  /* ===== QUÉT TÀI LIỆU ===== */
+  #scanModal{z-index:700;} /* nổi trên thanh menu đáy (z-index 600) để nút Gửi không bị che */
+  .scan-modal-box{max-width:720px;width:94vw;max-height:92vh;max-height:92dvh;overflow-y:auto;}
+  .scan-row{display:flex;gap:8px;flex-wrap:wrap;}
+  .scan-row > *{flex:1;min-width:140px;}
+  .scan-modal-box select,.scan-modal-box textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:10px 12px;color:var(--text);font-size:13px;font-family:'Inter',sans-serif;outline:none;margin-bottom:12px;}
+  .scan-modal-box textarea{resize:vertical;min-height:44px;}
+  .scan-capture-row{display:flex;gap:8px;margin:4px 0 12px;}
+  .scan-capture-row label{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:12px 10px;border-radius:12px;font-size:13px;font-weight:600;cursor:pointer;user-select:none;}
+  .scan-capture-row label.scan-btn-main{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;}
+  .scan-capture-row label.scan-btn-sub{background:var(--surface2);border:1px solid var(--border);color:var(--text2);}
+  .scan-capture-row input{display:none;}
+  .scan-seg{display:flex;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:3px;gap:3px;margin-bottom:12px;}
+  .scan-seg button{flex:1;border:none;background:transparent;color:var(--text2);padding:7px 4px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;}
+  .scan-seg button.active{background:var(--accent);color:#fff;}
+  .scan-pages{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:10px;margin-bottom:12px;}
+  .scan-page{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:6px;display:flex;flex-direction:column;gap:6px;}
+  .scan-page img{width:100%;aspect-ratio:1/1.414;object-fit:contain;background:#fff;border-radius:6px;display:block;}
+  .scan-page-no{font-size:11px;color:var(--text3);text-align:center;font-family:'JetBrains Mono',monospace;}
+  .scan-page-tools{display:flex;gap:4px;}
+  .scan-page-tools button{flex:1;border:1px solid var(--border);background:var(--glass-bg);color:var(--text2);border-radius:6px;padding:5px 0;font-size:13px;cursor:pointer;}
+  .scan-page-tools button:disabled{opacity:.35;cursor:default;}
+  .scan-empty{border:1.5px dashed var(--border);border-radius:12px;padding:22px 12px;text-align:center;color:var(--text3);font-size:12px;margin-bottom:12px;line-height:1.6;}
+  .scan-summary{font-size:11px;color:var(--text3);margin-bottom:10px;}
+  .scan-msg{font-size:12px;margin:8px 0;display:none;line-height:1.5;}
+  .scan-msg.ok{display:block;color:var(--green);}
+  .scan-msg.err{display:block;color:var(--red);}
+  .scan-msg.info{display:block;color:var(--text2);}
+  /* Màn chỉnh góc */
+  .scan-crop-wrap{position:relative;margin:0 auto 10px;touch-action:none;user-select:none;-webkit-user-select:none;background:#111;border-radius:8px;overflow:hidden;}
+  #scanCropCanvas{display:block;width:100%;height:100%;}
+  .scan-crop-wrap svg{position:absolute;inset:0;width:100%;height:100%;touch-action:none;}
+  .scan-handle{fill:rgba(79,110,247,.25);stroke:#fff;stroke-width:2.5;cursor:grab;}
+  .scan-loupe{position:absolute;top:8px;left:8px;width:110px;height:110px;border-radius:50%;border:3px solid #fff;box-shadow:0 4px 16px rgba(0,0,0,.5);display:none;pointer-events:none;background:#000;}
+  .scan-crop-hint{font-size:11px;color:var(--text3);text-align:center;margin-bottom:10px;}
+  .scan-crop-tools{display:flex;gap:6px;margin-bottom:10px;}
+  .scan-crop-tools button{flex:1;border:1px solid var(--border);background:var(--surface2);color:var(--text2);border-radius:8px;padding:8px 4px;font-size:12px;cursor:pointer;}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
@@ -1937,6 +1960,83 @@
 </div>
 
 <!-- BÁO CÁO LINE ĐIỆN THOẠI MODAL -->
+<!-- ===== MODAL: QUÉT TÀI LIỆU -> PDF -> DRIVE ===== -->
+<div class="modal-overlay" id="scanModal">
+  <div class="modal-box scan-modal-box">
+
+    <!-- DANH SÁCH TRANG -->
+    <div id="scanListView">
+      <div class="modal-title">📄 Quét tài liệu → PDF</div>
+      <div class="modal-sub">Đặt tờ A4 lên mặt bàn tối màu, chụp thẳng, đủ 4 góc giấy. App tự cắt, làm phẳng, làm trắng nền và gửi PDF lên Drive.</div>
+
+      <div class="scan-row">
+        <div>
+          <label class="field-label" style="margin-top:0;">Loại tài liệu</label>
+          <select id="scanLoai">
+            <option value="UyQuyen-ThuHo">Ủy quyền thu hộ &amp; tiền khoán chuyến xe</option>
+            <option value="BienBan-GiaoNhan">Biên bản giao nhận</option>
+            <option value="HopDong">Hợp đồng</option>
+            <option value="HoaDon-ChungTu">Hóa đơn / chứng từ</option>
+            <option value="GiayToXe">Giấy tờ xe</option>
+            <option value="Khac">Khác</option>
+          </select>
+        </div>
+        <div>
+          <label class="field-label" style="margin-top:0;">Biển số xe (nếu có)</label>
+          <input type="text" id="scanBienSo" placeholder="VD: 76H-06127" autocomplete="off" style="text-transform:uppercase;">
+        </div>
+      </div>
+      <label class="field-label" style="margin-top:0;">Ghi chú</label>
+      <textarea id="scanGhiChu" rows="1" placeholder="VD: Tài xế Võ Ngọc Viên, chuyến 01/10"></textarea>
+
+      <div class="scan-capture-row">
+        <label class="scan-btn-main">📷 Chụp trang
+          <input type="file" id="scanInputCamera" accept="image/*" capture="environment" onchange="scanOnFiles(this)">
+        </label>
+        <label class="scan-btn-sub">🖼️ Chọn ảnh có sẵn
+          <input type="file" id="scanInputFile" accept="image/*" multiple onchange="scanOnFiles(this)">
+        </label>
+      </div>
+
+      <div class="scan-seg" id="scanModeSeg">
+        <button data-mode="mau" class="active" onclick="scanSetMode('mau')">🎨 Màu</button>
+        <button data-mode="trangden" onclick="scanSetMode('trangden')">⚫ Trắng đen</button>
+        <button data-mode="goc" onclick="scanSetMode('goc')">🖼️ Ảnh gốc</button>
+      </div>
+
+      <div id="scanPages" class="scan-pages"></div>
+      <div id="scanEmpty" class="scan-empty">Chưa có trang nào.<br>Bấm <strong>📷 Chụp trang</strong> để bắt đầu — nhiều trang sẽ gộp thành 1 file PDF.</div>
+      <div class="scan-summary" id="scanSummary"></div>
+      <div class="scan-msg" id="scanMsg"></div>
+
+      <div class="modal-actions">
+        <button class="modal-btn-cancel" onclick="closeScanModal()">Đóng</button>
+        <button class="modal-btn-confirm" id="scanSendBtn" onclick="scanSend()" disabled>⬆️ Gửi PDF lên Drive</button>
+      </div>
+    </div>
+
+    <!-- CHỈNH 4 GÓC -->
+    <div id="scanCropView" style="display:none;">
+      <div class="modal-title" id="scanCropTitle">✂️ Căn 4 góc tờ giấy</div>
+      <div class="scan-crop-hint">Kéo 4 chấm tròn vào đúng 4 góc tờ giấy</div>
+      <div class="scan-crop-wrap" id="scanCropWrap">
+        <canvas id="scanCropCanvas"></canvas>
+        <svg id="scanCropSvg"></svg>
+        <canvas class="scan-loupe" id="scanLoupe" width="110" height="110"></canvas>
+      </div>
+      <div class="scan-crop-tools">
+        <button onclick="scanCropAuto()">🔍 Tự dò lại</button>
+        <button onclick="scanCropFull()">⛶ Lấy cả ảnh</button>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn-cancel" onclick="scanCropCancel()" id="scanCropCancelBtn">Bỏ trang này</button>
+        <button class="modal-btn-confirm" onclick="scanCropDone()">✓ Dùng trang này</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 <div class="modal-overlay" id="lineDTModal">
   <div class="modal-box thuchi-modal-box login-mode" id="lineDTModalBox">
 
@@ -2253,6 +2353,10 @@
           <div class="bubble-icon">🎁</div>
           <div class="bubble-label">Tích điểm KH</div>
         </button>
+        <button class="bubble-btn" onclick="closeMoreMenu();openScanModal()">
+          <div class="bubble-icon">📄</div>
+          <div class="bubble-label">Quét tài liệu</div>
+        </button>
       </div>
     </div>
   </div>
@@ -2273,7 +2377,7 @@
           <div class="modal-title" style="margin-bottom:10px;">📝 Đăng tin tức mới</div>
           <input type="text" id="newsFormTieuDe" placeholder="Tiêu đề tin tức...">
           <textarea id="newsFormNoiDung" placeholder="Nội dung thông báo..."></textarea>
-          <input type="text" id="newsFormHinhAnh" placeholder="Link ảnh (dán link ảnh từ Google Drive/Imgur — để trống nếu không có ảnh)">
+          <input type="text" id="newsFormHinhAnh" placeholder="Link ảnh: Google Photos / Google Drive (chia sẻ công khai) / Imgur — để trống nếu không có ảnh">
           <label class="news-form-checkbox">
             <input type="checkbox" id="newsFormGhim"> Ghim tin này lên đầu bảng tin
           </label>
@@ -2725,7 +2829,7 @@ function initAuth(){
       sessionStorage.removeItem('llv_idle_logout');
       const errEl=document.getElementById('loginErr');
       if(errEl){
-        errEl.textContent='🔒 Đã tự đăng xuất vì không thao tác '+TU_DANG_XUAT_SAU_PHUT+' phút. Vui lòng đăng nhập lại.';
+        errEl.textContent='🔒 Đã tự đăng xuất vì không thao tác '+TU_DANG_XUAT_SAU_PHUT+' phút (máy dùng chung). Vui lòng đăng nhập lại.';
         errEl.style.display='block';
       }
     }
@@ -2807,14 +2911,17 @@ async function submitLoginSchedule(){
     const url=CONFIG.payrollUrl+'?action=loginSchedule&nv='+encodeURIComponent(nv)+'&passcode='+encodeURIComponent(passcode);
     const json=await fetchJSONP(url);
     if(json.status!=='ok')throw new Error(json.message||'Đăng nhập thất bại');
-    currentUser=json.data; // {nv, boPhan, chucVu, isManager}
+    const lichKemTheo=json.data.lich; // server trả kèm lịch ngay trong lượt đăng nhập
+    currentUser=json.data; // {nv, boPhan, chucVu, isManager, token}
+    delete currentUser.lich;
     try{sessionStorage.setItem('llv_user',JSON.stringify(currentUser));}catch(e){}
     ghiNhanThaoTac();
     hideLoginGate();
     updateUserBadge();
     populateFilters(); // đồng bộ lại danh sách Văn phòng/NV trong filter sau khi đăng nhập
     applyFilters();
-    loadData();        // tự động tải lịch làm việc sau khi đăng nhập, không cần bấm nút
+    if(lichKemTheo)apDungLich(lichKemTheo); // có sẵn lịch -> hiện ngay, khỏi gọi server lần 2
+    else loadData();                        // Apps Script B bản cũ chưa trả kèm lịch
     loadNewsFeed();    // trang chủ sau đăng nhập = bảng tin, tải ngay
   }catch(e){
     errEl.textContent='Lỗi: '+e.message+' (có thể passcode sai)';
@@ -2838,7 +2945,7 @@ function logoutSchedule(){
 // Không chạm chuột/bàn phím/màn hình quá TU_DANG_XUAT_SAU_PHUT phút -> đăng xuất toàn bộ.
 // Muốn đổi thời gian: sửa số dưới đây (đơn vị: phút).
 // ============================================================
-const TU_DANG_XUAT_SAU_PHUT = 240;
+const TU_DANG_XUAT_SAU_PHUT = 5;
 let __lanThaoTacCuoi = Date.now();
 function ghiNhanThaoTac(){ __lanThaoTacCuoi = Date.now(); }
 function dangCoPhienDangNhap(){
@@ -2905,7 +3012,7 @@ function updateUserBadge(){
       const oText=document.getElementById('userOfficeBannerText');
       if(oText){
         oText.textContent = currentUser.boPhan
-          ? 'Xin chào, lịch làm việc sẽ được hiển thị bên dưới. Chúc cả nhà nhiều sức khoẻ và bình an'
+          ? 'Xin chào, lịch làm việc sẽ được hiển thị bên dưới. Chúc bạn luôn hài lòng với mọi thứ trong cuộc sống'
           : '⚠️ Chưa xác định được văn phòng của bạn — vui lòng đăng xuất/đăng nhập lại hoặc báo Admin kiểm tra Master_NV.';
       }
     }
@@ -3045,85 +3152,7 @@ function normalizeLoaiCa(loai,caLam){
 // LOAD TỪ APPS SCRIPT — JSONP (bypass CORS hoàn toàn)
 // ============================================================
 let __jsonpSeq=0; // đếm để 2 request cùng 1 mili-giây không trùng tên callback (lỗi cũ làm mất dữ liệu)
-
-// ============================================================
-// ☁️ ĐỊNH TUYẾN CLOUD RUN (Bước 1) — mọi chỗ gọi fetchJSONP() giữ nguyên.
-// - Action nằm trong CONFIG.cloudRunReadActions/cloudRunWriteActions của payrollUrl
-//   -> gửi POST tới Cloud Run (passcode nằm trong body, KHÔNG còn lộ trên URL).
-// - Cloud Run lỗi mạng/quá tải/timeout -> tự gọi lại Apps Script như cũ, và nghỉ dùng
-//   Cloud Run 60 giây (tránh bắt NV chờ 2 lần liên tiếp).
-// - Action GHI (Bước 2) KHÔNG tự gọi lại Apps Script khi lỗi -> không bao giờ ghi 2 lần.
-// - Sau khi NV vừa gửi/duyệt gì đó, các lần đọc trong 15 giây sau lấy dữ liệu mới nhất.
-// ============================================================
-const __cr={nghiDen:0,lanGhiCuoi:0};
-const CR_TIMEOUT_DOC_MS=15000, CR_TIMEOUT_GHI_MS=25000, CR_NGHI_KHI_LOI_MS=60000;
-
-function __actionTuUrl(url){const m=/[?&]action=([^&]*)/.exec(url);return m?decodeURIComponent(m[1]):'';}
-function __laActionGhi(a){return /^(submit|duyet|xacNhan|capNhat|them)/.test(a);}
-
-function __thongTinCloudRun(url){
-  if(!CONFIG.cloudRunUrl||!CONFIG.payrollUrl)return null;
-  if(url.indexOf(CONFIG.payrollUrl+'?')!==0)return null;
-  let params;
-  try{params=new URLSearchParams(url.slice(CONFIG.payrollUrl.length+1));}catch(e){return null;}
-  const action=params.get('action')||'';
-  const laGhi=(CONFIG.cloudRunWriteActions||[]).indexOf(action)!==-1;
-  const laDoc=(CONFIG.cloudRunReadActions||[]).indexOf(action)!==-1;
-  if(!laGhi&&!laDoc)return null;
-  const body={};
-  params.forEach((v,k)=>{if(k!=='callback')body[k]=v;});
-  return {action,body,laGhi};
-}
-
-async function __goiCloudRun(tt){
-  const ctrl=new AbortController();
-  const timer=setTimeout(()=>ctrl.abort(),tt.laGhi?CR_TIMEOUT_GHI_MS:CR_TIMEOUT_DOC_MS);
-  if(!tt.laGhi&&Date.now()-__cr.lanGhiCuoi<15000)tt.body.fresh=1;
-  let res;
-  try{
-    res=await fetch(CONFIG.cloudRunUrl,{
-      method:'POST',
-      headers:{'Content-Type':'text/plain;charset=utf-8'}, // không phát sinh request CORS phụ
-      body:JSON.stringify(tt.body),
-      signal:ctrl.signal
-    });
-  }catch(e){
-    const err=new Error(tt.laGhi
-      ?'Mạng chập chờn — CHƯA CHẮC đã ghi nhận. Vui lòng kiểm tra lại danh sách trước khi gửi lại.'
-      :'Cloud Run không phản hồi: '+e.message);
-    err.quayVe=!tt.laGhi; err.nghi=true;
-    throw err;
-  }finally{clearTimeout(timer);}
-  let json=null;
-  try{json=await res.json();}catch(e){}
-  if(json&&json.status&&!json.fallback)return json; // kể cả {status:'error'} do sai passcode... -> trả nguyên như Apps Script
-  const err=new Error((json&&json.message)||('Cloud Run lỗi HTTP '+res.status));
-  err.quayVe=json?!!json.fallback:!tt.laGhi;
-  err.nghi=res.status>=500;
-  throw err;
-}
-
-function fetchJSONP(url){
-  const action=__actionTuUrl(url);
-  const ghi=__laActionGhi(action);
-  const tt=__thongTinCloudRun(url);
-  let p;
-  if(!tt||Date.now()<__cr.nghiDen){
-    p=fetchJSONPAppsScript(url);
-  }else{
-    p=__goiCloudRun(tt).catch(e=>{
-      if(e.nghi)__cr.nghiDen=Date.now()+CR_NGHI_KHI_LOI_MS;
-      if(!e.quayVe)throw e;
-      console.warn('[Cloud Run] quay về Apps Script ('+tt.action+'):',e.message);
-      return fetchJSONPAppsScript(url);
-    });
-  }
-  if(ghi)p.then(()=>{__cr.lanGhiCuoi=Date.now();},()=>{__cr.lanGhiCuoi=Date.now();});
-  return p;
-}
-
-// Gọi Apps Script bằng JSONP (cách cũ, giữ nguyên)
-function fetchJSONPAppsScript(url){
+function __fetchJSONPMotLan(url){
   return new Promise((resolve,reject)=>{
     const cb='_cb'+Date.now()+'_'+(++__jsonpSeq);
     const script=document.createElement('script');
@@ -3132,11 +3161,27 @@ function fetchJSONPAppsScript(url){
       reject(new Error('Timeout 35s — Mạng đang chậm hoặc mất kết nối. Vui lòng kiểm tra wifi/4G rồi thử lại.'));
     },35000);
     window[cb]=(data)=>{clearTimeout(timer);cleanup();resolve(data);};
-    script.onerror=()=>{clearTimeout(timer);cleanup();reject(new Error('Không gọi được Apps Script. Kiểm tra URL và quyền "Anyone".'));};
+    script.onerror=()=>{clearTimeout(timer);cleanup();reject(new Error('Mất kết nối tới máy chủ — kiểm tra wifi/4G rồi thử lại.'));};
     function cleanup(){delete window[cb];if(document.body.contains(script))document.body.removeChild(script);}
     script.src=url+(url.includes('?')?'&':'?')+'callback='+cb;
     document.body.appendChild(script);
   });
+}
+
+// Apps Script hay lỗi 1–2 lượt đầu (vừa deploy / máy chủ đang khởi động). Với thao tác CHỈ ĐỌC
+// (get..., check..., lay..., loginSchedule, dem...) tự thử lại 1 lần sau 1,5 giây.
+// Thao tác GHI (submit..., duyet..., them...) KHÔNG thử lại để tránh ghi trùng dữ liệu.
+async function fetchJSONP(url){
+  let action='';
+  try{action=new URL(url,location.href).searchParams.get('action')||'';}catch(e){}
+  const chiDoc=/^(get|check|lay|loginSchedule|dem)/i.test(action);
+  try{
+    return await __fetchJSONPMotLan(url);
+  }catch(e){
+    if(!chiDoc||/Timeout/.test(e.message))throw e; // quá 35s thì không thử lại, tránh chờ quá lâu
+    await new Promise(r=>setTimeout(r,1500));
+    return await __fetchJSONPMotLan(url);
+  }
 }
 
 // ============================================================
@@ -3295,15 +3340,8 @@ function computeBaDiemLineAssignmentForDay(dateObj){
   return Object.values(assigned).sort((a,b)=>a.startMin-b.startMin);
 }
 
-async function loadData(){
-  // Lịch làm việc tải từ Apps Script B (action=getSchedule) — server đã lọc sẵn theo quyền:
-  // S.Quản lý nhận toàn bộ; Quản lý/NV chỉ nhận lịch của chính mình tới ngày được mở.
-  if(!currentUser||!currentUser.token)return; // chưa đăng nhập -> không tải gì
-  if(!CONFIG.payrollUrl){setStatus('⚠️ Chưa cấu hình payrollUrl','warn');return;}
-
-  showLoading('Đang tải lịch làm việc...');
-  document.getElementById('loadBtn').disabled=true;
-
+// Nạp lịch (server trả mảng gọn) vào allData + vẽ lại giao diện
+function apDungLich(data){
   const toRow=r=>{
     const p=String(r[0]).split('-');
     return {
@@ -3312,6 +3350,22 @@ async function loadData(){
       boPhan:r[4]||'', vanPhong:r[5]||'', caLam:r[6]||'', loaiCa:r[7]||''
     };
   };
+  allData=((data&&data.rows)||[]).map(toRow).filter(r=>r.date&&r.nv);
+  processData();
+  const t=new Date();
+  document.getElementById('lastSync').textContent=
+    'Đồng bộ '+String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');
+  setStatus('✅ '+allData.length.toLocaleString()+' bản ghi lịch','ok');
+}
+
+async function loadData(){
+  // Lịch làm việc tải từ Apps Script B (action=getSchedule) — server đã lọc sẵn theo quyền:
+  // S.Quản lý nhận toàn bộ; Quản lý/NV chỉ nhận lịch của chính mình tới ngày được mở.
+  if(!currentUser||!currentUser.token)return; // chưa đăng nhập -> không tải gì
+  if(!CONFIG.payrollUrl){setStatus('⚠️ Chưa cấu hình payrollUrl','warn');return;}
+
+  showLoading('Đang tải lịch làm việc...');
+  document.getElementById('loadBtn').disabled=true;
 
   try{
     const url=CONFIG.payrollUrl+'?action=getSchedule&token='+encodeURIComponent(currentUser.token);
@@ -3326,13 +3380,7 @@ async function loadData(){
       throw new Error(json.message||'Không tải được lịch');
     }
 
-    allData=(json.data.rows||[]).map(toRow).filter(r=>r.date&&r.nv);
-
-    processData();
-    const t=new Date();
-    document.getElementById('lastSync').textContent=
-      'Đồng bộ '+String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');
-    setStatus('✅ '+allData.length.toLocaleString()+' bản ghi lịch','ok');
+    apDungLich(json.data);
   }catch(e){
     setStatus('❌ '+e.message,'err');
   }finally{
@@ -4781,11 +4829,15 @@ function renderChamCongTable(data, nv, m, y){
     const entries=Array.isArray(chamCong[ds])?chamCong[ds]:[chamCong[ds]];
 
     // So sánh tên NV không phân biệt hoa thường để khớp giữa 2 Apps Script
-    const lichRows=allData.filter(r=>
-      normNV(r.nv)===nvNorm &&
-      r.date && fmtDate(r.date)===ds &&
-      r.loaiCa!=='OFF'
-    );
+    // Ca lịch lấy từ server (data.lich — chỉ của đúng NV này, tới hết hôm nay).
+    // Không dùng allData nữa vì allData là lịch của người đang đăng nhập app chính.
+    const lichRows=Array.isArray(data.lich)
+      ? data.lich.filter(l=>l[0]===ds).map(l=>({caLam:l[1]||'', loaiCa:l[2]||''}))
+      : allData.filter(r=>
+          normNV(r.nv)===nvNorm &&
+          r.date && fmtDate(r.date)===ds &&
+          r.loaiCa!=='OFF'
+        );
     const lichSorted=lichRows.map(r=>({row:r, parsed:parseCaLamViecJS(r.caLam)}))
       .sort((a,b)=>{
         const av=a.parsed?a.parsed.startMin:9999;
@@ -8169,21 +8221,42 @@ document.addEventListener('keydown',(e)=>{
 // ============================================================
 let masterNVFullList=[]; // [{ten, vanPhong}], cache dùng chung mọi cổng
 
+// Danh sách tên NV + VP cho ô đăng nhập. Lưu tạm trên máy 6 tiếng (chỉ tên & văn phòng,
+// không có passcode/lương) -> màn đăng nhập hiện tên NGAY, không phải chờ Apps Script khởi động.
+// Gộp các lần gọi trùng lúc thành 1 request (trước đây mở app gọi 2 lần cùng lúc).
+const MASTER_NV_CACHE_KEY='llv_master_nv_v1', MASTER_NV_CACHE_MS=6*3600*1000;
+let __masterNVPromise=null;
+function __apDungMasterNV(data){
+  masterNVFullList=(data||[]).map(o=>
+    (typeof o==='string') ? {ten:o, vanPhong:''} : {ten:o.ten||'', vanPhong:o.vanPhong||''}
+  ).filter(o=>o.ten);
+}
+async function __taiMasterNVTuServer(){
+  try{
+    const json=await fetchJSONP(CONFIG.payrollUrl+'?action=getMasterNVList');
+    if(json.status==='ok'&&Array.isArray(json.data)){
+      __apDungMasterNV(json.data);
+      try{localStorage.setItem(MASTER_NV_CACHE_KEY,JSON.stringify({t:Date.now(),d:json.data}));}catch(e){}
+    }
+  }catch(e){/* fallback: để trống, populateNVPicker sẽ tự dùng allData */}
+  return masterNVFullList;
+}
 async function ensureMasterNVFullList(){
   if(masterNVFullList.length)return masterNVFullList;
   if(!CONFIG.payrollUrl)return [];
   try{
-    const url=CONFIG.payrollUrl+'?action=getMasterNVList';
-    const json=await fetchJSONP(url);
-    if(json.status==='ok'&&Array.isArray(json.data)){
-      // Tương thích ngược: nếu Apps Script B chưa cập nhật (vẫn trả mảng string thuần),
-      // tự bọc lại thành {ten, vanPhong:''} để không vỡ giao diện.
-      masterNVFullList=json.data.map(o=>
-        (typeof o==='string') ? {ten:o, vanPhong:''} : {ten:o.ten||'', vanPhong:o.vanPhong||''}
-      ).filter(o=>o.ten);
+    const c=JSON.parse(localStorage.getItem(MASTER_NV_CACHE_KEY)||'null');
+    if(c&&Array.isArray(c.d)&&c.d.length){
+      __apDungMasterNV(c.d);
+      // còn hạn -> dùng luôn; quá hạn -> vẫn hiện danh sách cũ ngay, đồng thời tải bản mới ngầm
+      if(Date.now()-c.t>MASTER_NV_CACHE_MS&&!__masterNVPromise){
+        __masterNVPromise=__taiMasterNVTuServer().finally(()=>{__masterNVPromise=null;});
+      }
+      return masterNVFullList;
     }
-  }catch(e){/* fallback: để trống, populateNVPicker sẽ tự dùng allData */}
-  return masterNVFullList;
+  }catch(e){}
+  if(!__masterNVPromise)__masterNVPromise=__taiMasterNVTuServer().finally(()=>{__masterNVPromise=null;});
+  return __masterNVPromise;
 }
 
 // Đổ dữ liệu cho 1 cổng cụ thể: dropdown Văn phòng + danh sách datalist tên
@@ -8443,6 +8516,634 @@ document.addEventListener('keydown',(e)=>{
     submitChamCongLogin();
   }
 });
+
+// ============================================================
+// QUÉT TÀI LIỆU A4 -> PDF (giống "Quét tài liệu" của Ghi chú iOS)
+// Toàn bộ xử lý chạy NGAY TRÊN MÁY (không thư viện ngoài):
+//   1) Tự tìm 4 góc tờ giấy  2) Nắn phẳng về khổ A4  3) Làm trắng nền, xoá bóng
+//   4) Nén JPEG nhẹ          5) Ghép thành PDF        -> gửi 1 file PDF nhỏ lên Drive.
+// ============================================================
+const SCAN_CFG = {
+  A4_WIDTH_PX: 1240,        // 150 dpi — đọc rõ chữ, in lại vẫn đẹp
+  SRC_MAX_PX: 2600,         // thu nhỏ ảnh gốc trước khi xử lý (ảnh điện thoại 12MP rất nặng)
+  DETECT_MAX_PX: 640,       // ảnh nhỏ dùng để dò góc giấy
+  JPEG_QUALITY: 0.62,       // chất lượng nén mỗi trang
+  JPEG_QUALITY_MIN: 0.45,   // nếu trang vẫn quá nặng thì nén thêm tới mức này
+  PAGE_MAX_KB: 380,         // mục tiêu dung lượng tối đa mỗi trang
+  MAX_PAGES: 15,
+};
+
+// ---------- Tiện ích ảnh ----------
+function scanLoadImage(file){
+  return new Promise((resolve,reject)=>{
+    const url=URL.createObjectURL(file);
+    const img=new Image();
+    img.onload=()=>{URL.revokeObjectURL(url);resolve(img);};
+    img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('Không đọc được ảnh (định dạng không hỗ trợ).'));};
+    img.src=url;
+  });
+}
+
+// Vẽ ảnh vào canvas, thu nhỏ để cạnh dài <= maxPx
+function scanImageToCanvas(img,maxPx){
+  const w0=img.naturalWidth||img.width,h0=img.naturalHeight||img.height;
+  const k=Math.min(1,maxPx/Math.max(w0,h0));
+  const c=document.createElement('canvas');
+  c.width=Math.max(1,Math.round(w0*k));c.height=Math.max(1,Math.round(h0*k));
+  const ctx=c.getContext('2d');
+  ctx.imageSmoothingQuality='high';
+  ctx.drawImage(img,0,0,c.width,c.height);
+  return c;
+}
+
+// ---------- 1) DÒ 4 GÓC TỜ GIẤY ----------
+// Giấy sáng hơn nền: ngưỡng Otsu -> vùng sáng lớn nhất -> bao lồi -> tứ giác diện tích lớn nhất.
+// Trả về 4 góc [TL,TR,BR,BL] theo toạ độ của canvas nguồn; dò không ra thì trả khung lùi vào 4%.
+function scanDetectCorners(srcCanvas){
+  const W=srcCanvas.width,H=srcCanvas.height;
+  const k=Math.min(1,SCAN_CFG.DETECT_MAX_PX/Math.max(W,H));
+  const w=Math.max(8,Math.round(W*k)),h=Math.max(8,Math.round(H*k));
+  const c=document.createElement('canvas');c.width=w;c.height=h;
+  const ctx=c.getContext('2d');ctx.drawImage(srcCanvas,0,0,w,h);
+  const d=ctx.getImageData(0,0,w,h).data;
+
+  // Dò không ra -> lấy NGUYÊN khung ảnh (không cắt mất chữ), người dùng tự kéo góc nếu cần
+  const macDinh=()=>[[0,0],[W,0],[W,H],[0,H]];
+
+  // Xám + làm mờ hộp bán kính 2 (tích phân ảnh)
+  const g=new Float32Array(w*h);
+  for(let i=0,p=0;i<w*h;i++,p+=4)g[i]=0.299*d[p]+0.587*d[p+1]+0.114*d[p+2];
+  const I=new Float64Array((w+1)*(h+1));
+  for(let y=0;y<h;y++){let s=0;for(let x=0;x<w;x++){s+=g[y*w+x];I[(y+1)*(w+1)+x+1]=I[y*(w+1)+x+1]+s;}}
+  const r=2,b=new Uint8Array(w*h);
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+    const x0=Math.max(0,x-r),x1=Math.min(w,x+r+1),y0=Math.max(0,y-r),y1=Math.min(h,y+r+1);
+    const s=I[y1*(w+1)+x1]-I[y0*(w+1)+x1]-I[y1*(w+1)+x0]+I[y0*(w+1)+x0];
+    b[y*w+x]=s/((x1-x0)*(y1-y0));
+  }
+
+  // Ngưỡng Otsu
+  const hist=new Array(256).fill(0);for(let i=0;i<w*h;i++)hist[b[i]]++;
+  let sum=0;for(let t=0;t<256;t++)sum+=t*hist[t];
+  let sB=0,wB=0,best=0,thr=128,meanToi=0,meanSang=255;
+  for(let t=0;t<256;t++){
+    wB+=hist[t];if(!wB)continue;const wF=w*h-wB;if(!wF)break;
+    sB+=t*hist[t];const mB=sB/wB,mF=(sum-sB)/wF;const v=wB*wF*(mB-mF)*(mB-mF);
+    if(v>best){best=v;thr=t;meanToi=mB;meanSang=mF;}
+  }
+  // Vùng tối & vùng sáng chênh nhau ít -> không có nền bàn rõ ràng, tờ giấy chiếm gần hết khung
+  // (vùng "tối" chỉ là bóng đổ trên giấy) -> lấy nguyên khung, tránh cắt mất phần bị bóng.
+  if(meanSang-meanToi<65)return macDinh();
+  // Ngưỡng thấp hơn Otsu để phần giấy bị bóng đổ vẫn được tính là giấy
+  thr=Math.round(meanToi+0.35*(meanSang-meanToi));
+
+  // Vùng sáng liên thông lớn nhất (BFS 4 hướng)
+  const lab=new Int32Array(w*h).fill(-1);const q=new Int32Array(w*h);
+  let bestId=-1,bestCnt=0,id=0;
+  for(let s0=0;s0<w*h;s0++){
+    if(b[s0]<=thr||lab[s0]!==-1)continue;
+    let head=0,tail=0;q[tail++]=s0;lab[s0]=id;let cnt=0;
+    while(head<tail){
+      const p=q[head++];cnt++;const x=p%w,y=(p/w)|0;
+      if(x>0&&lab[p-1]===-1&&b[p-1]>thr){lab[p-1]=id;q[tail++]=p-1;}
+      if(x<w-1&&lab[p+1]===-1&&b[p+1]>thr){lab[p+1]=id;q[tail++]=p+1;}
+      if(y>0&&lab[p-w]===-1&&b[p-w]>thr){lab[p-w]=id;q[tail++]=p-w;}
+      if(y<h-1&&lab[p+w]===-1&&b[p+w]>thr){lab[p+w]=id;q[tail++]=p+w;}
+    }
+    if(cnt>bestCnt){bestCnt=cnt;bestId=id;}
+    id++;
+  }
+  if(bestId<0||bestCnt<w*h*0.15)return macDinh();
+
+  // Điểm biên trái/phải mỗi dòng -> bao lồi (monotone chain)
+  const pts=[];
+  for(let y=0;y<h;y++){
+    let l=-1,rr=-1;
+    for(let x=0;x<w;x++)if(lab[y*w+x]===bestId){if(l<0)l=x;rr=x;}
+    if(l>=0){pts.push([l,y]);if(rr!==l)pts.push([rr,y]);}
+  }
+  pts.sort((a,c2)=>a[0]-c2[0]||a[1]-c2[1]);
+  const cross=(o,a,c2)=>(a[0]-o[0])*(c2[1]-o[1])-(a[1]-o[1])*(c2[0]-o[0]);
+  const lo=[],up=[];
+  for(const p of pts){while(lo.length>=2&&cross(lo[lo.length-2],lo[lo.length-1],p)<=0)lo.pop();lo.push(p);}
+  for(let i=pts.length-1;i>=0;i--){const p=pts[i];while(up.length>=2&&cross(up[up.length-2],up[up.length-1],p)<=0)up.pop();up.push(p);}
+  const hull=lo.slice(0,-1).concat(up.slice(0,-1));
+  if(hull.length<4)return macDinh();
+
+  // Khởi tạo từ 4 điểm cực trị, rồi dịch từng đỉnh dọc bao lồi để tứ giác lớn nhất
+  const n=hull.length;
+  const arg=(f)=>{let bi=0,bv=-Infinity;hull.forEach((p,i)=>{const v=f(p);if(v>bv){bv=v;bi=i;}});return bi;};
+  let idx=[arg(p=>-p[0]-p[1]),arg(p=>p[0]-p[1]),arg(p=>p[0]+p[1]),arg(p=>p[1]-p[0])];
+  const area=(ii)=>{let a=0;for(let i=0;i<4;i++){const p=hull[ii[i]],o=hull[ii[(i+1)%4]];a+=p[0]*o[1]-o[0]*p[1];}return Math.abs(a)/2;};
+  for(let vong=0;vong<6;vong++){
+    let doi=false;
+    for(let v=0;v<4;v++){
+      let bi=idx[v],ba=area(idx);
+      for(let j=0;j<n;j++){const t=idx.slice();t[v]=j;const a=area(t);if(a>ba+1e-6){ba=a;bi=j;}}
+      if(bi!==idx[v]){idx[v]=bi;doi=true;}
+    }
+    if(!doi)break;
+  }
+  let quad=idx.map(i=>[hull[i][0]/k,hull[i][1]/k]);
+  quad=scanSortCorners(quad);
+  if(scanPolyArea(quad)<W*H*0.15)return macDinh();
+  return quad;
+}
+
+function scanPolyArea(q){let a=0;for(let i=0;i<4;i++){const p=q[i],o=q[(i+1)%4];a+=p[0]*o[1]-o[0]*p[1];}return Math.abs(a)/2;}
+
+// Sắp 4 điểm theo thứ tự TL, TR, BR, BL
+function scanSortCorners(q){
+  const cx=q.reduce((s,p)=>s+p[0],0)/4,cy=q.reduce((s,p)=>s+p[1],0)/4;
+  // Sắp theo góc quanh tâm (chiều kim đồng hồ trên màn hình), rồi xoay để góc trên-trái đứng đầu
+  const s=q.slice().sort((a,b)=>Math.atan2(a[1]-cy,a[0]-cx)-Math.atan2(b[1]-cy,b[0]-cx));
+  let i0=0;s.forEach((p,i)=>{if(p[0]+p[1]<s[i0][0]+s[i0][1])i0=i;});
+  return s.slice(i0).concat(s.slice(0,i0));
+}
+
+// ---------- 2) NẮN PHẲNG VỀ KHỔ A4 ----------
+// Ma trận phối cảnh (homography) ánh xạ khung đích -> tứ giác nguồn, giải hệ 8 ẩn.
+function scanHomography(dst,src){
+  const A=[],B=[];
+  for(let i=0;i<4;i++){
+    const [x,y]=dst[i],[u,v]=src[i];
+    A.push([x,y,1,0,0,0,-u*x,-u*y]);B.push(u);
+    A.push([0,0,0,x,y,1,-v*x,-v*y]);B.push(v);
+  }
+  for(let c=0;c<8;c++){
+    let p=c;for(let r=c+1;r<8;r++)if(Math.abs(A[r][c])>Math.abs(A[p][c]))p=r;
+    [A[c],A[p]]=[A[p],A[c]];[B[c],B[p]]=[B[p],B[c]];
+    for(let r=0;r<8;r++){if(r===c)continue;const f=A[r][c]/A[c][c];for(let k=c;k<8;k++)A[r][k]-=f*A[c][k];B[r]-=f*B[c];}
+  }
+  const h=B.map((v,i)=>v/A[i][i]);
+  return [h[0],h[1],h[2],h[3],h[4],h[5],h[6],h[7],1];
+}
+
+// Trả về canvas A4 (dọc nếu tờ giấy dọc, ngang nếu tờ giấy ngang)
+function scanWarpToA4(srcCanvas,quad){
+  const dist=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
+  const wq=(dist(quad[0],quad[1])+dist(quad[3],quad[2]))/2;
+  const hq=(dist(quad[0],quad[3])+dist(quad[1],quad[2]))/2;
+  const ngang=wq>hq;
+  const W=ngang?Math.round(SCAN_CFG.A4_WIDTH_PX*Math.SQRT2):SCAN_CFG.A4_WIDTH_PX;
+  const H=ngang?SCAN_CFG.A4_WIDTH_PX:Math.round(SCAN_CFG.A4_WIDTH_PX*Math.SQRT2);
+
+  const sw=srcCanvas.width,sh=srcCanvas.height;
+  const s=srcCanvas.getContext('2d').getImageData(0,0,sw,sh).data;
+  const out=document.createElement('canvas');out.width=W;out.height=H;
+  const octx=out.getContext('2d');const od=octx.createImageData(W,H);const o=od.data;
+  const m=scanHomography([[0,0],[W,0],[W,H],[0,H]],quad);
+
+  for(let y=0;y<H;y++){
+    const yy=y+0.5;
+    for(let x=0;x<W;x++){
+      const xx=x+0.5;
+      const z=m[6]*xx+m[7]*yy+1;
+      let u=(m[0]*xx+m[1]*yy+m[2])/z-0.5, v=(m[3]*xx+m[4]*yy+m[5])/z-0.5;
+      if(u<0)u=0;else if(u>sw-1.001)u=sw-1.001;
+      if(v<0)v=0;else if(v>sh-1.001)v=sh-1.001;
+      const x0=u|0,y0=v|0,fx=u-x0,fy=v-y0;
+      const p00=(y0*sw+x0)*4,p10=p00+4,p01=p00+sw*4,p11=p01+4;
+      const w00=(1-fx)*(1-fy),w10=fx*(1-fy),w01=(1-fx)*fy,w11=fx*fy;
+      const q=(y*W+x)*4;
+      o[q]  =s[p00]*w00+s[p10]*w10+s[p01]*w01+s[p11]*w11;
+      o[q+1]=s[p00+1]*w00+s[p10+1]*w10+s[p01+1]*w01+s[p11+1]*w11;
+      o[q+2]=s[p00+2]*w00+s[p10+2]*w10+s[p01+2]*w01+s[p11+2]*w11;
+      o[q+3]=255;
+    }
+  }
+  octx.putImageData(od,0,0);
+  return out;
+}
+
+// ---------- 3) LÀM TRẮNG NỀN, XOÁ BÓNG ----------
+// Ước lượng "màu giấy" từng vùng (lưới ô vuông, lấy điểm sáng nhất, loại chữ), rồi chia ảnh
+// cho nền -> giấy trắng đều, bóng tay/bóng điện thoại biến mất, chữ & chữ ký giữ nguyên.
+// mode: 'mau' (màu, giữ chữ ký xanh + ảnh CCCD) | 'trangden' (xám, nhẹ nhất) | 'goc' (không xử lý)
+function scanEnhance(canvas,mode){
+  if(mode==='goc')return canvas;
+  const W=canvas.width,H=canvas.height;
+  const ctx=canvas.getContext('2d');
+  const img=ctx.getImageData(0,0,W,H);const d=img.data;
+
+  const CELL=40;
+  const gw=Math.ceil(W/CELL),gh=Math.ceil(H/CELL);
+  const grid=new Float32Array(gw*gh);
+  const hist=new Uint32Array(256);
+  for(let gy=0;gy<gh;gy++)for(let gx=0;gx<gw;gx++){
+    hist.fill(0);let n=0;
+    const x1=Math.min(W,(gx+1)*CELL),y1=Math.min(H,(gy+1)*CELL);
+    for(let y=gy*CELL;y<y1;y+=2)for(let x=gx*CELL;x<x1;x+=2){
+      const p=(y*W+x)*4;const L=Math.max(d[p],d[p+1],d[p+2]);hist[L]++;n++;
+    }
+    // phân vị 90% độ sáng trong ô = màu giấy (chữ chỉ chiếm phần tối)
+    let acc=0,t=255;const need=n*0.10;
+    for(t=255;t>0;t--){acc+=hist[t];if(acc>=need)break;}
+    grid[gy*gw+gx]=t;
+  }
+  // Giãn (max 3x3) để ô nhiều chữ/ảnh lấy nền từ ô kế bên, rồi làm mượt 2 lần
+  const tmp=new Float32Array(gw*gh);
+  const loc=(src,dst,fn)=>{for(let y=0;y<gh;y++)for(let x=0;x<gw;x++){const a=[];
+    for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const yy=y+dy,xx=x+dx;if(yy>=0&&yy<gh&&xx>=0&&xx<gw)a.push(src[yy*gw+xx]);}
+    dst[y*gw+x]=fn(a);}};
+  loc(grid,tmp,a=>Math.max(...a));
+  loc(tmp,grid,a=>a.reduce((s,v)=>s+v,0)/a.length);
+  loc(grid,tmp,a=>a.reduce((s,v)=>s+v,0)/a.length);
+  const bgAt=(x,y)=>{ // nội suy song tuyến tâm ô
+    let fx=(x+0.5)/CELL-0.5,fy=(y+0.5)/CELL-0.5;
+    fx=Math.max(0,Math.min(gw-1,fx));fy=Math.max(0,Math.min(gh-1,fy));
+    const x0=Math.min(gw-2,Math.floor(fx)),y0=Math.min(gh-2,Math.floor(fy));
+    if(gw<2||gh<2)return tmp[0];
+    const ax=fx-x0,ay=fy-y0;
+    return tmp[y0*gw+x0]*(1-ax)*(1-ay)+tmp[y0*gw+x0+1]*ax*(1-ay)+tmp[(y0+1)*gw+x0]*(1-ax)*ay+tmp[(y0+1)*gw+x0+1]*ax*ay;
+  };
+
+  // Bảng tra đường cong: điểm đen/trắng + gamma nhẹ cho chữ đậm rõ
+  const curve=(lo,hi,gamma)=>{const t=new Uint8ClampedArray(512);
+    for(let v=0;v<512;v++){let z=(v/2-lo)/(hi-lo);z=z<0?0:z>1?1:z;t[v]=Math.round(255*Math.pow(z,gamma));}return t;};
+  const LUT_MAU=curve(28,228,1.25), LUT_XAM=curve(70,214,1.6);
+
+  for(let y=0;y<H;y++){
+    for(let x=0;x<W;x++){
+      const bg=Math.max(60,bgAt(x,y));const f=510/bg; // chỉ số LUT nhân đôi để mịn hơn
+      const p=(y*W+x)*4;
+      if(mode==='trangden'){
+        const gr=0.299*d[p]+0.587*d[p+1]+0.114*d[p+2];
+        const v=LUT_XAM[Math.min(511,(gr*f)|0)];d[p]=d[p+1]=d[p+2]=v;
+      }else{
+        d[p]=LUT_MAU[Math.min(511,(d[p]*f)|0)];
+        d[p+1]=LUT_MAU[Math.min(511,(d[p+1]*f)|0)];
+        d[p+2]=LUT_MAU[Math.min(511,(d[p+2]*f)|0)];
+      }
+    }
+  }
+  const out=document.createElement('canvas');out.width=W;out.height=H;
+  out.getContext('2d').putImageData(img,0,0);
+  return out;
+}
+
+function scanRotateCanvas(c,deg){
+  const r=((deg%360)+360)%360;if(!r)return c;
+  const o=document.createElement('canvas');
+  o.width=(r===180)?c.width:c.height;o.height=(r===180)?c.height:c.width;
+  const x=o.getContext('2d');x.translate(o.width/2,o.height/2);x.rotate(r*Math.PI/180);x.drawImage(c,-c.width/2,-c.height/2);
+  return o;
+}
+
+// ---------- 4) NÉN JPEG ----------
+function scanCanvasToJpeg(canvas,quality){
+  return new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('Không nén được ảnh.')),'image/jpeg',quality));
+}
+async function scanCompressPage(canvas){
+  let q=SCAN_CFG.JPEG_QUALITY;
+  let blob=await scanCanvasToJpeg(canvas,q);
+  while(blob.size>SCAN_CFG.PAGE_MAX_KB*1024&&q>SCAN_CFG.JPEG_QUALITY_MIN+1e-6){
+    q=Math.max(SCAN_CFG.JPEG_QUALITY_MIN,q-0.08);blob=await scanCanvasToJpeg(canvas,q);
+  }
+  return {bytes:new Uint8Array(await blob.arrayBuffer()),width:canvas.width,height:canvas.height};
+}
+
+// ---------- 5) GHÉP PDF (mỗi trang 1 ảnh JPEG, khổ A4) ----------
+function scanBuildPdf(pages,title){
+  const enc=new TextEncoder();
+  const parts=[];let len=0;const offsets=[];
+  const push=(x)=>{const u=typeof x==='string'?enc.encode(x):x;parts.push(u);len+=u.length;};
+  const obj=(n,body)=>{offsets[n]=len;push(n+' 0 obj\n');if(Array.isArray(body))body.forEach(push);else push(body);push('\nendobj\n');};
+  // Tiêu đề PDF chuẩn hoá ASCII (ẩn dấu tiếng Việt cho an toàn)
+  const asciiTitle=String(title||'Scan').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D').replace(/[^\x20-\x7E]/g,'').replace(/[()\\]/g,'');
+
+  push('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n');
+  const nP=pages.length;
+  // 1: Catalog, 2: Pages, 3: Info, rồi mỗi trang 3 object: Page, Content, Image
+  const pageObj=i=>4+i*3;
+  obj(1,'<< /Type /Catalog /Pages 2 0 R >>');
+  obj(2,'<< /Type /Pages /Count '+nP+' /Kids ['+pages.map((_,i)=>pageObj(i)+' 0 R').join(' ')+'] >>');
+  obj(3,'<< /Title ('+asciiTitle+') /Producer (App noi bo - Quet tai lieu) >>');
+  pages.forEach((pg,i)=>{
+    const ngang=pg.width>pg.height;
+    const PW=ngang?841.89:595.28,PH=ngang?595.28:841.89;
+    const content='q '+PW+' 0 0 '+PH+' 0 0 cm /Im'+i+' Do Q';
+    obj(pageObj(i),'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 '+PW+' '+PH+'] /Resources << /XObject << /Im'+i+' '+(pageObj(i)+2)+' 0 R >> >> /Contents '+(pageObj(i)+1)+' 0 R >>');
+    obj(pageObj(i)+1,['<< /Length '+content.length+' >>\nstream\n',content,'\nendstream']);
+    obj(pageObj(i)+2,['<< /Type /XObject /Subtype /Image /Width '+pg.width+' /Height '+pg.height+' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length '+pg.bytes.length+' >>\nstream\n',pg.bytes,'\nendstream']);
+  });
+  const total=3+nP*3;
+  const xref=len;
+  let x='xref\n0 '+(total+1)+'\n0000000000 65535 f \n';
+  for(let n=1;n<=total;n++)x+=String(offsets[n]).padStart(10,'0')+' 00000 n \n';
+  push(x);
+  push('trailer\n<< /Size '+(total+1)+' /Root 1 0 R /Info 3 0 R >>\nstartxref\n'+xref+'\n%%EOF\n');
+  const out=new Uint8Array(len);let o=0;parts.forEach(p=>{out.set(p,o);o+=p.length;});
+  return out;
+}
+
+function scanBytesToBase64(u8){
+  let s='';const CH=0x8000;
+  for(let i=0;i<u8.length;i+=CH)s+=String.fromCharCode.apply(null,u8.subarray(i,i+CH));
+  return btoa(s);
+}
+
+// ============================================================
+// GIAO DIỆN QUÉT TÀI LIỆU
+// Mỗi trang giữ: ảnh nguồn đã thu nhỏ (JPEG ~1MB, để chỉnh lại góc), 4 góc, góc xoay,
+// và bản JPEG cuối đã xử lý (~250KB) để ghép PDF. Không giữ canvas lớn trong bộ nhớ
+// -> điện thoại đời cũ quét 10-15 trang vẫn không bị treo.
+// ============================================================
+let scanPagesList=[];      // [{srcBlob, srcW, srcH, quad, rot, out:{bytes,width,height}, thumb}]
+let scanMode='mau';
+let scanCrop=null;         // {src canvas, quad, editIndex(-1 = trang mới), queue}
+let scanBusy=false;
+
+function openScanModal(){
+  if(!currentUser||!currentUser.token){alert('Vui lòng đăng nhập trước khi quét tài liệu.');return;}
+  scanShowList();
+  scanRender();
+  document.getElementById('scanModal').classList.add('show');
+}
+function closeScanModal(){
+  if(scanPagesList.length&&!confirm('Đóng sẽ XOÁ '+scanPagesList.length+' trang chưa gửi. Vẫn đóng?'))return;
+  scanReset();
+  document.getElementById('scanModal').classList.remove('show');
+}
+function scanReset(){
+  scanPagesList=[];scanCrop=null;
+  ['scanBienSo','scanGhiChu'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  scanMsg('','');
+}
+function scanMsg(type,text){
+  const el=document.getElementById('scanMsg');if(!el)return;
+  el.className='scan-msg'+(type?' '+type:'');el.textContent=text||'';
+}
+function scanShowList(){
+  document.getElementById('scanListView').style.display='block';
+  document.getElementById('scanCropView').style.display='none';
+}
+
+// ---------- Nhận ảnh từ camera / thư viện ----------
+async function scanOnFiles(input){
+  const files=[...(input.files||[])];input.value='';
+  if(!files.length)return;
+  const conCho=SCAN_CFG.MAX_PAGES-scanPagesList.length;
+  if(conCho<=0){scanMsg('err','Tối đa '+SCAN_CFG.MAX_PAGES+' trang mỗi file. Vui lòng gửi file này trước.');return;}
+  if(files.length>conCho)scanMsg('info','Chỉ lấy '+conCho+' ảnh đầu (tối đa '+SCAN_CFG.MAX_PAGES+' trang/file).');
+  scanCrop={queue:files.slice(0,conCho)};
+  await scanOpenNextInQueue();
+}
+async function scanOpenNextInQueue(){
+  if(!scanCrop||!scanCrop.queue||!scanCrop.queue.length){scanCrop=null;scanShowList();scanRender();return;}
+  const file=scanCrop.queue.shift();
+  showLoading('Đang đọc ảnh...');
+  try{
+    const img=await scanLoadImage(file);
+    const src=scanImageToCanvas(img,SCAN_CFG.SRC_MAX_PX);
+    const quad=scanDetectCorners(src);
+    scanCrop.src=src;scanCrop.quad=quad;scanCrop.editIndex=-1;
+    hideLoading();
+    scanOpenCropView();
+  }catch(e){
+    hideLoading();
+    scanMsg('err','❌ '+e.message);
+    await scanOpenNextInQueue();
+  }
+}
+
+// ---------- Màn chỉnh 4 góc ----------
+function scanOpenCropView(){
+  document.getElementById('scanListView').style.display='none';
+  document.getElementById('scanCropView').style.display='block';
+  const isEdit=scanCrop.editIndex>=0;
+  document.getElementById('scanCropTitle').textContent=isEdit?('✂️ Chỉnh góc trang '+(scanCrop.editIndex+1)):'✂️ Căn 4 góc tờ giấy';
+  document.getElementById('scanCropCancelBtn').textContent=isEdit?'Huỷ':'Bỏ trang này';
+
+  const src=scanCrop.src,wrap=document.getElementById('scanCropWrap');
+  // Vừa khung: rộng tối đa theo modal, cao tối đa 62% màn hình
+  const maxW=wrap.parentElement.clientWidth||320,maxH=Math.round(window.innerHeight*0.62);
+  const k=Math.min(maxW/src.width,maxH/src.height);
+  const dw=Math.round(src.width*k),dh=Math.round(src.height*k);
+  wrap.style.width=dw+'px';wrap.style.height=dh+'px';
+  const cv=document.getElementById('scanCropCanvas');
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  cv.width=Math.round(dw*dpr);cv.height=Math.round(dh*dpr);
+  cv.getContext('2d').drawImage(src,0,0,cv.width,cv.height);
+  scanCrop.k=k;
+  const svg=document.getElementById('scanCropSvg');
+  svg.setAttribute('viewBox','0 0 '+dw+' '+dh);
+  scanDrawQuad();
+  scanBindCropEvents();
+}
+function scanDrawQuad(){
+  const svg=document.getElementById('scanCropSvg'),k=scanCrop.k;
+  const pts=scanCrop.quad.map(p=>[p[0]*k,p[1]*k]);
+  const vw=scanCrop.src.width*k,vh=scanCrop.src.height*k;
+  const poly=pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+  svg.innerHTML=
+    // làm tối phần ngoài tờ giấy
+    `<path d="M0,0 H${vw} V${vh} H0 Z M${pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' L')} Z" fill="rgba(0,0,0,.45)" fill-rule="evenodd"/>`
+    +`<polygon points="${poly}" fill="none" stroke="#4f6ef7" stroke-width="2.5"/>`
+    +pts.map((p,i)=>`<circle class="scan-handle" data-i="${i}" cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="16"/>`).join('');
+}
+function scanBindCropEvents(){
+  const svg=document.getElementById('scanCropSvg');
+  if(svg.__bound)return;svg.__bound=true;
+  let dragIdx=-1,offset=[0,0];
+  const toLocal=(ev)=>{const r=svg.getBoundingClientRect();return [ev.clientX-r.left,ev.clientY-r.top];};
+  svg.addEventListener('pointerdown',ev=>{
+    if(!scanCrop)return;
+    const [x,y]=toLocal(ev),k=scanCrop.k;
+    // chọn chấm gần nhất trong bán kính 44px (dễ bấm bằng ngón tay)
+    let best=-1,bd=44*44;
+    scanCrop.quad.forEach((p,i)=>{const dx=p[0]*k-x,dy=p[1]*k-y,d=dx*dx+dy*dy;if(d<bd){bd=d;best=i;}});
+    if(best<0)return;
+    dragIdx=best;offset=[scanCrop.quad[best][0]*k-x,scanCrop.quad[best][1]*k-y];
+    svg.setPointerCapture(ev.pointerId);ev.preventDefault();
+    scanShowLoupe(dragIdx);
+  });
+  svg.addEventListener('pointermove',ev=>{
+    if(dragIdx<0||!scanCrop)return;
+    const [x,y]=toLocal(ev),k=scanCrop.k;
+    const W=scanCrop.src.width,H=scanCrop.src.height;
+    scanCrop.quad[dragIdx]=[Math.max(0,Math.min(W,(x+offset[0])/k)),Math.max(0,Math.min(H,(y+offset[1])/k))];
+    scanDrawQuad();scanShowLoupe(dragIdx);ev.preventDefault();
+  });
+  const end=()=>{dragIdx=-1;document.getElementById('scanLoupe').style.display='none';};
+  svg.addEventListener('pointerup',end);svg.addEventListener('pointercancel',end);
+}
+// Kính lúp: ngón tay che mất góc giấy nên phóng to vùng quanh chấm đang kéo
+function scanShowLoupe(i){
+  const lp=document.getElementById('scanLoupe'),src=scanCrop.src,p=scanCrop.quad[i];
+  const k=scanCrop.k,wrapW=src.width*k;
+  lp.style.display='block';
+  lp.style.left=(p[0]*k<wrapW/2)?'auto':'8px';lp.style.right=(p[0]*k<wrapW/2)?'8px':'auto';
+  const c=lp.getContext('2d'),S=110;
+  const half=S/2/(k*3); // phóng to gấp 3 lần so với ảnh đang hiển thị
+  c.fillStyle='#000';c.fillRect(0,0,S,S);
+  c.drawImage(src,p[0]-half,p[1]-half,half*2,half*2,0,0,S,S);
+  c.strokeStyle='#4f6ef7';c.lineWidth=1.5;
+  c.beginPath();c.moveTo(S/2,0);c.lineTo(S/2,S);c.moveTo(0,S/2);c.lineTo(S,S/2);c.stroke();
+}
+function scanCropAuto(){if(!scanCrop)return;scanCrop.quad=scanDetectCorners(scanCrop.src);scanDrawQuad();}
+function scanCropFull(){if(!scanCrop)return;const W=scanCrop.src.width,H=scanCrop.src.height;scanCrop.quad=[[0,0],[W,0],[W,H],[0,H]];scanDrawQuad();}
+async function scanCropCancel(){
+  if(!scanCrop)return;
+  if(scanCrop.editIndex>=0){scanCrop=null;scanShowList();scanRender();return;}
+  await scanOpenNextInQueue(); // bỏ trang này, sang ảnh kế tiếp (nếu chọn nhiều ảnh)
+}
+async function scanCropDone(){
+  if(!scanCrop||scanBusy)return;
+  if(scanPolyArea(scanCrop.quad)<scanCrop.src.width*scanCrop.src.height*0.03){
+    alert('Vùng chọn quá nhỏ — vui lòng kéo 4 góc ra đúng mép tờ giấy.');return;
+  }
+  scanBusy=true;showLoading('Đang làm phẳng & làm trắng trang...');
+  try{
+    const quad=scanSortCorners(scanCrop.quad);
+    if(scanCrop.editIndex>=0){
+      const pg=scanPagesList[scanCrop.editIndex];
+      pg.quad=quad;await scanProcessPage(pg,scanCrop.src);
+      scanCrop=null;scanShowList();scanRender();
+    }else{
+      const srcBlob=await scanCanvasToJpeg(scanCrop.src,0.9);
+      const pg={srcBlob,srcW:scanCrop.src.width,srcH:scanCrop.src.height,quad,rot:0};
+      await scanProcessPage(pg,scanCrop.src);
+      scanPagesList.push(pg);
+      scanMsg('','');
+      await scanOpenNextInQueue();
+    }
+  }catch(e){
+    scanMsg('err','❌ Lỗi xử lý ảnh: '+e.message);scanCrop=null;scanShowList();scanRender();
+  }finally{
+    scanBusy=false;hideLoading();
+  }
+}
+
+// Xử lý 1 trang: nắn A4 -> xoay -> làm trắng theo chế độ -> nén JPEG + ảnh thu nhỏ
+async function scanProcessPage(pg,srcCanvas){
+  if(!srcCanvas){
+    const img=await scanLoadImage(pg.srcBlob);
+    srcCanvas=scanImageToCanvas(img,SCAN_CFG.SRC_MAX_PX);
+  }
+  let c=scanWarpToA4(srcCanvas,pg.quad);
+  c=scanEnhance(c,scanMode);
+  c=scanRotateCanvas(c,pg.rot||0);
+  pg.out=await scanCompressPage(c);
+  const t=scanImageToCanvas(c,260);
+  pg.thumb=t.toDataURL('image/jpeg',0.7);
+}
+
+// ---------- Danh sách trang ----------
+function scanRender(){
+  const box=document.getElementById('scanPages');if(!box)return;
+  const n=scanPagesList.length;
+  document.getElementById('scanEmpty').style.display=n?'none':'block';
+  box.innerHTML=scanPagesList.map((pg,i)=>`
+    <div class="scan-page">
+      <img src="${pg.thumb}" alt="Trang ${i+1}">
+      <div class="scan-page-no">Trang ${i+1} · ${Math.round(pg.out.bytes.length/1024)}KB</div>
+      <div class="scan-page-tools">
+        <button title="Lên trước" onclick="scanMove(${i},-1)" ${i===0?'disabled':''}>◀</button>
+        <button title="Xoay" onclick="scanRotate(${i})">↻</button>
+        <button title="Chỉnh góc" onclick="scanEdit(${i})">✂️</button>
+        <button title="Xoá" onclick="scanDelete(${i})">🗑</button>
+        <button title="Ra sau" onclick="scanMove(${i},1)" ${i===n-1?'disabled':''}>▶</button>
+      </div>
+    </div>`).join('');
+  const tong=scanPagesList.reduce((s,p)=>s+p.out.bytes.length,0);
+  document.getElementById('scanSummary').textContent=n?(n+' trang · khoảng '+Math.max(1,Math.round(tong/1024))+' KB'):'';
+  document.getElementById('scanSendBtn').disabled=!n;
+  document.querySelectorAll('#scanModeSeg button').forEach(b=>b.classList.toggle('active',b.dataset.mode===scanMode));
+}
+function scanMove(i,d){
+  const j=i+d;if(j<0||j>=scanPagesList.length)return;
+  [scanPagesList[i],scanPagesList[j]]=[scanPagesList[j],scanPagesList[i]];scanRender();
+}
+function scanDelete(i){if(confirm('Xoá trang '+(i+1)+'?')){scanPagesList.splice(i,1);scanRender();}}
+async function scanRotate(i){
+  if(scanBusy)return;scanBusy=true;showLoading('Đang xoay trang...');
+  try{const pg=scanPagesList[i];pg.rot=((pg.rot||0)+90)%360;await scanProcessPage(pg);scanRender();}
+  catch(e){scanMsg('err','❌ '+e.message);}
+  finally{scanBusy=false;hideLoading();}
+}
+async function scanEdit(i){
+  showLoading('Đang mở ảnh...');
+  try{
+    const pg=scanPagesList[i];
+    const img=await scanLoadImage(pg.srcBlob);
+    const src=scanImageToCanvas(img,SCAN_CFG.SRC_MAX_PX);
+    scanCrop={src,quad:pg.quad.map(p=>p.slice()),editIndex:i,queue:[]};
+    hideLoading();scanOpenCropView();
+  }catch(e){hideLoading();scanMsg('err','❌ '+e.message);}
+}
+async function scanSetMode(mode){
+  if(mode===scanMode||scanBusy)return;
+  scanMode=mode;scanRender();
+  if(!scanPagesList.length)return;
+  scanBusy=true;
+  try{
+    for(let i=0;i<scanPagesList.length;i++){
+      showLoading('Đang áp dụng bộ lọc... ('+(i+1)+'/'+scanPagesList.length+')');
+      await scanProcessPage(scanPagesList[i]);
+    }
+    scanRender();
+  }catch(e){scanMsg('err','❌ '+e.message);}
+  finally{scanBusy=false;hideLoading();}
+}
+
+// ---------- Ghép PDF & gửi lên Drive ----------
+async function scanSend(){
+  if(!scanPagesList.length||scanBusy)return;
+  if(!currentUser||!currentUser.token){alert('Phiên đăng nhập đã hết, vui lòng đăng nhập lại.');return;}
+  const sel=document.getElementById('scanLoai');
+  const loaiTaiLieu=sel.value,loaiTen=sel.options[sel.selectedIndex].text;
+  const bienSo=document.getElementById('scanBienSo').value.trim().toUpperCase();
+  const ghiChu=document.getElementById('scanGhiChu').value.trim();
+
+  const pdf=scanBuildPdf(scanPagesList.map(p=>p.out),loaiTen);
+  const btn=document.getElementById('scanSendBtn');
+  scanBusy=true;btn.disabled=true;btn.textContent='Đang gửi...';
+  scanMsg('info','⏳ Đang gửi '+scanPagesList.length+' trang ('+Math.round(pdf.length/1024)+' KB) lên Drive...');
+
+  // Tự huỷ nếu mạng treo, tránh nút đứng yên mãi (giống phần tải ảnh Thu-Chi)
+  const TIMEOUT_MS=90000;
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),TIMEOUT_MS);
+  try{
+    let res;
+    try{
+      res=await fetch(CONFIG.payrollUrl,{
+        method:'POST',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        signal:controller.signal,
+        body:JSON.stringify({
+          action:'uploadScanPDF', token:currentUser.token,
+          pdfBase64:scanBytesToBase64(pdf),
+          loaiTaiLieu, loaiTen, bienSo, ghiChu, soTrang:scanPagesList.length
+        })
+      });
+    }catch(fe){
+      throw new Error(fe.name==='AbortError'
+        ?'Gửi quá lâu (mạng yếu) — đã huỷ sau '+(TIMEOUT_MS/1000)+' giây. Các trang vẫn còn, bấm gửi lại.'
+        :'Không kết nối được server (kiểm tra mạng). Các trang vẫn còn, bấm gửi lại.');
+    }
+    let json;
+    try{json=await res.json();}catch(pe){throw new Error('Server trả về dữ liệu không hợp lệ.');}
+    if(json.status!=='ok'){
+      if(String(json.message||'').indexOf('PHIEN_HET_HAN')!==-1){
+        alert('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại rồi quét lại.');
+        logoutSchedule();return;
+      }
+      throw new Error(json.message||'Gửi thất bại');
+    }
+    scanPagesList=[];
+    document.getElementById('scanGhiChu').value='';
+    document.getElementById('scanBienSo').value='';
+    scanRender();
+    scanMsg('ok','✅ '+json.message);
+  }catch(e){
+    scanMsg('err','❌ '+e.message);
+  }finally{
+    clearTimeout(timer);scanBusy=false;
+    btn.textContent='⬆️ Gửi PDF lên Drive';btn.disabled=!scanPagesList.length;
+  }
+}
 
 // ============================================================
 // INIT
