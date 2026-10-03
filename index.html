@@ -1107,6 +1107,8 @@
   .scan-shutter:active{background:#fff;}
   .scan-cam-done{border:none;background:#f5c518;color:#111;border-radius:20px;padding:10px 16px;font-size:14px;font-weight:700;cursor:pointer;min-width:84px;}
 </style>
+<link rel="preconnect" href="https://img.vietqr.io" crossorigin>
+<link rel="dns-prefetch" href="https://img.vietqr.io">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
@@ -5494,29 +5496,67 @@ function showQRContent(){
   document.getElementById('qrLoginView').style.display='none';
   document.getElementById('qrContentView').style.display='block';
   document.getElementById('qrThanhToanModalBox').classList.remove('login-mode');
-  document.getElementById('qrLoggedInAs').textContent='Đang thao tác với tên: '+(qrUser?qrUser.nv:'');
+  document.getElementById('qrLoggedInAs').innerHTML=
+    '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;'
+    +'border:2px solid var(--amber);background:rgba(245,158,11,.14);border-radius:12px;padding:12px 16px;margin:6px 0 4px;">'
+    +  '<div style="color:var(--text);">'
+    +    '<div style="font-size:12px;color:var(--text2);margin-bottom:2px;">👤 Đang thao tác với tên</div>'
+    +    '<div style="font-size:24px;font-weight:800;letter-spacing:.3px;color:var(--amber);line-height:1.2;">'+escapeHtml(qrUser?qrUser.nv:'')+'</div>'
+    +    '<div style="font-size:11px;color:var(--text3);margin-top:2px;">Không phải bạn? Bấm "Đổi nhân viên" trước khi tạo QR.</div>'
+    +  '</div>'
+    +  '<button type="button" onclick="qrDoiNhanVien()" style="border:none;border-radius:10px;padding:10px 16px;'
+    +    'font-size:14px;font-weight:700;cursor:pointer;background:var(--amber);color:#1a1a1a;">🔄 Đổi nhân viên</button>'
+    +'</div>';
+  setTimeout(()=>document.getElementById('qrKhachSDT')?.focus(),60);
 }
 
-async function openQRThanhToanModal(){
+// ============================================================
+// PHIÊN QR TRÊN MÁY DÙNG CHUNG — tự hết hạn sau QR_SESSION_IDLE_MIN phút không thao tác.
+// Hết hạn -> lần mở sau bắt nhập lại tên + passcode, tránh NV sau dùng nhầm tên NV trước.
+// Muốn đổi thời gian: sửa số dưới đây (phút).
+// ============================================================
+const QR_SESSION_IDLE_MIN=240; // bằng thời gian tự đăng xuất của hệ thống chung (TU_DANG_XUAT_SAU_PHUT)
+let qrLastActive=0;
+function qrChamPhien(){ qrLastActive=Date.now(); }
+function qrPhienConHan(){
+  return !!qrUser && (Date.now()-qrLastActive) < QR_SESSION_IDLE_MIN*60000;
+}
+function qrDoiNhanVien(){
+  qrUser=null; qrLastReport=null;
+  document.getElementById('qrNVInput').value='';
+  document.getElementById('qrNVSelect').innerHTML='';
+  document.getElementById('qrPasscodeInput').value='';
+  document.getElementById('qrLoginErr').style.display='none';
+  showQRLogin();
+  setTimeout(()=>document.getElementById('qrNVInput')?.focus(),60);
+}
+
+function openQRThanhToanModal(){
   document.getElementById('qrPreviewBox').innerHTML='<div class="qr-preview-empty">Điền thông tin bên trái rồi bấm "Tạo mã QR"</div>';
   document.getElementById('qrGenStatus').textContent='';
   document.getElementById('qrCopyStatus').textContent='';
+  document.getElementById('qrKhachSDT').value='';
   document.getElementById('qrSoTienNghin').value='';
   document.getElementById('qrSoTienPreview').textContent='= 0 đ';
   document.getElementById('qrThanhToanModal').classList.add('show');
 
-  document.getElementById('qrNVInput').value='';
-  document.getElementById('qrNVSelect').innerHTML='';
-  await populateNVPicker('qr');
-  document.getElementById('qrPasscodeInput').value='';
-  document.getElementById('qrLoginErr').style.display='none';
+  // Cấu hình ngân hàng: hiện ngay từ bản lưu trên máy, cập nhật ngầm (không bắt NV chờ)
+  loadQRConfig();
+
+  if(!qrPhienConHan()) qrUser=null; // máy dùng chung: quá hạn -> bắt đăng nhập lại
 
   if(qrUser){
+    qrChamPhien();
+    switchQRTab('tao');
     showQRContent();
-    await loadQRConfig();
   }else{
+    document.getElementById('qrNVInput').value='';
+    document.getElementById('qrNVSelect').innerHTML='';
+    document.getElementById('qrPasscodeInput').value='';
+    document.getElementById('qrLoginErr').style.display='none';
     showQRLogin();
-    setTimeout(()=>document.getElementById('qrPasscodeInput')?.focus(),100);
+    populateNVPicker('qr'); // danh sách tên đã lưu trên máy -> gần như tức thì, không chặn giao diện
+    setTimeout(()=>document.getElementById('qrNVInput')?.focus(),60);
   }
 }
 
@@ -5524,7 +5564,9 @@ function closeQRThanhToanModal(){
   document.getElementById('qrThanhToanModal').classList.remove('show');
 }
 
+let qrDangDangNhap=false;
 async function submitQRLogin(){
+  if(qrDangDangNhap)return;
   const nv=document.getElementById('qrNVSelect').value;
   const passcode=document.getElementById('qrPasscodeInput').value.trim();
   const errEl=document.getElementById('qrLoginErr');
@@ -5533,6 +5575,7 @@ async function submitQRLogin(){
   if(!nv){errEl.textContent='Vui lòng gõ hoặc chọn tên nhân viên.';errEl.style.display='block';return;}
   if(!passcode||passcode.length!==6){errEl.textContent='Vui lòng nhập đủ 6 số passcode.';errEl.style.display='block';return;}
 
+  qrDangDangNhap=true;
   showLoading('Đang xác thực...');
   try{
     const url=CONFIG.payrollUrl+'?action=checkPasscode&nv='+encodeURIComponent(nv)+'&passcode='+encodeURIComponent(passcode);
@@ -5540,15 +5583,40 @@ async function submitQRLogin(){
     if(json.status!=='ok'||!json.data||!json.data.valid)throw new Error('Passcode không đúng.');
 
     qrUser={nv:nv,passcode:passcode};
+    qrChamPhien();
     switchQRTab('tao');
-    showQRContent();
-    await loadQRConfig();
+    showQRContent(); // cấu hình đã tải sẵn từ lúc mở modal -> vào là tạo QR được ngay
   }catch(e){
     errEl.textContent='Lỗi: '+e.message;
     errEl.style.display='block';
+    document.getElementById('qrPasscodeInput').select();
   }
   hideLoading();
+  qrDangDangNhap=false;
 }
+
+// Phím tắt cho NV quầy: gõ đủ 6 số passcode -> tự đăng nhập;
+// Enter ở ô SĐT -> nhảy sang ô số tiền; Enter ở ô số tiền -> tạo QR luôn.
+document.addEventListener('DOMContentLoaded',()=>{
+  const pc=document.getElementById('qrPasscodeInput');
+  if(pc)pc.addEventListener('input',()=>{
+    if(pc.value.trim().length===6 && document.getElementById('qrNVSelect').value)submitQRLogin();
+  });
+  const sdt=document.getElementById('qrKhachSDT');
+  if(sdt)sdt.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){e.preventDefault();document.getElementById('qrSoTienNghin').focus();}
+  });
+  const tien=document.getElementById('qrSoTienNghin');
+  if(tien)tien.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){e.preventDefault();generateQRThanhToan();}
+  });
+});
+document.addEventListener('keydown',(e)=>{
+  if(e.key==='Enter'&&document.getElementById('qrThanhToanModal')?.classList.contains('show')
+     &&document.getElementById('qrLoginView')?.style.display!=='none'){
+    submitQRLogin();
+  }
+});
 
 function switchQRTab(tab){
   const isTao=tab==='tao';
@@ -5632,31 +5700,47 @@ async function loadQRReport(){
   }
 }
 
-async function loadQRConfig(){
+// Hiện cấu hình từ bản lưu trên máy NGAY LẬP TỨC, đồng thời tải bản mới từ Sheet ở nền.
+// Anh sửa CauHinhQR -> NV thấy bản mới từ lần mở kế tiếp (hoặc ngay khi tải nền xong).
+let qrConfigDangTai=null;
+function renderQRConfigToForm(){
   const selectAccEl=document.getElementById('qrAccountSelect');
   const selectContentEl=document.getElementById('qrNoiDungLoai');
-  const boxEl=document.getElementById('qrBankInfoBox');
-  boxEl.textContent='Đang tải cấu hình...';
-  try{
-    const url=CONFIG.payrollUrl+'?action=getQRConfig';
-    const json=await fetchJSONP(url);
-    if(json.status!=='ok')throw new Error(json.message||'Không tải được cấu hình.');
-    qrConfigCache=json.data;
-    try{localStorage.setItem(QR_SETTINGS_KEY,JSON.stringify(qrConfigCache));}catch(e){}
-  }catch(err){
-    // mất mạng / lỗi -> dùng bản cấu hình đã lưu lần gần nhất (nếu có)
-    try{qrConfigCache=JSON.parse(localStorage.getItem(QR_SETTINGS_KEY)||'null');}catch(e){qrConfigCache=null;}
-    if(!qrConfigCache||!qrConfigCache.accounts||!qrConfigCache.accounts.length){
-      boxEl.innerHTML='<span style="color:var(--red);">Không tải được cấu hình ngân hàng: '+err.message+'</span>';
-      selectAccEl.innerHTML='';
-      selectContentEl.innerHTML='';
-      return;
-    }
-  }
-
+  if(!qrConfigCache||!qrConfigCache.accounts||!qrConfigCache.accounts.length)return false;
+  const accCu=selectAccEl.value, ndCu=selectContentEl.value; // giữ lựa chọn NV đang chọn
   selectAccEl.innerHTML=qrConfigCache.accounts.map((a,i)=>`<option value="${i}">${a.label}</option>`).join('');
   selectContentEl.innerHTML=qrConfigCache.noiDungPresets.map(p=>`<option value="${p.replace(/"/g,'&quot;')}">${p}</option>`).join('');
+  if(accCu!==''&&selectAccEl.querySelector(`option[value="${accCu}"]`))selectAccEl.value=accCu;
+  if(ndCu&&[...selectContentEl.options].some(o=>o.value===ndCu))selectContentEl.value=ndCu;
   renderQRAccountInfo();
+  return true;
+}
+function loadQRConfig(){
+  if(!qrConfigCache){
+    try{qrConfigCache=JSON.parse(localStorage.getItem(QR_SETTINGS_KEY)||'null');}catch(e){qrConfigCache=null;}
+  }
+  const daCo=renderQRConfigToForm();
+  if(!daCo)document.getElementById('qrBankInfoBox').textContent='Đang tải cấu hình...';
+
+  if(qrConfigDangTai)return qrConfigDangTai; // đang tải rồi, không gọi trùng
+  qrConfigDangTai=(async()=>{
+    try{
+      const json=await fetchJSONP(CONFIG.payrollUrl+'?action=getQRConfig');
+      if(json.status!=='ok')throw new Error(json.message||'Không tải được cấu hình.');
+      const moi=JSON.stringify(json.data);
+      const cu=JSON.stringify(qrConfigCache);
+      qrConfigCache=json.data;
+      try{localStorage.setItem(QR_SETTINGS_KEY,moi);}catch(e){}
+      if(moi!==cu)renderQRConfigToForm();
+    }catch(err){
+      if(!qrConfigCache||!qrConfigCache.accounts||!qrConfigCache.accounts.length){
+        document.getElementById('qrBankInfoBox').innerHTML='<span style="color:var(--red);">Không tải được cấu hình ngân hàng: '+err.message+'</span>';
+      }
+    }finally{
+      qrConfigDangTai=null;
+    }
+  })();
+  return qrConfigDangTai;
 }
 
 function renderQRAccountInfo(){
@@ -5678,6 +5762,7 @@ async function generateQRThanhToan(){
   statusEl.className='qr-copy-status';
 
   if(!qrUser){statusEl.textContent='Phiên đăng nhập đã hết, vui lòng đóng và mở lại.';statusEl.className='qr-copy-status err';return;}
+  qrChamPhien();
   if(!qrConfigCache||!qrConfigCache.accounts.length){statusEl.textContent='Chưa có cấu hình ngân hàng, vui lòng đóng và mở lại (kiểm tra mạng).';statusEl.className='qr-copy-status err';return;}
 
   const accIdx=parseInt(document.getElementById('qrAccountSelect').value,10)||0;
@@ -5767,6 +5852,17 @@ function printQRReceipt(){
   const printArea=document.getElementById('qrPrintArea');
   if(!printArea.innerHTML.trim()){alert('Vui lòng tạo mã QR trước khi in.');return;}
   window.print();
+  qrSanSangKhachMoi();
+}
+
+// Dọn ô SĐT + số tiền, đưa con trỏ về ô SĐT để phục vụ khách kế tiếp ngay.
+// Vé QR vừa tạo VẪN giữ trên màn hình (in lại / sao chép lại được).
+function qrSanSangKhachMoi(){
+  qrChamPhien();
+  document.getElementById('qrKhachSDT').value='';
+  document.getElementById('qrSoTienNghin').value='';
+  document.getElementById('qrSoTienPreview').textContent='= 0 đ';
+  setTimeout(()=>document.getElementById('qrKhachSDT')?.focus(),50);
 }
 
 async function copyQRImage(){
@@ -5788,6 +5884,7 @@ async function copyQRImage(){
         await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);
         statusEl.textContent='✅ Đã sao chép ảnh — dán (Ctrl+V) vào khung chat Zalo để gửi khách.';
         statusEl.className='qr-copy-status ok';
+        qrSanSangKhachMoi();
       }catch(err){
         // fallback: trình duyệt không cho copy ảnh -> mở ảnh ra tab mới để tải/lưu thủ công
         const url=URL.createObjectURL(blob);
@@ -9583,6 +9680,8 @@ window.addEventListener('load',()=>{
     // loadData() đã được initAuth() gọi khi đã đăng nhập — không tải trùng
   }
   updateWeekLabel();
+  // Tải sẵn ở nền để lúc bấm 💳 QR mọi thứ đã có, không phải chờ
+  setTimeout(()=>{ try{loadQRConfig();ensureMasterNVFullList();}catch(e){} },1500);
 });
 </script>
 </body>
