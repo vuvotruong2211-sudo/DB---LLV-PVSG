@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TUAN TU EXPRESS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://script.google.com">
+<link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&family=JetBrains+Mono:wght@500;600&display=swap">
 <script>
   const CONFIG = {
     webAppUrl: "https://script.google.com/macros/s/AKfycbxqRQeV5vAc2iCoaOlJrz0U6jw6vsjy2uDWGjLClxJYaDaYF98NHHRU4yp9FBH29OaA/exec",
@@ -40,10 +45,13 @@
       const s=localStorage.getItem('llv_skin');
       if(s&&s!=='aurora')document.documentElement.setAttribute('data-skin',s);
     }catch(e){}
+    var st='phang';
+    try{st=localStorage.getItem('llv_style')||'phang';}catch(e){}
+    if(['phang','kinh','the'].indexOf(st)<0)st='phang';
+    document.documentElement.setAttribute('data-style',st);
   })();
 </script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Manrope:wght@600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
   :root {
     --bg:#0d0f14; --surface:#171a22; --surface2:#1e222d; --border:#2a2f3d;
     --accent:#3355d8; --accent2:#0ea5a0;
@@ -1106,10 +1114,157 @@
   .scan-shutter{width:72px;height:72px;border-radius:50%;border:4px solid #fff;background:rgba(255,255,255,.25);cursor:pointer;padding:0;}
   .scan-shutter:active{background:#fff;}
   .scan-cam-done{border:none;background:#f5c518;color:#111;border-radius:20px;padding:10px 16px;font-size:14px;font-weight:700;cursor:pointer;min-width:84px;}
+
+  /* =====================================================================
+     GIAO DIỆN MỚI 2026 — 3 PHONG CÁCH NHÂN VIÊN TỰ CHỌN (nút 🎨 trên header)
+     [data-style="phang"] : Phẳng — không hiệu ứng kính, nhanh nhất (mặc định)
+     [data-style="the"]   : Thẻ lớn — chữ to, nút to, thao tác 1 tay
+     [data-style="kinh"]  : Kính mờ — Liquid Glass, đã giảm tải cho mượt hơn
+     Chỉ đổi giao diện, KHÔNG đụng logic/API/phân quyền.
+     ===================================================================== */
+
+  /* ---- Hiệu năng chung (mọi phong cách) ----
+     Nền "orb" cũ chạy hoạt ảnh blur 60px toàn màn hình liên tục -> máy phải vẽ lại
+     mỗi khung hình, là nguyên nhân chính gây giật/lag trên điện thoại. Tắt hoạt ảnh. */
+  body::before{animation:none !important;}
+  html{-webkit-text-size-adjust:100%;text-size-adjust:100%;}
+  body{-webkit-font-smoothing:antialiased;}
+  button,.bubble-btn,.tab,.thuchi-tab,.nghiphep-tab{touch-action:manipulation;}
+  .table-scroll{-webkit-overflow-scrolling:touch;}
+
+  /* Đang đồng bộ: chấm xanh trên nút Đồng bộ xoay thay vì che màn hình */
+  .is-syncing .sync-dot{background:var(--amber);animation:spin .8s linear infinite;border-radius:2px;}
+
+  /* Khung xương khi đang tải bảng tin (thay chữ "Đang tải...") */
+  .skeleton-card .sk{height:12px;border-radius:6px;background:var(--surface2);margin-bottom:10px;
+    background-image:linear-gradient(90deg,transparent,rgba(255,255,255,.06),transparent);
+    background-size:200% 100%;animation:skShine 1.2s linear infinite;}
+  .skeleton-card .sk-s{width:30%;} .skeleton-card .sk-l{width:75%;height:16px;} .skeleton-card .sk-m{width:55%;margin-bottom:0;}
+  @keyframes skShine{from{background-position:200% 0}to{background-position:-200% 0}}
+
+  /* Panel 🎨 Giao diện gộp 3 phần: Phong cách / Màu / Sáng-tối */
+  .skin-panel{min-width:260px;max-height:min(78vh,620px);overflow-y:auto;}
+  .skin-panel-sep{border-top:1px solid var(--border);margin-top:6px;padding-top:12px !important;}
+  .skin-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px;}
+  .skin-grid .skin-option{padding:7px 8px;}
+  .skin-grid .skin-name{font-size:12px;}
+  .skin-grid .skin-name em{display:none;}
+  .style-ico{width:28px;height:28px;border-radius:8px;flex:none;display:flex;align-items:center;justify-content:center;
+    background:var(--surface2);font-size:15px;}
+  .style-option .skin-name em{display:block;margin:2px 0 0;}
+  .style-option.selected .style-ico{background:linear-gradient(135deg,var(--accent),var(--accent2));}
+
+  /* ---- Bố cục máy tính (≥1024px): thanh điều hướng chuyển sang cột trái ---- */
+  @media(min-width:1024px){
+    .app-bottombar{top:66px;bottom:0;left:0;right:auto;width:88px;flex-direction:column;justify-content:flex-start;
+      gap:4px;padding:16px 6px;border-top:none;border-right:1px solid var(--glass-border);}
+    .app-bottombar .bubble-btn{flex:none;width:100%;max-width:none;padding:10px 2px;}
+    .app-content{padding:24px 28px 32px 116px;}
+    .more-sheet-overlay{align-items:center;}
+    .more-sheet-box{border-radius:20px;max-width:620px;padding:22px 24px;}
+    .more-sheet-handle{display:none;}
+    .more-grid{grid-template-columns:repeat(4,1fr);gap:14px 10px;}
+  }
+
+  /* =========================== PHẲNG + THẺ LỚN ===========================
+     Bỏ hoàn toàn backdrop-filter (hiệu ứng tốn GPU nhất) và lớp phản sáng.
+     Dòng bắt đầu bằng "F " được nhân đôi cho cả 2 phong cách khi build. */
+  [data-style="phang"] *, [data-style="phang"] *::before, [data-style="phang"] *::after, [data-style="the"] *, [data-style="the"] *::before, [data-style="the"] *::after{backdrop-filter:none !important;-webkit-backdrop-filter:none !important;}
+  [data-style="phang"] body::before, [data-style="the"] body::before{display:none;}
+  [data-style="phang"] .glass::before, [data-style="phang"] .card::before, [data-style="phang"] .modal-box::before, [data-style="phang"] .bubble-icon::before, [data-style="the"] .glass::before, [data-style="the"] .card::before, [data-style="the"] .modal-box::before, [data-style="the"] .bubble-icon::before{display:none;}
+  [data-style="phang"] .header, [data-style="the"] .header{background:var(--surface);box-shadow:0 1px 0 var(--border);border-bottom:1px solid var(--border);}
+  [data-style="phang"] .app-bottombar, [data-style="the"] .app-bottombar{background:var(--surface);box-shadow:0 -1px 0 var(--border);border-color:var(--border);}
+  [data-style="phang"] .card, [data-style="phang"] .kpi-card, [data-style="phang"] .news-card, [data-style="the"] .card, [data-style="the"] .kpi-card, [data-style="the"] .news-card{background:var(--surface);border:1px solid var(--border);box-shadow:0 1px 2px rgba(0,0,0,.08);}
+  [data-style="phang"] .modal-box, [data-style="phang"] .skin-panel, [data-style="the"] .modal-box, [data-style="the"] .skin-panel{background:var(--surface);border:1px solid var(--border);box-shadow:0 18px 50px rgba(0,0,0,.35);}
+  [data-style="phang"] .modal-overlay, [data-style="the"] .modal-overlay{background:rgba(0,0,0,.55);}
+  [data-style="phang"] .sync-btn, [data-style="phang"] .theme-btn, [data-style="phang"] .user-badge, [data-style="phang"] .admin-btn, [data-style="phang"] .modal-btn-cancel, [data-style="the"] .sync-btn, [data-style="the"] .theme-btn, [data-style="the"] .user-badge, [data-style="the"] .admin-btn, [data-style="the"] .modal-btn-cancel{background:var(--surface2);border:1px solid var(--border);box-shadow:none;}
+  [data-style="phang"] .modal-btn-cancel, [data-style="the"] .modal-btn-cancel{border:1px solid var(--border) !important;}
+  [data-style="phang"] .modal-btn-confirm, [data-style="the"] .modal-btn-confirm{background:var(--accent);box-shadow:none;}
+  [data-style="phang"] .modal-btn-confirm:hover, [data-style="the"] .modal-btn-confirm:hover{transform:none;filter:brightness(1.08);box-shadow:none;}
+  [data-style="phang"] .bubble-icon, [data-style="the"] .bubble-icon{background:var(--surface2);border:1px solid var(--border);box-shadow:none;}
+  [data-style="phang"] .bubble-btn:hover .bubble-icon, [data-style="the"] .bubble-btn:hover .bubble-icon{transform:none;box-shadow:none;}
+  [data-style="phang"] .bubble-btn.active .bubble-icon, [data-style="the"] .bubble-btn.active .bubble-icon{background:var(--accent);border-color:var(--accent);box-shadow:none;}
+  [data-style="phang"] .bubble-btn.active, [data-style="the"] .bubble-btn.active{background:transparent;}
+  [data-style="phang"] .bubble-btn.active .bubble-label, [data-style="the"] .bubble-btn.active .bubble-label{color:var(--accent);}
+  [data-style="phang"] .logo, [data-style="the"] .logo{background:var(--accent);}
+  [data-style="phang"] .load-btn, [data-style="the"] .load-btn{background:var(--accent);}
+  [data-style="phang"] .loading-overlay, [data-style="the"] .loading-overlay{background:rgba(0,0,0,.45);}
+  [data-style="phang"] .thuchi-tab.active, [data-style="phang"] .nghiphep-tab.active, [data-style="the"] .thuchi-tab.active, [data-style="the"] .nghiphep-tab.active{box-shadow:none;}
+
+  /* ============================== THẺ LỚN ==============================
+     Chữ to hơn ~15%, ô nhập & nút cao tối thiểu 46px, bo góc lớn — dễ bấm bằng ngón cái. */
+  html[data-style="the"]{font-size:15.5px;}
+  [data-style="the"] .htitle{font-size:16px;}
+  [data-style="the"] .card,[data-style="the"] .kpi-card,[data-style="the"] .news-card,
+  [data-style="the"] .modal-box{border-radius:22px;}
+  [data-style="the"] .modal-box{padding:26px;}
+  [data-style="the"] .modal-title{font-size:19px;}
+  [data-style="the"] .modal-sub,[data-style="the"] .field-label{font-size:13px;}
+  [data-style="the"] .modal-box input,[data-style="the"] .modal-box select,[data-style="the"] .modal-box textarea,
+  [data-style="the"] .nv-picker-vp,[data-style="the"] .nv-picker-ten,
+  [data-style="the"] #chamCongLoginView input{min-height:48px;font-size:15px;border-radius:12px;}
+  [data-style="the"] .modal-actions button,[data-style="the"] .feedback-actions button,
+  [data-style="the"] .news-post-btn,[data-style="the"] .nghiphep-btn,[data-style="the"] .thuchi-photo-btn{min-height:48px;font-size:14.5px;border-radius:12px;}
+  [data-style="the"] .thuchi-tab,[data-style="the"] .nghiphep-tab{padding:12px 8px;font-size:13.5px;border-radius:12px;}
+  [data-style="the"] .thuchi-type-btn{padding:14px;font-size:14.5px;border-radius:12px;}
+  [data-style="the"] .tab{padding:9px 16px;font-size:13px;}
+  [data-style="the"] .kpi-val{font-size:32px;}
+  [data-style="the"] .kpi-label{font-size:12px;}
+  [data-style="the"] .thuchi-table,[data-style="the"] .nghiphep-table,[data-style="the"] .stat-table{font-size:13.5px;}
+  [data-style="the"] .schedule-table{font-size:13px;}
+  [data-style="the"] .ca-badge{font-size:11.5px;padding:3px 7px;}
+  [data-style="the"] .news-card{padding:22px 22px;}
+  [data-style="the"] .news-card-title{font-size:17px;}
+  [data-style="the"] .news-card-body{font-size:14.5px;line-height:1.65;}
+  [data-style="the"] .bubble-icon{width:48px;height:48px;font-size:22px;border-radius:16px;}
+  [data-style="the"] .bubble-label{font-size:11px;}
+  [data-style="the"] .more-grid{grid-template-columns:repeat(3,1fr);gap:16px 8px;}
+  [data-style="the"] .more-grid .bubble-icon{width:58px;height:58px;font-size:26px;border-radius:18px;}
+  [data-style="the"] .more-grid .bubble-label{font-size:12px;}
+  [data-style="the"] .app-content{padding-bottom:calc(24px + 92px);}
+  @media(min-width:1024px){
+    [data-style="the"] .app-bottombar{width:100px;}
+    [data-style="the"] .app-content{padding:26px 30px 32px 128px;}
+    [data-style="the"] .more-grid{grid-template-columns:repeat(4,1fr);}
+  }
+  @media(max-width:480px){
+    [data-style="the"] .bubble-icon{width:44px;height:44px;font-size:20px;}
+    [data-style="the"] .app-content{padding:12px 10px calc(12px + 84px);}
+    [data-style="the"] .kpi-val{font-size:26px;}
+  }
+
+  /* ============================== KÍNH MỜ ==============================
+     Giữ chất Liquid Glass nhưng giảm tải: blur nhỏ hơn, nền orb đứng yên,
+     trên điện thoại chỉ giữ kính ở header/thanh điều hướng/hộp thoại. */
+  [data-style="kinh"]{--glass-blur:14px;--glass-blur-light:10px;}
+  [data-style="kinh"] body::before{filter:blur(40px);}
+  @media(max-width:768px){
+    [data-style="kinh"] .card,[data-style="kinh"] .kpi-card,[data-style="kinh"] .bubble-icon,
+    [data-style="kinh"] .sync-btn,[data-style="kinh"] .theme-btn,[data-style="kinh"] .user-badge{
+      backdrop-filter:none !important;-webkit-backdrop-filter:none !important;background:var(--glass-bg-strong);}
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.01ms !important;transition-duration:.01ms !important;}
+  }
+
+  /* ---- Header gọn trên điện thoại: tên công ty 1 dòng, bỏ chữ phụ ---- */
+  .header-left{min-width:0;flex:1;}
+  .header-left > div:last-child{min-width:0;}
+  .htitle,.hsub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .user-badge{white-space:nowrap;}
+  @media(max-width:640px){
+    .header{gap:8px;}
+    .header-right{gap:6px;flex:none;}
+    .last-sync-text,.header-divider{display:none;}
+    #userBadgeText{max-width:96px;overflow:hidden;text-overflow:ellipsis;display:inline-block;vertical-align:middle;}
+    .skin-panel{position:fixed !important;top:62px !important;left:10px !important;right:10px !important;min-width:0;}
+  }
+
 </style>
 <link rel="preconnect" href="https://img.vietqr.io" crossorigin>
 <link rel="dns-prefetch" href="https://img.vietqr.io">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
 
@@ -1138,9 +1293,26 @@
     <div class="header-divider"></div>
     <div class="header-group">
       <div style="position:relative;">
-        <button class="theme-btn" id="skinBtn" onclick="toggleSkinPanel()" title="Đổi bảng màu giao diện">🎨</button>
+        <button class="theme-btn" id="skinBtn" onclick="toggleSkinPanel()" title="Đổi giao diện">🎨</button>
         <div id="skinPanel" class="skin-panel">
-          <div class="skin-panel-title">Bảng màu giao diện</div>
+          <div class="skin-panel-title">Phong cách</div>
+          <button class="skin-option style-option" data-style-opt="phang" onclick="setStyle('phang')">
+            <span class="style-ico">⚡</span>
+            <span class="skin-name">Phẳng <em>nhanh nhất · mặc định</em></span>
+            <span class="skin-check">✓</span>
+          </button>
+          <button class="skin-option style-option" data-style-opt="the" onclick="setStyle('the')">
+            <span class="style-ico">🔠</span>
+            <span class="skin-name">Thẻ lớn <em>chữ to, nút to</em></span>
+            <span class="skin-check">✓</span>
+          </button>
+          <button class="skin-option style-option" data-style-opt="kinh" onclick="setStyle('kinh')">
+            <span class="style-ico">🫧</span>
+            <span class="skin-name">Kính mờ <em>đẹp, nặng hơn</em></span>
+            <span class="skin-check">✓</span>
+          </button>
+          <div class="skin-panel-title skin-panel-sep">Màu chủ đạo</div>
+          <div class="skin-grid">
           <button class="skin-option" data-skin="aurora" onclick="setSkin('aurora')">
             <span class="skin-swatch" style="background:linear-gradient(135deg,#3355d8,#0ea5a0)"></span>
             <span class="skin-name">Aurora <em>mặc định</em></span>
@@ -1196,12 +1368,8 @@
             <span class="skin-name">Than chì</span>
             <span class="skin-check">✓</span>
           </button>
-        </div>
-      </div>
-      <div style="position:relative;">
-        <button class="theme-btn" id="themeBtn" onclick="toggleThemePanel()" title="Đổi chế độ sáng/tối">🌙</button>
-        <div id="themePanel" class="skin-panel">
-          <div class="skin-panel-title">Chế độ hiển thị</div>
+          </div>
+          <div class="skin-panel-title skin-panel-sep">Sáng / tối</div>
           <button class="theme-option skin-option" data-theme-opt="dark" onclick="setTheme('dark')">
             <span class="skin-swatch" style="background:linear-gradient(135deg,#0d0f14,#171a22)"></span>
             <span class="skin-name">Tối <em>mặc định</em></span>
@@ -2810,7 +2978,7 @@ document.addEventListener('click',(e)=>{
 // ============================================================
 const SKIN_LIST=['aurora','sunset','ocean','mono','candy','forest','neon','ruby','gold','sky','graphite'];
 function markSelectedSkin(skin){
-  document.querySelectorAll('.skin-option').forEach(b=>{
+  document.querySelectorAll('.skin-option[data-skin]').forEach(b=>{
     b.classList.toggle('selected', b.getAttribute('data-skin')===skin);
   });
 }
@@ -2820,9 +2988,24 @@ function setSkin(skin){
   else document.documentElement.setAttribute('data-skin',skin);
   try{localStorage.setItem('llv_skin',skin);}catch(e){}
   markSelectedSkin(skin);
-  toggleSkinPanel(false);
+}
+// ============================================================
+// PHONG CÁCH GIAO DIỆN — mỗi nhân viên tự chọn, lưu trên máy
+//  phang: phẳng, không hiệu ứng kính -> nhanh nhất (mặc định)
+//  the  : thẻ lớn, chữ & nút to, hợp thao tác 1 tay
+//  kinh : kính mờ (Liquid Glass) — đẹp nhưng tốn máy hơn
+// ============================================================
+const STYLE_LIST=['phang','the','kinh'];
+function setStyle(st){
+  if(!STYLE_LIST.includes(st))st='phang';
+  document.documentElement.setAttribute('data-style',st);
+  try{localStorage.setItem('llv_style',st);}catch(e){}
+  document.querySelectorAll('.style-option').forEach(b=>{
+    b.classList.toggle('selected', b.getAttribute('data-style-opt')===st);
+  });
 }
 function initSkin(){
+  setStyle(document.documentElement.getAttribute('data-style')||'phang');
   let saved='aurora';
   try{saved=localStorage.getItem('llv_skin')||'aurora';}catch(e){}
   if(saved!=='aurora')document.documentElement.setAttribute('data-skin',saved);
@@ -2974,6 +3157,7 @@ function logoutSchedule(){
   currentUser=null;
   allData=[];
   try{sessionStorage.removeItem('llv_user');}catch(e){}
+  try{sessionStorage.removeItem(LICH_CACHE_KEY);}catch(e){}
   try{localStorage.removeItem('llv_user');}catch(e){}
   location.reload();
 }
@@ -3379,7 +3563,22 @@ function computeBaDiemLineAssignmentForDay(dateObj){
 }
 
 // Nạp lịch (server trả mảng gọn) vào allData + vẽ lại giao diện
-function apDungLich(data){
+const LICH_CACHE_KEY='llv_lich_cache';
+function luuCacheLich(data){
+  try{
+    if(!currentUser)return;
+    sessionStorage.setItem(LICH_CACHE_KEY,JSON.stringify({nv:currentUser.nv,t:Date.now(),data:data}));
+  }catch(e){/* đầy bộ nhớ -> bỏ qua, không ảnh hưởng */}
+}
+function docCacheLich(){
+  try{
+    const c=JSON.parse(sessionStorage.getItem(LICH_CACHE_KEY)||'null');
+    if(c&&currentUser&&c.nv===currentUser.nv&&c.data)return c;
+  }catch(e){}
+  return null;
+}
+function apDungLich(data, tuCache){
+  if(!tuCache)luuCacheLich(data);
   const toRow=r=>{
     const p=String(r[0]).split('-');
     return {
@@ -3390,10 +3589,10 @@ function apDungLich(data){
   };
   allData=((data&&data.rows)||[]).map(toRow).filter(r=>r.date&&r.nv);
   processData();
-  const t=new Date();
+  const t=tuCache?new Date(tuCache):new Date();
   document.getElementById('lastSync').textContent=
-    'Đồng bộ '+String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');
-  setStatus('✅ '+allData.length.toLocaleString()+' bản ghi lịch','ok');
+    (tuCache?'Bản lưu ':'Đồng bộ ')+String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');
+  setStatus('✅ '+allData.length.toLocaleString()+' bản ghi lịch'+(tuCache?' (bản lưu, đang cập nhật...)':''),'ok');
 }
 
 async function loadData(){
@@ -3402,7 +3601,12 @@ async function loadData(){
   if(!currentUser||!currentUser.token)return; // chưa đăng nhập -> không tải gì
   if(!CONFIG.payrollUrl){setStatus('⚠️ Chưa cấu hình payrollUrl','warn');return;}
 
-  showLoading('Đang tải lịch làm việc...');
+  // Có bản lưu trong phiên -> hiện ngay lập tức, tải bản mới ngầm (không che màn hình)
+  const cache=docCacheLich();
+  const coBanLuu=!!(cache&&!allData.length);
+  if(coBanLuu)apDungLich(cache.data, cache.t);
+  if(!coBanLuu&&!allData.length)showLoading('Đang tải lịch làm việc...');
+  document.body.classList.add('is-syncing');
   document.getElementById('loadBtn').disabled=true;
 
   try{
@@ -3420,9 +3624,10 @@ async function loadData(){
 
     apDungLich(json.data);
   }catch(e){
-    setStatus('❌ '+e.message,'err');
+    setStatus('❌ '+e.message+(allData.length?' — đang hiện bản lưu gần nhất':''),'err');
   }finally{
     hideLoading();
+    document.body.classList.remove('is-syncing');
     document.getElementById('loadBtn').disabled=false;
   }
 }
@@ -8473,8 +8678,24 @@ function closeMoreMenu(){
 // TRANG TIN TỨC — đọc/đăng tin từ tab "TinTuc" trong Sheet (qua webAppUrl)
 // ============================================================
 let newsFeedLoaded=false;
+const NEWS_CACHE_KEY='llv_news_cache', NEWS_FRESH_MS=60*1000;
+let __newsPromise=null, __newsLastFetch=0;
 
 async function loadNewsFeed(){
+  // Hiện bản lưu ngay; chỉ gọi server nếu bản lưu đã cũ hơn 1 phút; không gọi trùng lúc
+  const postBtnEarly=document.getElementById('newsPostBtn');
+  if(postBtnEarly)postBtnEarly.style.display=(currentUser&&currentUser.isManager)?'inline-block':'none';
+  let cache=null;
+  try{cache=JSON.parse(localStorage.getItem(NEWS_CACHE_KEY)||'null');}catch(e){}
+  if(cache&&Array.isArray(cache.d)){
+    renderNewsFeed(cache.d);
+    if(Date.now()-__newsLastFetch<NEWS_FRESH_MS)return;
+  }
+  if(__newsPromise)return __newsPromise;
+  __newsPromise=__taiNewsFeed(!!cache).finally(()=>{__newsPromise=null;});
+  return __newsPromise;
+}
+async function __taiNewsFeed(daCoBanLuu){
   const listEl=document.getElementById('newsFeedList');
   const postBtn=document.getElementById('newsPostBtn');
 
@@ -8486,15 +8707,17 @@ async function loadNewsFeed(){
     return;
   }
 
-  listEl.innerHTML='<div class="news-empty">Đang tải bảng tin...</div>';
+  if(!daCoBanLuu)listEl.innerHTML=Array(3).fill('<div class="news-card skeleton-card"><div class="sk sk-s"></div><div class="sk sk-l"></div><div class="sk sk-m"></div></div>').join('');
   try{
     const url=CONFIG.webAppUrl+'?action=layTinTuc';
     const json=await fetchJSONP(url);
     if(json.status!=='ok')throw new Error(json.message||'Không tải được bảng tin');
+    __newsLastFetch=Date.now();
+    try{localStorage.setItem(NEWS_CACHE_KEY,JSON.stringify({t:Date.now(),d:json.data||[]}));}catch(e){}
     renderNewsFeed(json.data||[]);
     newsFeedLoaded=true;
   }catch(e){
-    listEl.innerHTML=`<div class="news-empty">Lỗi tải bảng tin: ${e.message}</div>`;
+    if(!daCoBanLuu)listEl.innerHTML=`<div class="news-empty">Lỗi tải bảng tin: ${e.message}</div>`;
   }
 }
 
