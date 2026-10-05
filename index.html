@@ -358,7 +358,7 @@
     display:none;position:fixed;inset:0;
     background:rgba(0,0,0,.35);
     backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
-    z-index:300;align-items:center;justify-content:center;
+    z-index:800;align-items:center;justify-content:center;
   }
   .modal-overlay.show{display:flex;}
   .modal-box{
@@ -775,7 +775,7 @@
   .table-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
 
   /* LOADING */
-  .loading-overlay{display:none;position:fixed;inset:0;background:rgba(15,17,23,.8);z-index:200;align-items:center;justify-content:center;flex-direction:column;gap:12px;}
+  .loading-overlay{display:none;position:fixed;inset:0;background:rgba(15,17,23,.8);z-index:900;align-items:center;justify-content:center;flex-direction:column;gap:12px;}
   .loading-overlay.show{display:flex;}
   .spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg)}}
@@ -1060,7 +1060,7 @@
   .nv-picker-ten::placeholder{color:var(--text3);}
 
   /* ===== QUÉT TÀI LIỆU ===== */
-  #scanModal{z-index:700;} /* nổi trên thanh menu đáy (z-index 600) để nút Gửi không bị che */
+  #scanModal{z-index:800;} /* nổi trên thanh menu đáy (z-index 600) để nút Gửi không bị che */
   .scan-modal-box{max-width:720px;width:94vw;max-height:92vh;max-height:92dvh;overflow-y:auto;}
   .scan-row{display:flex;gap:8px;flex-wrap:wrap;}
   .scan-row > *{flex:1;min-width:140px;}
@@ -1156,7 +1156,7 @@
 
   /* ---- Bố cục máy tính (≥1024px): thanh điều hướng chuyển sang cột trái ---- */
   @media(min-width:1024px){
-    .app-bottombar{top:66px;bottom:0;left:0;right:auto;width:88px;flex-direction:column;justify-content:flex-start;
+    .app-bottombar{top:var(--header-h,66px);bottom:0;left:0;right:auto;width:88px;flex-direction:column;justify-content:flex-start;
       gap:4px;padding:16px 6px;border-top:none;border-right:1px solid var(--glass-border);}
     .app-bottombar .bubble-btn{flex:none;width:100%;max-width:none;padding:10px 2px;}
     .app-content{padding:24px 28px 32px 116px;}
@@ -1169,7 +1169,7 @@
   /* =========================== PHẲNG + THẺ LỚN ===========================
      Bỏ hoàn toàn backdrop-filter (hiệu ứng tốn GPU nhất) và lớp phản sáng.
      Dòng bắt đầu bằng "F " được nhân đôi cho cả 2 phong cách khi build. */
-  [data-style="phang"] *, [data-style="phang"] *::before, [data-style="phang"] *::after, [data-style="the"] *, [data-style="the"] *::before, [data-style="the"] *::after{backdrop-filter:none !important;-webkit-backdrop-filter:none !important;}
+  [data-style="phang"] .glass, [data-style="phang"] .glass-strong, [data-style="phang"] .header, [data-style="phang"] .sync-btn, [data-style="phang"] .theme-btn, [data-style="phang"] .user-badge, [data-style="phang"] .skin-panel, [data-style="phang"] .admin-btn, [data-style="phang"] .modal-overlay, [data-style="phang"] .modal-box, [data-style="phang"] .modal-btn-cancel, [data-style="phang"] .kpi-card, [data-style="phang"] .card, [data-style="phang"] .app-bottombar, [data-style="phang"] .bubble-icon, [data-style="the"] .glass, [data-style="the"] .glass-strong, [data-style="the"] .header, [data-style="the"] .sync-btn, [data-style="the"] .theme-btn, [data-style="the"] .user-badge, [data-style="the"] .skin-panel, [data-style="the"] .admin-btn, [data-style="the"] .modal-overlay, [data-style="the"] .modal-box, [data-style="the"] .modal-btn-cancel, [data-style="the"] .kpi-card, [data-style="the"] .card, [data-style="the"] .app-bottombar, [data-style="the"] .bubble-icon{backdrop-filter:none !important;-webkit-backdrop-filter:none !important;}
   [data-style="phang"] body::before, [data-style="the"] body::before{display:none;}
   [data-style="phang"] .glass::before, [data-style="phang"] .card::before, [data-style="phang"] .modal-box::before, [data-style="phang"] .bubble-icon::before, [data-style="the"] .glass::before, [data-style="the"] .card::before, [data-style="the"] .modal-box::before, [data-style="the"] .bubble-icon::before{display:none;}
   [data-style="phang"] .header, [data-style="the"] .header{background:var(--surface);box-shadow:0 1px 0 var(--border);border-bottom:1px solid var(--border);}
@@ -1244,9 +1244,6 @@
       backdrop-filter:none !important;-webkit-backdrop-filter:none !important;background:var(--glass-bg-strong);}
   }
 
-  @media (prefers-reduced-motion: reduce){
-    *{animation-duration:.01ms !important;transition-duration:.01ms !important;}
-  }
 
   /* ---- Header gọn trên điện thoại: tên công ty 1 dòng, bỏ chữ phụ ---- */
   .header-left{min-width:0;flex:1;}
@@ -1260,6 +1257,33 @@
     #userBadgeText{max-width:96px;overflow:hidden;text-overflow:ellipsis;display:inline-block;vertical-align:middle;}
     .skin-panel{position:fixed !important;top:62px !important;left:10px !important;right:10px !important;min-width:0;}
   }
+
+  /* ---- Thanh menu tự chọn (kéo thả) ---- */
+  .more-sheet-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;}
+  .more-sheet-head .more-sheet-title{margin-bottom:0;}
+  .more-edit-btn{border:1px solid var(--border);background:var(--surface2);color:var(--text);border-radius:20px;
+    padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
+  .nav-edit-hint{font-size:12px;color:var(--text3);line-height:1.6;margin-bottom:12px;}
+  .pin-slots{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+  .pin-slot{position:relative;display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 4px 10px;
+    border:2px dashed var(--border);border-radius:16px;background:var(--surface2);cursor:grab;user-select:none;-webkit-user-select:none;
+    -webkit-touch-callout:none;transition:border-color .15s,transform .15s;}
+  .pin-slot .bubble-label{font-size:10.5px;font-weight:600;text-align:center;color:var(--text);}
+  .pin-no{position:absolute;top:4px;left:7px;font-size:10px;font-weight:700;color:var(--text3);font-family:'JetBrains Mono',monospace;}
+  .pin-slot.drop-over{border-color:var(--accent);border-style:solid;transform:scale(1.05);}
+  .pin-slot.picked,.nav-drag.picked{border-color:var(--accent);border-style:solid;box-shadow:0 0 0 3px rgba(79,110,247,.25);}
+  .nav-drag{cursor:grab;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;border:2px solid transparent;}
+  .nav-drag.is-pinned{opacity:.55;}
+  .pin-tick{position:absolute;right:-4px;bottom:-4px;width:18px;height:18px;border-radius:50%;background:var(--accent);
+    color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+  .nav-drag .bubble-icon{overflow:visible;}
+  .drag-src{opacity:.3;}
+  .nav-ghost{position:fixed;z-index:2000;width:72px;pointer-events:none;opacity:.92;transform:scale(1.08);
+    background:var(--surface);border-radius:16px;box-shadow:0 12px 30px rgba(0,0,0,.35);padding:8px 2px;}
+  .nav-edit-actions{gap:8px;margin-top:16px;}
+  .nav-edit-actions button{flex:1;border:none;border-radius:10px;padding:11px;font-size:13px;font-weight:600;cursor:pointer;}
+  .nav-empty{grid-column:1/-1;text-align:center;color:var(--text3);font-size:12px;padding:14px;}
+  @media(min-width:1024px){ .pin-slots{max-width:440px;} }
 
 </style>
 <link rel="preconnect" href="https://img.vietqr.io" crossorigin>
@@ -2507,62 +2531,26 @@
 
   <!-- BOTTOM TAB BAR — chỉ ghim 3 trang hay dùng nhất + nút "Thêm" -->
   <div class="app-bottombar" id="appBottombar">
-    <button class="bubble-btn active" data-page="tintuc" onclick="switchPage('tintuc')">
-      <div class="bubble-icon">📰</div>
-      <div class="bubble-label">Tin tức</div>
-    </button>
-    <button class="bubble-btn" data-page="lich" onclick="switchPage('lich')">
-      <div class="bubble-icon">📅</div>
-      <div class="bubble-label">Lịch</div>
-    </button>
-    <button class="bubble-btn" data-page="chamcong" onclick="switchPage('chamcong')">
-      <div class="bubble-icon">⏱️</div>
-      <div class="bubble-label">Chấm công</div>
-    </button>
-    <button class="bubble-btn" id="moreTabBtn" onclick="openMoreMenu()">
-      <div class="bubble-icon">☰</div>
-      <div class="bubble-label">Thêm</div>
-    </button>
+    <!-- 4 ô tính năng do nhân viên tự chọn — dựng bởi renderNav() -->
   </div>
 
   <!-- SHEET "THÊM" — trượt lên từ đáy, chứa toàn bộ tính năng còn lại -->
   <div class="more-sheet-overlay" id="moreSheetOverlay" onclick="if(event.target===this)closeMoreMenu()">
     <div class="more-sheet-box">
       <div class="more-sheet-handle"></div>
-      <div class="more-sheet-title">Tất cả tính năng</div>
-      <div class="more-grid">
-        <button class="bubble-btn" onclick="closeMoreMenu();openPayrollModal()">
-          <div class="bubble-icon">💵</div>
-          <div class="bubble-label">Phiếu lương</div>
-        </button>
-        <button class="bubble-btn" onclick="closeMoreMenu();openThuChiModal()">
-          <div class="bubble-icon">💰</div>
-          <div class="bubble-label">Thu-Chi</div>
-        </button>
-        <button class="bubble-btn" onclick="closeMoreMenu();openQRThanhToanModal()">
-          <div class="bubble-icon">💳</div>
-          <div class="bubble-label">QR Thanh toán</div>
-        </button>
-        <button class="bubble-btn" onclick="closeMoreMenu();openDoiCaModal()">
-          <div class="bubble-icon">🔄</div>
-          <div class="bubble-label">Đổi ca</div>
-        </button>
-        <button class="bubble-btn" onclick="closeMoreMenu();openNongDoConModal()">
-          <div class="bubble-icon">🍺</div>
-          <div class="bubble-label">Nồng độ cồn</div>
-        </button>
-        <button class="bubble-btn" onclick="closeMoreMenu();openLineDTModal()">
-          <div class="bubble-icon">📞</div>
-          <div class="bubble-label">Line ĐT</div>
-        </button>
-        <button class="bubble-btn" onclick="closeMoreMenu();openTichDiemModal()">
-          <div class="bubble-icon">🎁</div>
-          <div class="bubble-label">Tích điểm KH</div>
-        </button>
-        <button class="bubble-btn" onclick="closeMoreMenu();openScanModal()">
-          <div class="bubble-icon">📄</div>
-          <div class="bubble-label">Quét tài liệu</div>
-        </button>
+      <div class="more-sheet-head">
+        <div class="more-sheet-title" id="moreSheetTitle">Tất cả tính năng</div>
+        <button class="more-edit-btn" id="moreEditBtn" onclick="toggleNavEdit()">✏️ Tuỳ chỉnh menu</button>
+      </div>
+      <div id="navEditBox" style="display:none;">
+        <div class="nav-edit-hint">Kéo tính năng vào 1 trong 4 ô để đưa lên thanh menu, kéo giữa các ô để đổi thứ tự.<br>Hoặc <b>chạm 1 tính năng</b> rồi <b>chạm vào ô</b> muốn đặt.</div>
+        <div class="pin-slots" id="pinSlots"></div>
+        <div class="more-sheet-title" style="margin-top:14px;">Tất cả tính năng</div>
+      </div>
+      <div class="more-grid" id="moreGrid"></div>
+      <div class="nav-edit-actions" id="navEditActions" style="display:none;">
+        <button class="modal-btn-cancel" onclick="resetNavPins()">↺ Mặc định</button>
+        <button class="modal-btn-confirm" onclick="toggleNavEdit(false)">✓ Xong</button>
       </div>
     </div>
   </div>
@@ -3000,6 +2988,7 @@ function setStyle(st){
   if(!STYLE_LIST.includes(st))st='phang';
   document.documentElement.setAttribute('data-style',st);
   try{localStorage.setItem('llv_style',st);}catch(e){}
+  if(typeof doChieuCaoHeader==='function')requestAnimationFrame(doChieuCaoHeader);
   document.querySelectorAll('.style-option').forEach(b=>{
     b.classList.toggle('selected', b.getAttribute('data-style-opt')===st);
   });
@@ -3197,6 +3186,8 @@ window.addEventListener('focus', kiemTraTuDangXuat);
 setInterval(kiemTraTuDangXuat, 15000);
 
 function updateUserBadge(){
+  try{renderNav();}catch(e){console.error(e);}
+  if(typeof doChieuCaoHeader==='function')requestAnimationFrame(doChieuCaoHeader);
   const badge=document.getElementById('userBadge');
   const badgeText=document.getElementById('userBadgeText');
   const banner=document.getElementById('adminBanner');
@@ -3280,7 +3271,7 @@ function getOffLockSet(){
   if(__offLockCache.data!==filteredData){
     const s=new Set();
     filteredData.forEach(r=>{
-      if(r.loaiCa==='OFF'&&r.nv&&r.date)s.add(r.nv+'|'+fmtDate(r.date));
+      if(r.loaiCa==='OFF'&&r.nv&&r.date)s.add(r.nv+'|'+(r.ds||fmtDate(r.date)));
     });
     __offLockCache={data:filteredData,set:s};
   }
@@ -3478,7 +3469,7 @@ function getBaDiemStaffForDate(dateObj){
   const list = [];
   (allData||[]).forEach(r=>{
     if(!r.date || !r.nv) return;
-    if(fmtDate(r.date) !== ds) return;
+    if((r.ds||fmtDate(r.date)) !== ds) return;
     if(!isBaDiemOffice(r.boPhan)) return;
     const caChuan = matchLineDTAllowedCa(r.loaiCa);
     if(!caChuan) return; // loại Ca Tối / Trực đêm / OFF
@@ -3565,10 +3556,14 @@ function computeBaDiemLineAssignmentForDay(dateObj){
 // Nạp lịch (server trả mảng gọn) vào allData + vẽ lại giao diện
 const LICH_CACHE_KEY='llv_lich_cache';
 function luuCacheLich(data){
-  try{
-    if(!currentUser)return;
-    sessionStorage.setItem(LICH_CACHE_KEY,JSON.stringify({nv:currentUser.nv,t:Date.now(),data:data}));
-  }catch(e){/* đầy bộ nhớ -> bỏ qua, không ảnh hưởng */}
+  if(!currentUser)return;
+  const nv=currentUser.nv, t=Date.now();
+  const save=()=>{
+    try{ if(currentUser&&currentUser.nv===nv)
+      sessionStorage.setItem(LICH_CACHE_KEY,JSON.stringify({nv:nv,t:t,data:data}));
+    }catch(e){/* đầy bộ nhớ -> bỏ qua, không ảnh hưởng */}
+  };
+  if(window.requestIdleCallback)requestIdleCallback(save,{timeout:3000}); else setTimeout(save,500);
 }
 function docCacheLich(){
   try{
@@ -3577,12 +3572,23 @@ function docCacheLich(){
   }catch(e){}
   return null;
 }
+function lichGiongNhau(a,b){
+  const ra=a&&a.rows, rb=b&&b.rows;
+  if(!ra||!rb||ra.length!==rb.length)return false;
+  for(let i=0;i<ra.length;i++){
+    const x=ra[i],y=rb[i];
+    if(x.length!==y.length)return false;
+    for(let j=0;j<x.length;j++)if(x[j]!==y[j])return false;
+  }
+  return true;
+}
 function apDungLich(data, tuCache){
   if(!tuCache)luuCacheLich(data);
   const toRow=r=>{
     const p=String(r[0]).split('-');
     return {
       date:new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]),12,0,0),
+      ds:p[0]+'-'+String(parseInt(p[1])).padStart(2,'0')+'-'+String(parseInt(p[2])).padStart(2,'0'),
       thang:parseInt(r[1])||0, thu:r[2]||'', nv:r[3]||'',
       boPhan:r[4]||'', vanPhong:r[5]||'', caLam:r[6]||'', loaiCa:r[7]||''
     };
@@ -3604,7 +3610,7 @@ async function loadData(){
   // Có bản lưu trong phiên -> hiện ngay lập tức, tải bản mới ngầm (không che màn hình)
   const cache=docCacheLich();
   const coBanLuu=!!(cache&&!allData.length);
-  if(coBanLuu)apDungLich(cache.data, cache.t);
+  if(coBanLuu){try{apDungLich(cache.data, cache.t);}catch(e){allData=[];}}
   if(!coBanLuu&&!allData.length)showLoading('Đang tải lịch làm việc...');
   document.body.classList.add('is-syncing');
   document.getElementById('loadBtn').disabled=true;
@@ -3622,7 +3628,13 @@ async function loadData(){
       throw new Error(json.message||'Không tải được lịch');
     }
 
-    apDungLich(json.data);
+    if(coBanLuu&&lichGiongNhau(cache.data,json.data)){
+      // Không có gì thay đổi: chỉ cập nhật giờ đồng bộ, khỏi vẽ lại cả bảng
+      const t=new Date();
+      document.getElementById('lastSync').textContent='Đồng bộ '+String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');
+      setStatus('✅ '+allData.length.toLocaleString()+' bản ghi lịch','ok');
+      luuCacheLich(json.data);
+    }else apDungLich(json.data);
   }catch(e){
     setStatus('❌ '+e.message+(allData.length?' — đang hiện bản lưu gần nhất':''),'err');
   }finally{
@@ -3946,7 +3958,11 @@ function applyFilters(){
   renderAll();
 }
 
+let __lichDirty=false;
 function renderAll(){
+  const pl=document.getElementById('page-lich');
+  if(pl&&!pl.classList.contains('active')){__lichDirty=true;return;} // vẽ sau, khi mở trang Lịch
+  __lichDirty=false;
   updateWeekLabel();
   renderKPIs();
   renderSchedule();
@@ -3963,11 +3979,11 @@ function renderKPIs(){
   if(!currentUser||!currentUser.isSuperManager)return;
   const today=fmtDate(new Date());
   const ws=currentWeekStart,we=addDays(ws,6);
-  const todayR=filteredData.filter(r=>r.date&&fmtDate(r.date)===today);
+  const todayR=filteredData.filter(r=>r.date&&(r.ds||fmtDate(r.date))===today);
   const wsDStr2=fmtDate(ws),weDStr2=fmtDate(we);
   const weekR=filteredData.filter(r=>{
     if(!r.date)return false;
-    const ds=fmtDate(r.date);
+    const ds=(r.ds||fmtDate(r.date));
     return ds>=wsDStr2&&ds<=weDStr2;
   });
   document.getElementById('kpi1').textContent=todayR.filter(r=>r.loaiCa!=='OFF').length;
@@ -3986,7 +4002,7 @@ function renderSchedule(){
   const wsDStr=fmtDate(days[0]),weDStr=fmtDate(days[6]);
   const weekR=filteredData.filter(r=>{
     if(!r.date)return false;
-    const ds=fmtDate(r.date);
+    const ds=(r.ds||fmtDate(r.date));
     return ds>=wsDStr&&ds<=weDStr;
   });
   const shiftControls=document.getElementById('shiftViewControls');
@@ -4015,7 +4031,7 @@ function renderWeekView(days,weekRows){
   empty.style.display='none';
 
   const lk={};
-  weekRows.forEach(r=>{if(r.date)lk[r.nv+'|'+fmtDate(r.date)]=r;});
+  weekRows.forEach(r=>{if(r.date)lk[r.nv+'|'+(r.ds||fmtDate(r.date))]=r;});
 
   body.innerHTML=nvs.map(nv=>{
     const mainOff=weekRows.find(r=>r.nv===nv&&r.boPhan!=='OFF')?.boPhan||'';
@@ -4076,7 +4092,7 @@ function renderOfficeView(weekDaysIgnored,weekRowsIgnored){
   const weekRows=filteredData.filter(r=>{
     if(!r.date)return false;
     if(!isSuperMgrOffice&&r.nv!==myNvOffice)return false;
-    const ds=fmtDate(r.date);
+    const ds=(r.ds||fmtDate(r.date));
     return ds>=wsDStr&&ds<=weDStr;
   });
   const label=document.getElementById('shiftSpanLabel');
@@ -4109,7 +4125,7 @@ function renderOfficeView(weekDaysIgnored,weekRowsIgnored){
   weekRows.forEach(r=>{
     if(!r.nv||!visibleNvs.has(r.nv))return;
     if(!r.boPhan||r.boPhan==='OFF'||r.loaiCa==='OFF')return;
-    const ds=fmtDate(r.date);
+    const ds=(r.ds||fmtDate(r.date));
     if(!dsSet.has(ds))return;
     if(!byOffice[r.boPhan])byOffice[r.boPhan]={};
     if(!byOffice[r.boPhan][ds])byOffice[r.boPhan][ds]=[];
@@ -4122,7 +4138,7 @@ function renderOfficeView(weekDaysIgnored,weekRowsIgnored){
   weekRows.forEach(r=>{
     if(!r.nv||!visibleNvs.has(r.nv))return;
     if(!r.boPhan||r.boPhan==='OFF'||r.loaiCa==='OFF')return;
-    const ds=fmtDate(r.date);
+    const ds=(r.ds||fmtDate(r.date));
     if(!dsSet.has(ds))return;
     const k=r.nv+'|'+ds;
     if(!nvDateEntries[k])nvDateEntries[k]=[];
@@ -4255,7 +4271,7 @@ function renderOfficeView(weekDaysIgnored,weekRowsIgnored){
     weekRows.forEach(r=>{
       if(!r.nv||!visibleNvs.has(r.nv))return;
       if(!r.boPhan||r.boPhan==='OFF'||r.loaiCa==='OFF')return;
-      if(fmtDate(r.date)!==ds)return;
+      if((r.ds||fmtDate(r.date))!==ds)return;
       set.add(r.nv);
     });
     return`<td style="background:var(--surface2);text-align:center;font-weight:800;font-size:12px;color:var(--accent);${DIV}">${set.size}</td>`;
@@ -4270,7 +4286,7 @@ function renderOfficeView(weekDaysIgnored,weekRowsIgnored){
   weekRows.forEach(r=>{
     if(!r.nv||!visibleNvs.has(r.nv))return;
     if(r.boPhan!=='OFF'&&r.loaiCa!=='OFF')return;
-    const ds=fmtDate(r.date);
+    const ds=(r.ds||fmtDate(r.date));
     if(!dsSet.has(ds))return;
     if(!offByDate[ds])offByDate[ds]=[];
     offByDate[ds].push(r.nv);
@@ -4306,7 +4322,7 @@ function showNvWeek(nv){
   const thuOf=(d)=>{const jsDay=d.getDay();return jsDay===0?6:jsDay-1;}; // tính Thứ theo NGÀY THẬT
   const rowsHtml=days.map((d)=>{
     const ds=fmtDate(d);
-    const entries=weekRows.filter(r=>r.nv===nv&&fmtDate(r.date)===ds);
+    const entries=weekRows.filter(r=>r.nv===nv&&(r.ds||fmtDate(r.date))===ds);
     const isOff=!entries.length||entries.every(e=>e.boPhan==='OFF'||e.loaiCa==='OFF');
     // Đồng bộ khoá lịch với bảng chính: NV/Quản lý không được xem trước ca thật của ngày
     // vượt giới hạn (chỉ tới hết hôm nay; ngày mai mở từ 17:00 tối nay),
@@ -4414,7 +4430,7 @@ function renderShiftView(weekDays,weekRowsFull){
   const weekRows=filteredData.filter(r=>{
     if(!r.date)return false;
     if(!isMgrShift&&r.nv!==myNvShift)return false;
-    const ds=fmtDate(r.date);
+    const ds=(r.ds||fmtDate(r.date));
     return ds>=wsDStr&&ds<=weDStr;
   });
 
@@ -4451,7 +4467,7 @@ function renderShiftView(weekDays,weekRowsFull){
         </td>`;
       }
       const ds=fmtDate(d);
-      const rowsHere=weekRows.filter(r=>r.date&&fmtDate(r.date)===ds&&r.loaiCa===shift)
+      const rowsHere=weekRows.filter(r=>r.date&&(r.ds||fmtDate(r.date))===ds&&r.loaiCa===shift)
         .sort((a,b)=>{
           const pa=parseCaLamViecJS(a.caLam),pb=parseCaLamViecJS(b.caLam);
           const sa=pa?pa.startMin:9999,sb=pb?pb.startMin:9999;
@@ -4533,7 +4549,8 @@ function renderGanttCell(rowsHere,shift,width){
 
 function renderMonthView(){
   const month=parseInt(document.getElementById('filterMonth').value)||(new Date().getMonth()+1);
-  const daysInMonth=new Date(2025,month,0).getDate();
+  const yearForLock=allData.find(r=>r.thang===month)?.date?.getFullYear()||new Date().getFullYear();
+  const daysInMonth=new Date(yearForLock,month,0).getDate();
   const monthR=filteredData.filter(r=>r.thang===month);
   const allNvsInMonth=[...new Set(monthR.map(r=>r.nv))].sort();
   const isMgrM=currentUser&&currentUser.isManager;
@@ -4553,7 +4570,6 @@ function renderMonthView(){
 
   body.innerHTML=nvs.map(nv=>{
     const cells=dayNums.map(d=>{
-      const yearForLock=allData.find(r=>r.thang===month)?.date?.getFullYear()||new Date().getFullYear();
       const cellDateReal=new Date(yearForLock, month-1, d, 12,0,0);
       const locked=isDateLocked(cellDateReal, nv);
       const r=lk[nv+'|'+d];
@@ -4794,8 +4810,13 @@ function renderOffYearTable(){
 }
 
 
-function changeWeek(d){currentWeekStart=addDays(currentWeekStart,d*7);shiftAnchorDate=null;renderAll();}
-function goToday(){currentWeekStart=getWeekStart(new Date());shiftAnchorDate=null;renderAll();}
+// Đổi tuần: thống kê tháng / OT / OFF cả năm không đổi -> chỉ vẽ lại phần theo tuần
+function renderWeekOnly(){
+  if(__lichDirty){renderAll();return;}
+  updateWeekLabel();renderKPIs();renderSchedule();
+}
+function changeWeek(d){currentWeekStart=addDays(currentWeekStart,d*7);shiftAnchorDate=null;renderWeekOnly();}
+function goToday(){currentWeekStart=getWeekStart(new Date());shiftAnchorDate=null;renderWeekOnly();}
 function updateWeekLabel(){
   const ws=currentWeekStart,we=addDays(ws,6);
   const lbl=fmtDisp(ws)+' – '+fmtDisp(we)+'/'+we.getFullYear();
@@ -5078,7 +5099,7 @@ function renderChamCongTable(data, nv, m, y){
       ? data.lich.filter(l=>l[0]===ds).map(l=>({caLam:l[1]||'', loaiCa:l[2]||''}))
       : allData.filter(r=>
           normNV(r.nv)===nvNorm &&
-          r.date && fmtDate(r.date)===ds &&
+          r.date && (r.ds||fmtDate(r.date))===ds &&
           r.loaiCa!=='OFF'
         );
     const lichSorted=lichRows.map(r=>({row:r, parsed:parseCaLamViecJS(r.caLam)}))
@@ -8662,6 +8683,7 @@ function switchPage(pageId){
   const btn=document.querySelector(`.bubble-btn[data-page="${pageId}"]`);
   if(btn)btn.classList.add('active');
 
+  if(pageId==='lich'&&__lichDirty)renderAll();
   if(pageId==='tintuc')loadNewsFeed();
   if(pageId==='chamcong')prepChamCongPage();
 }
@@ -8672,6 +8694,7 @@ function openMoreMenu(){
 }
 function closeMoreMenu(){
   document.getElementById('moreSheetOverlay').classList.remove('show');
+  if(typeof navEditing!=='undefined'&&navEditing)toggleNavEdit(false);
 }
 
 // ============================================================
@@ -8681,7 +8704,7 @@ let newsFeedLoaded=false;
 const NEWS_CACHE_KEY='llv_news_cache', NEWS_FRESH_MS=60*1000;
 let __newsPromise=null, __newsLastFetch=0;
 
-async function loadNewsFeed(){
+async function loadNewsFeed(force){
   // Hiện bản lưu ngay; chỉ gọi server nếu bản lưu đã cũ hơn 1 phút; không gọi trùng lúc
   const postBtnEarly=document.getElementById('newsPostBtn');
   if(postBtnEarly)postBtnEarly.style.display=(currentUser&&currentUser.isManager)?'inline-block':'none';
@@ -8689,9 +8712,9 @@ async function loadNewsFeed(){
   try{cache=JSON.parse(localStorage.getItem(NEWS_CACHE_KEY)||'null');}catch(e){}
   if(cache&&Array.isArray(cache.d)){
     renderNewsFeed(cache.d);
-    if(Date.now()-__newsLastFetch<NEWS_FRESH_MS)return;
+    if(!force&&Date.now()-__newsLastFetch<NEWS_FRESH_MS)return;
   }
-  if(__newsPromise)return __newsPromise;
+  if(__newsPromise&&!force)return __newsPromise;
   __newsPromise=__taiNewsFeed(!!cache).finally(()=>{__newsPromise=null;});
   return __newsPromise;
 }
@@ -8783,7 +8806,7 @@ async function submitNewsPost(){
     const json=await fetchJSONP(url);
     if(json.status!=='ok')throw new Error(json.message||'Đăng tin thất bại');
     closeNewsForm();
-    await loadNewsFeed();
+    await loadNewsFeed(true);
   }catch(e){
     alert('Lỗi đăng tin: '+e.message);
   }
@@ -9890,11 +9913,275 @@ async function scanSend(){
 }
 
 // ============================================================
+// ============================================================
+// THANH MENU TỰ CHỌN — mỗi nhân viên chọn 4 tính năng hay dùng nhất
+// Lưu trên máy theo từng tên NV (máy dùng chung tại quầy vẫn đúng người).
+// Kéo thả (chuột & cảm ứng: giữ ~0,3s rồi kéo) hoặc chạm-chạm.
+// ============================================================
+const NAV_FEATURES=[
+  {id:'tintuc',  icon:'📰', label:'Tin tức',      page:'tintuc'},
+  {id:'lich',    icon:'📅', label:'Lịch',         page:'lich'},
+  {id:'chamcong',icon:'⏱️', label:'Chấm công',    page:'chamcong'},
+  {id:'luong',   icon:'💵', label:'Phiếu lương',  fn:'openPayrollModal'},
+  {id:'thuchi',  icon:'💰', label:'Thu-Chi',      fn:'openThuChiModal'},
+  {id:'qr',      icon:'💳', label:'QR Thanh toán',fn:'openQRThanhToanModal'},
+  {id:'nghiphep',icon:'🌴', label:'Nghỉ phép',    fn:'openNghiPhepModal'},
+  {id:'doica',   icon:'🔄', label:'Đổi ca',       fn:'openDoiCaModal'},
+  {id:'nongdocon',icon:'🍺',label:'Nồng độ cồn',  fn:'openNongDoConModal'},
+  {id:'linedt',  icon:'📞', label:'Line ĐT',      fn:'openLineDTModal'},
+  {id:'tichdiem',icon:'🎁', label:'Tích điểm KH', fn:'openTichDiemModal'},
+  {id:'scan',    icon:'📄', label:'Quét tài liệu',fn:'openScanModal'}
+];
+const NAV_DEFAULT=['tintuc','lich','chamcong','thuchi'];
+const NAV_SLOTS=4;
+let navPins=NAV_DEFAULT.slice();
+let navEditing=false, navPick=null; // navPick: {type:'slot',i} | {type:'feat',id}
+
+function navFeat(id){return NAV_FEATURES.find(f=>f.id===id);}
+function navKey(){return 'llv_nav_pins_'+(currentUser&&currentUser.nv?normKey(currentUser.nv):'_');}
+function loadNavPins(){
+  let p=null;
+  try{p=JSON.parse(localStorage.getItem(navKey())||'null');}catch(e){}
+  if(!Array.isArray(p))p=NAV_DEFAULT.slice();
+  p=p.filter((id,i)=>navFeat(id)&&p.indexOf(id)===i).slice(0,NAV_SLOTS);
+  NAV_DEFAULT.concat(NAV_FEATURES.map(f=>f.id)).forEach(id=>{if(p.length<NAV_SLOTS&&!p.includes(id))p.push(id);});
+  navPins=p;
+}
+function saveNavPins(){try{localStorage.setItem(navKey(),JSON.stringify(navPins));}catch(e){}}
+
+function navOpen(id){
+  const f=navFeat(id);if(!f)return;
+  if(f.page){switchPage(f.page);return;}
+  const fn=window[f.fn]; if(typeof fn==='function')fn();
+}
+function navBtnHtml(f,extraAttr,extraCls){
+  return `<button class="bubble-btn ${extraCls||''}" ${extraAttr||''}>
+      <div class="bubble-icon">${f.icon}</div><div class="bubble-label">${f.label}</div></button>`;
+}
+function navActivePage(){
+  const p=document.querySelector('.app-page.active');return p?p.id.replace('page-',''):'';
+}
+function renderNav(){
+  loadNavPins();
+  const bar=document.getElementById('appBottombar');
+  if(bar){
+    const act=navActivePage();
+    bar.innerHTML=navPins.map(id=>{
+      const f=navFeat(id);
+      return navBtnHtml(f,`data-fid="${f.id}" ${f.page?`data-page="${f.page}"`:''} onclick="navOpen('${f.id}')"`,f.page&&f.page===act?'active':'');
+    }).join('')+navBtnHtml({icon:'☰',label:'Thêm'},'id="moreTabBtn" onclick="openMoreMenu()"','');
+  }
+  renderMoreGrid();
+}
+function renderMoreGrid(){
+  const grid=document.getElementById('moreGrid'); if(!grid)return;
+  if(!navEditing){
+    const rest=NAV_FEATURES.filter(f=>!navPins.includes(f.id));
+    grid.innerHTML=rest.length?rest.map(f=>navBtnHtml(f,`onclick="closeMoreMenu();navOpen('${f.id}')"`,'')).join('')
+      :'<div class="nav-empty">Tất cả tính năng đã nằm trên thanh menu.</div>';
+    return;
+  }
+  const slots=document.getElementById('pinSlots');
+  slots.innerHTML=navPins.map((id,i)=>{
+    const f=navFeat(id);
+    const sel=navPick&&navPick.type==='slot'&&navPick.i===i;
+    return `<div class="pin-slot ${sel?'picked':''}" data-slot="${i}" data-fid="${f.id}">
+      <span class="pin-no">${i+1}</span><div class="bubble-icon">${f.icon}</div><div class="bubble-label">${f.label}</div></div>`;
+  }).join('');
+  grid.innerHTML=NAV_FEATURES.map(f=>{
+    const pinned=navPins.includes(f.id);
+    const sel=navPick&&navPick.type==='feat'&&navPick.id===f.id;
+    return `<div class="bubble-btn nav-drag ${pinned?'is-pinned':''} ${sel?'picked':''}" data-fid="${f.id}">
+      <div class="bubble-icon">${f.icon}${pinned?'<span class="pin-tick">✓</span>':''}</div><div class="bubble-label">${f.label}</div></div>`;
+  }).join('');
+}
+function toggleNavEdit(force){
+  navEditing=force===undefined?!navEditing:force;
+  navPick=null;
+  document.getElementById('navEditBox').style.display=navEditing?'block':'none';
+  document.getElementById('navEditActions').style.display=navEditing?'flex':'none';
+  document.getElementById('moreEditBtn').style.display=navEditing?'none':'';
+  document.getElementById('moreSheetTitle').textContent=navEditing?'Thanh menu của bạn (4 ô)':'Tất cả tính năng';
+  if(!navEditing)renderNav(); else renderMoreGrid();
+}
+function resetNavPins(){navPins=NAV_DEFAULT.slice();navPick=null;saveNavPins();renderNav();}
+// Đặt tính năng fid vào ô j (nếu đã ở ô khác thì đổi chỗ 2 ô)
+function navPlace(fid,j){
+  const k=navPins.indexOf(fid);
+  if(k===j)return;
+  if(k>=0){[navPins[k],navPins[j]]=[navPins[j],navPins[k]];}
+  else navPins[j]=fid;
+  saveNavPins();
+  try{navigator.vibrate&&navigator.vibrate(20);}catch(e){}
+  renderNav();
+}
+function navTap(el){
+  const slot=el.closest('.pin-slot'), feat=el.closest('.nav-drag');
+  if(slot){
+    const j=+slot.dataset.slot;
+    if(navPick&&navPick.type==='feat'){navPlace(navPick.id,j);navPick=null;}
+    else if(navPick&&navPick.type==='slot'){navPlace(navPins[navPick.i],j);navPick=null;}
+    else navPick={type:'slot',i:j};
+  }else if(feat){
+    const id=feat.dataset.fid;
+    if(navPick&&navPick.type==='slot'){navPlace(id,navPick.i);navPick=null;}
+    else navPick=(navPick&&navPick.id===id)?null:{type:'feat',id};
+  }
+  renderMoreGrid();
+}
+
+// ---- Kéo thả: chuột kéo ngay; cảm ứng giữ 0,3s rồi kéo (vuốt nhanh vẫn cuộn bình thường) ----
+(function(){
+  let st=null; // {el, fid, fromSlot, x, y, dragging, ghost, timer, touch}
+  const box=()=>document.querySelector('.more-sheet-box');
+  function begin(e,pt,touch){
+    if(!navEditing)return;
+    const el=e.target.closest('.pin-slot,.nav-drag'); if(!el)return;
+    st={el,fid:el.dataset.fid,fromSlot:el.classList.contains('pin-slot'),x:pt.clientX,y:pt.clientY,dragging:false,touch};
+    if(touch)st.timer=setTimeout(()=>{if(st)startDrag(st.x,st.y);},300);
+  }
+  function startDrag(x,y){
+    st.dragging=true;
+    const g=st.el.cloneNode(true); g.classList.add('nav-ghost'); g.classList.remove('picked');
+    document.body.appendChild(g); st.ghost=g; moveGhost(x,y);
+    st.el.classList.add('drag-src');
+    try{navigator.vibrate&&navigator.vibrate(30);}catch(e){}
+  }
+  function moveGhost(x,y){
+    st.ghost.style.left=(x-36)+'px'; st.ghost.style.top=(y-40)+'px';
+    const under=document.elementFromPoint(x,y);
+    document.querySelectorAll('.pin-slot.drop-over').forEach(s=>s.classList.remove('drop-over'));
+    const slot=under&&under.closest('.pin-slot'); if(slot)slot.classList.add('drop-over');
+  }
+  function move(pt,ev){
+    if(!st)return;
+    const dx=pt.clientX-st.x, dy=pt.clientY-st.y, far=Math.hypot(dx,dy)>8;
+    if(!st.dragging){
+      if(st.touch){ if(far){clearTimeout(st.timer);st=null;} return; } // vuốt = cuộn
+      if(far)startDrag(pt.clientX,pt.clientY); else return;
+    }
+    if(ev.cancelable)ev.preventDefault();
+    moveGhost(pt.clientX,pt.clientY);
+  }
+  function end(pt){
+    if(!st)return;
+    clearTimeout(st.timer);
+    const s0=st; st=null;
+    if(!s0.dragging){ navTap(s0.el); return; }
+    s0.ghost.remove(); s0.el.classList.remove('drag-src');
+    document.querySelectorAll('.pin-slot.drop-over').forEach(s=>s.classList.remove('drop-over'));
+    const under=pt&&document.elementFromPoint(pt.clientX,pt.clientY);
+    const slot=under&&under.closest('.pin-slot');
+    if(slot){navPick=null;navPlace(s0.fid,+slot.dataset.slot);}
+  }
+  document.addEventListener('mousedown',e=>{if(e.button===0&&box()&&box().contains(e.target))begin(e,e,false);});
+  document.addEventListener('mousemove',e=>move(e,e));
+  document.addEventListener('mouseup',e=>end(e));
+  document.addEventListener('touchstart',e=>{if(box()&&box().contains(e.target))begin(e,e.touches[0],true);},{passive:true});
+  document.addEventListener('touchmove',e=>move(e.touches[0],e),{passive:false});
+  document.addEventListener('touchend',e=>{
+    // chạm-chạm trên cảm ứng: tự xử lý, không để trình duyệt phát thêm sự kiện chuột trùng
+    if(st&&!st.dragging&&e.cancelable)e.preventDefault();
+    end(e.changedTouches[0]);
+  });
+  document.addEventListener('touchcancel',()=>{if(st){clearTimeout(st.timer);if(st.ghost)st.ghost.remove();st.el.classList.remove('drag-src');st=null;}});
+})();
+
+// ============================================================
+// TỰ ĐĂNG NHẬP khi gõ đủ 6 số passcode (đã chọn tên NV) — khỏi bấm nút
+// (cổng QR đã có sẵn cơ chế riêng nên không đưa vào đây)
+// ============================================================
+const AUTO_LOGIN_MAP={
+  login:'submitLoginSchedule', payroll:'submitPayrollLogin', thuChi:'submitThuChiLogin',
+  tichDiem:'submitTichDiemLogin', nongDoCon:'submitNongDoConLogin', lineDT:'submitLineDTLogin',
+  nghiPhep:'submitNghiPhepLogin', doiCa:'submitDoiCaLogin', chamCong:'submitChamCongLogin'
+};
+const __autoLoginBusy={};
+function thuTuDangNhap(prefix){
+  const pc=document.getElementById(prefix+'PasscodeInput');
+  const nv=document.getElementById(prefix+'NVSelect');
+  if(!pc||!nv||__autoLoginBusy[prefix])return;
+  if(pc.value.length!==6||!nv.value)return;
+  const fn=window[AUTO_LOGIN_MAP[prefix]]; if(typeof fn!=='function')return;
+  __autoLoginBusy[prefix]=true;
+  pc.blur(); // ẩn bàn phím điện thoại trong lúc chờ
+  Promise.resolve(fn()).catch(()=>{}).finally(()=>{
+    __autoLoginBusy[prefix]=false;
+    // Sai passcode (ô vẫn đang hiện) -> bôi đen sẵn để gõ lại đè lên luôn
+    if(pc.offsetParent!==null&&pc.value.length===6){pc.focus();pc.select();}
+  });
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  // Bọc các hàm đăng nhập: đang chờ máy chủ thì lượt gọi thứ 2 (Enter/bấm nút) bị bỏ qua
+  Object.keys(AUTO_LOGIN_MAP).forEach(prefix=>{
+    const name=AUTO_LOGIN_MAP[prefix], f=window[name];
+    if(typeof f!=='function'||f.__guarded)return;
+    let busy=false;
+    const g=async function(){
+      if(busy)return; busy=true;
+      try{return await f.apply(this,arguments);}finally{busy=false;}
+    };
+    g.__guarded=true; window[name]=g;
+  });
+  Object.keys(AUTO_LOGIN_MAP).forEach(prefix=>{
+    const pc=document.getElementById(prefix+'PasscodeInput');
+    if(pc)pc.addEventListener('input',()=>{
+      const v=pc.value.replace(/\D/g,'').slice(0,6);
+      if(v!==pc.value)pc.value=v; // chỉ giữ chữ số
+      thuTuDangNhap(prefix);
+    });
+    // Gõ passcode trước rồi mới chọn tên -> chọn tên xong cũng tự đăng nhập
+    const nvIn=document.getElementById(prefix+'NVInput');
+    if(nvIn)nvIn.addEventListener('change',()=>setTimeout(()=>thuTuDangNhap(prefix),0));
+  });
+});
+
+
+// ============================================================
+// HÂM NÓNG MÁY CHỦ — Apps Script để lâu không ai gọi sẽ "ngủ", lần gọi đầu mất thêm vài giây.
+// Khi NV mở 1 tính năng (đang chọn tên/gõ passcode), app gọi trước 1 lệnh CHỈ ĐỌC, vô hại
+// để máy chủ thức dậy song song -> lúc NV bấm đăng nhập thì máy chủ đã sẵn sàng.
+// ============================================================
+const __warmAt={};
+function hamNongMayChu(loai){
+  const map={
+    payroll:(CONFIG.payrollUrl||'')+'?action=getMasterNVList',
+    thuchi:(CONFIG.thuChiUrl||'')+'?action=getPhanLoaiThuChiConfig',
+    web:(CONFIG.webAppUrl||'')+'?action=layTinTuc'
+  };
+  const url=map[loai]; if(!url||url.charAt(0)==='?')return;
+  if(Date.now()-(__warmAt[loai]||0)<120000)return; // tối đa 2 phút 1 lần
+  __warmAt[loai]=Date.now();
+  try{fetch(url+'&warm=1',{mode:'no-cors',cache:'no-store',keepalive:true}).catch(()=>{});}catch(e){}
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  // Mở app: hâm nóng máy chủ đăng nhập ngay khi màn hình đăng nhập hiện
+  hamNongMayChu('payroll');
+  // Mở tính năng nào thì hâm nóng máy chủ của tính năng đó
+  ['openPayrollModal','openQRThanhToanModal','openDoiCaModal','openNongDoConModal','openLineDTModal',
+   'openTichDiemModal','openNghiPhepModal','openScanModal'].forEach(n=>{
+    const f=window[n]; if(typeof f!=='function')return;
+    window[n]=function(){hamNongMayChu('payroll');return f.apply(this,arguments);};
+  });
+  const ftc=window.openThuChiModal;
+  if(typeof ftc==='function')window.openThuChiModal=function(){hamNongMayChu('thuchi');return ftc.apply(this,arguments);};
+  // Quay lại app sau khi để máy ngủ: hâm nóng lại
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&currentUser)hamNongMayChu('payroll'); });
+});
+
+// ============================================================
 // INIT
 // ============================================================
+function doChieuCaoHeader(){
+  const h=document.querySelector('.header');
+  if(h)document.documentElement.style.setProperty('--header-h',h.offsetHeight+'px');
+}
+window.addEventListener('resize',doChieuCaoHeader);
 window.addEventListener('load',()=>{
   initTheme();
   initSkin();
+  doChieuCaoHeader();
+  renderNav();
   initAuth();
   // Luôn dùng URL cố định từ CONFIG
   const url = (typeof CONFIG!=='undefined'&&CONFIG.webAppUrl) ? CONFIG.webAppUrl : '';
