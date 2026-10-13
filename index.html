@@ -34,21 +34,15 @@
   // Áp dụng theme + skin sớm để tránh nháy màu khi load trang
   (function(){
     try{
-      const t=localStorage.getItem('llv_theme');
+      const t=localStorage.getItem('llv_theme')||'auto';
       let resolved=t;
       if(t==='auto'){
         resolved=(window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';
       }
       if(resolved==='light'||resolved==='sepia')document.documentElement.setAttribute('data-theme',resolved);
     }catch(e){}
-    try{
-      const s=localStorage.getItem('llv_skin');
-      if(s&&s!=='aurora')document.documentElement.setAttribute('data-skin',s);
-    }catch(e){}
-    var st='phang';
-    try{st=localStorage.getItem('llv_style')||'phang';}catch(e){}
-    if(['phang','kinh','the'].indexOf(st)<0)st='phang';
-    document.documentElement.setAttribute('data-style',st);
+    // Giao diện 2026 v2: chỉ 1 phong cách (phẳng) — bỏ bảng màu & kính mờ cho nhẹ máy
+    document.documentElement.setAttribute('data-style','phang');
   })();
 </script>
 <style>
@@ -1286,6 +1280,109 @@
   .nav-empty{grid-column:1/-1;text-align:center;color:var(--text3);font-size:12px;padding:14px;}
   @media(min-width:1024px){ .pin-slots{max-width:440px;} }
 
+
+  /* =====================================================================
+     GIAO DIỆN 2026 v2 — 1 giao diện chuẩn, phẳng, nhẹ máy.
+     Khối này đặt CUỐI CÙNG nên ghi đè các khai báo cũ phía trên.
+     Chỉ đổi phần nhìn — không đụng ID, logic, phân quyền.
+     Muốn đổi màu thương hiệu: sửa --accent ở 2 khối :root ngay dưới.
+     ===================================================================== */
+  :root{
+    --bg:#0f1115; --surface:#171a20; --surface2:#1f232b; --border:#2a2f39;
+    --text:#eceef2; --text2:#a4abb8; --text3:#727a89;
+    --accent:#3d6df2; --accent2:#3d6df2; --accent-soft:rgba(61,109,242,.14);
+    --green:#22b07d; --amber:#e3a008; --red:#e5484d; --blue:#3d6df2; --purple:#8b6cf0;
+    --ca-sang:#22b07d; --ca-toi:#e3a008; --ca-lo:#3d8bf2; --truc-dem:#8b6cf0; --off:#7a8291;
+    --radius:14px; --radius-sm:10px;
+    --shadow:0 1px 2px rgba(0,0,0,.25);
+    color-scheme:dark;
+  }
+  :root[data-theme="light"]{
+    --bg:#f4f5f7; --surface:#ffffff; --surface2:#f0f2f5; --border:#e2e5ea;
+    --text:#151820; --text2:#4e5666; --text3:#858c9a;
+    --accent:#2451d6; --accent2:#2451d6; --accent-soft:rgba(36,81,214,.09);
+    --green:#11865b; --amber:#b77905; --red:#d13438; --blue:#2451d6; --purple:#6b46d9;
+    --ca-sang:#11865b; --ca-toi:#b77905; --ca-lo:#1f6fd6; --truc-dem:#6b46d9; --off:#8a91a0;
+    --shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.06);
+    color-scheme:light;
+  }
+  html{font-size:15px;}
+  body{background:var(--bg);letter-spacing:-.005em;}
+  body::before{display:none !important;}
+
+  /* Header gọn, 1 dòng */
+  .header{background:var(--surface) !important;border-bottom:1px solid var(--border) !important;box-shadow:none !important;padding:10px 18px;}
+  .logo{background:var(--accent-soft) !important;border-radius:10px;flex:none;width:36px;height:36px;}
+  .htitle{font-family:'Manrope',sans-serif;font-weight:800;font-size:14px;letter-spacing:-.2px;}
+  .hsub{display:none;}
+  .sync-btn,.theme-btn,.user-badge,.admin-btn{background:var(--surface2) !important;border:1px solid var(--border) !important;box-shadow:none !important;}
+  .sync-btn:hover,.theme-btn:hover{background:var(--accent-soft) !important;border-color:var(--accent) !important;}
+
+  /* Bề mặt */
+  .card,.kpi-card,.news-card,.config-panel,.ks-emp-card{border-radius:var(--radius);box-shadow:var(--shadow) !important;background:var(--surface) !important;border:1px solid var(--border) !important;}
+  .kpi-card::before{height:3px;}
+  .modal-box{border-radius:18px !important;background:var(--surface) !important;}
+  .modal-overlay{background:rgba(8,10,14,.6) !important;}
+  #loginGate{background:var(--bg) !important;}
+  .modal-title{font-size:17px;}
+
+  /* Ô nhập & nút: tối thiểu 44px cho dễ bấm bằng ngón tay */
+  .modal-box input:not([type=checkbox]):not([type=radio]),.modal-box select,.nv-picker-vp,.nv-picker-ten,
+  #chamCongLoginView input{min-height:44px;border-radius:var(--radius-sm) !important;font-size:15px;}
+  .modal-box input:focus,.modal-box select:focus,.modal-box textarea:focus{border-color:var(--accent) !important;box-shadow:0 0 0 3px var(--accent-soft);}
+  .modal-actions button,.news-post-btn,.nghiphep-btn,.load-btn{min-height:44px;border-radius:var(--radius-sm) !important;}
+  .modal-btn-confirm,.load-btn,.news-post-btn,.nghiphep-btn{background:var(--accent) !important;color:#fff !important;box-shadow:none !important;}
+  .modal-btn-confirm:hover{filter:brightness(1.08);transform:none !important;}
+  .thuchi-tab,.nghiphep-tab{border-radius:var(--radius-sm);}
+  .thuchi-tab.active,.nghiphep-tab.active,.tab.active{background:var(--accent) !important;border-color:var(--accent) !important;color:#fff !important;}
+
+  /* Thanh điều hướng */
+  .app-bottombar{background:var(--surface) !important;border-color:var(--border) !important;box-shadow:none !important;}
+  .bubble-icon{background:transparent !important;border:none !important;box-shadow:none !important;width:42px !important;height:30px !important;border-radius:15px !important;font-size:19px;}
+  .bubble-btn{gap:2px;}
+  .bubble-btn.active .bubble-icon{background:var(--accent-soft) !important;}
+  .bubble-btn.active .bubble-label{color:var(--accent) !important;font-weight:700;}
+  .bubble-label{font-size:10.5px;color:var(--text2);}
+  .more-grid .bubble-icon,.pin-slot .bubble-icon,.nav-drag .bubble-icon{width:52px !important;height:52px !important;border-radius:16px !important;background:var(--surface2) !important;font-size:24px;}
+
+  /* ---------------- TRANG CHỦ ---------------- */
+  .home{max-width:720px;margin:0 auto 22px;}
+  .home-greet{margin:4px 2px 14px;}
+  .home-hello{font-family:'Manrope',sans-serif;font-size:22px;font-weight:800;letter-spacing:-.4px;line-height:1.25;}
+  .home-date{font-size:13px;color:var(--text3);margin-top:2px;}
+  .home-shifts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:22px;}
+  .home-shift{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;gap:4px;min-height:104px;
+    padding:14px 14px 13px;border-radius:var(--radius);background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow);
+    border-left:4px solid var(--border);transition:border-color .15s;}
+  .home-shift:hover{border-color:var(--accent);}
+  .home-shift:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  .home-shift-label{font-size:11.5px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;}
+  .home-shift-main{font-family:'Manrope',sans-serif;font-size:19px;font-weight:800;letter-spacing:-.3px;color:var(--text);line-height:1.25;word-break:break-word;}
+  .home-shift-sub{font-size:12.5px;color:var(--text2);}
+  .home-shift.is-ca-sang{border-left-color:var(--ca-sang);}
+  .home-shift.is-ca-toi{border-left-color:var(--ca-toi);}
+  .home-shift.is-ca-lo{border-left-color:var(--ca-lo);}
+  .home-shift.is-truc-dem{border-left-color:var(--truc-dem);}
+  .home-shift.is-off{border-left-color:var(--off);}
+  .home-shift.is-off .home-shift-main,.home-shift.is-empty .home-shift-main,.home-shift.is-lock .home-shift-main{color:var(--text2);font-size:16px;}
+  .home-shift.is-today{background:linear-gradient(0deg,var(--accent-soft),var(--accent-soft)),var(--surface);}
+  .home-sec-title{font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:0 2px 10px;}
+  .home-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:14px 6px;}
+  .home-act{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;padding:4px 2px;border-radius:12px;}
+  .home-act:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  .home-act-ico{width:54px;height:54px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:24px;
+    background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow);transition:transform .12s,border-color .12s;}
+  .home-act:hover .home-act-ico{border-color:var(--accent);}
+  .home-act:active .home-act-ico{transform:scale(.94);}
+  .home-act-lbl{font-size:11.5px;font-weight:600;color:var(--text2);text-align:center;line-height:1.25;}
+  @media(min-width:640px){.home-actions{grid-template-columns:repeat(6,1fr);}.home-hello{font-size:26px;}}
+  @media(max-width:360px){.home-shift-main{font-size:16px;}.home-act-ico{width:48px;height:48px;font-size:21px;}}
+
+  /* Bảng tin dưới trang chủ */
+  .news-title{font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;}
+  .news-card.pinned{border-color:var(--accent) !important;}
+  .news-card-title{font-family:'Manrope',sans-serif;font-weight:800;}
+
 </style>
 <link rel="preconnect" href="https://img.vietqr.io" crossorigin>
 <link rel="dns-prefetch" href="https://img.vietqr.io">
@@ -1318,101 +1415,22 @@
     <div class="header-divider"></div>
     <div class="header-group">
       <div style="position:relative;">
-        <button class="theme-btn" id="skinBtn" onclick="toggleSkinPanel()" title="Đổi giao diện">🎨</button>
+        <button class="theme-btn" id="skinBtn" onclick="toggleSkinPanel()" title="Sáng / tối">🌓</button>
         <div id="skinPanel" class="skin-panel">
-          <div class="skin-panel-title">Phong cách</div>
-          <button class="skin-option style-option" data-style-opt="phang" onclick="setStyle('phang')">
-            <span class="style-ico">⚡</span>
-            <span class="skin-name">Phẳng <em>nhanh nhất · mặc định</em></span>
-            <span class="skin-check">✓</span>
-          </button>
-          <button class="skin-option style-option" data-style-opt="the" onclick="setStyle('the')">
-            <span class="style-ico">🔠</span>
-            <span class="skin-name">Thẻ lớn <em>chữ to, nút to</em></span>
-            <span class="skin-check">✓</span>
-          </button>
-          <button class="skin-option style-option" data-style-opt="kinh" onclick="setStyle('kinh')">
-            <span class="style-ico">🫧</span>
-            <span class="skin-name">Kính mờ <em>đẹp, nặng hơn</em></span>
-            <span class="skin-check">✓</span>
-          </button>
-          <div class="skin-panel-title skin-panel-sep">Màu chủ đạo</div>
-          <div class="skin-grid">
-          <button class="skin-option" data-skin="aurora" onclick="setSkin('aurora')">
-            <span class="skin-swatch" style="background:linear-gradient(135deg,#3355d8,#0ea5a0)"></span>
-            <span class="skin-name">Aurora <em>mặc định</em></span>
-            <span class="skin-check">✓</span>
-          </button>
-          <button class="skin-option" data-skin="sunset" onclick="setSkin('sunset')">
-            <span class="skin-swatch" style="background:linear-gradient(135deg,#f97316,#ec4899)"></span>
-            <span class="skin-name">Hoàng hôn</span>
-            <span class="skin-check">✓</span>
-          </button>
-          <button class="skin-option" data-skin="ocean" onclick="setSkin('ocean')">
-            <span class="skin-swatch" style="background:linear-gradient(135deg,#06b6d4,#22c55e)"></span>
-            <span class="skin-name">Đại dương</span>
-            <span class="skin-check">✓</span>
-          </button>
-          <button class="skin-option" data-skin="forest" onclick="setSkin('forest')">
-            <span class="skin-swatch" style="background:linear-gradient(135deg,#16a34a,#84cc16)"></span>
-            <span class="skin-name">Rừng xanh</span>
-            <span class="skin-check">✓</span>
-          </button>
-          <button class="skin-option" data-skin="candy" onclick="setSkin('candy')">
-            <span class="skin-swatch" style="background:linear-gradient(135deg,#ec4899,#a78bfa)"></span>
-            <span class="skin-name">Kẹo ngọt</span>
-            <span class="skin-check">✓</span>
-          </button>
-          <button class="skin-option" data-skin="neon" onclick="setSkin('neon')">
-            <span class="skin-swatch" style="background:linear-gradient(135deg,#22d3ee,#d946ef)"></span>
-            <span class="skin-name">Neon</span>
-            <span class="skin-check">✓</span>
-          </button>
-          <button class="skin-option" data-skin="mono" onclick="setSkin('mono')">
-            <span class="skin-swatch" style="background:linear-gradient(135deg,#64748b,#94a3b8)"></span>
-            <span class="skin-name">Đơn sắc</span>
-            <span class="skin-check">✓</span>
-          </button>
-          <button class="skin-option" data-skin="ruby" onclick="setSkin('ruby')">
-            <span class="skin-swatch" style="background:linear-gradient(135deg,#dc2626,#f43f5e)"></span>
-            <span class="skin-name">Ruby</span>
-            <span class="skin-check">✓</span>
-          </button>
-          <button class="skin-option" data-skin="gold" onclick="setSkin('gold')">
-            <span class="skin-swatch" style="background:linear-gradient(135deg,#d97706,#eab308)"></span>
-            <span class="skin-name">Vàng đồng</span>
-            <span class="skin-check">✓</span>
-          </button>
-          <button class="skin-option" data-skin="sky" onclick="setSkin('sky')">
-            <span class="skin-swatch" style="background:linear-gradient(135deg,#0ea5e9,#38bdf8)"></span>
-            <span class="skin-name">Xanh trời</span>
-            <span class="skin-check">✓</span>
-          </button>
-          <button class="skin-option" data-skin="graphite" onclick="setSkin('graphite')">
-            <span class="skin-swatch" style="background:linear-gradient(135deg,#334155,#64748b)"></span>
-            <span class="skin-name">Than chì</span>
-            <span class="skin-check">✓</span>
-          </button>
-          </div>
-          <div class="skin-panel-title skin-panel-sep">Sáng / tối</div>
-          <button class="theme-option skin-option" data-theme-opt="dark" onclick="setTheme('dark')">
-            <span class="skin-swatch" style="background:linear-gradient(135deg,#0d0f14,#171a22)"></span>
-            <span class="skin-name">Tối <em>mặc định</em></span>
+          <div class="skin-panel-title">Giao diện</div>
+          <button class="theme-option skin-option" data-theme-opt="auto" onclick="setTheme('auto')">
+            <span class="skin-swatch" style="background:linear-gradient(135deg,#14171d 50%,#f4f5f7 50%)"></span>
+            <span class="skin-name">Tự động <em>theo máy</em></span>
             <span class="skin-check">✓</span>
           </button>
           <button class="theme-option skin-option" data-theme-opt="light" onclick="setTheme('light')">
-            <span class="skin-swatch" style="background:linear-gradient(135deg,#f3f4f8,#ffffff)"></span>
+            <span class="skin-swatch" style="background:#f4f5f7"></span>
             <span class="skin-name">Sáng</span>
             <span class="skin-check">✓</span>
           </button>
-          <button class="theme-option skin-option" data-theme-opt="sepia" onclick="setTheme('sepia')">
-            <span class="skin-swatch" style="background:linear-gradient(135deg,#1b140d,#d9a441)"></span>
-            <span class="skin-name">Dịu mắt <em>ấm, ban đêm</em></span>
-            <span class="skin-check">✓</span>
-          </button>
-          <button class="theme-option skin-option" data-theme-opt="auto" onclick="setTheme('auto')">
-            <span class="skin-swatch" style="background:linear-gradient(135deg,#171a22,#f3f4f8)"></span>
-            <span class="skin-name">Tự động <em>theo máy</em></span>
+          <button class="theme-option skin-option" data-theme-opt="dark" onclick="setTheme('dark')">
+            <span class="skin-swatch" style="background:#14171d"></span>
+            <span class="skin-name">Tối</span>
             <span class="skin-check">✓</span>
           </button>
         </div>
@@ -2575,9 +2593,21 @@
 
     <!-- TRANG: TIN TỨC (trang chủ) -->
     <div id="page-tintuc" class="app-page active">
+      <section class="home" id="homeHero" style="display:none;">
+        <div class="home-greet">
+          <div class="home-hello" id="homeHello">Xin chào</div>
+          <div class="home-date" id="homeDate"></div>
+        </div>
+        <div class="home-shifts">
+          <button type="button" class="home-shift" id="homeShiftToday" onclick="switchPage('lich')"></button>
+          <button type="button" class="home-shift" id="homeShiftTomorrow" onclick="switchPage('lich')"></button>
+        </div>
+        <div class="home-sec-title">Tiện ích</div>
+        <div class="home-actions" id="homeActions"></div>
+      </section>
       <div class="news-feed">
         <div class="news-header">
-          <div class="news-title">📰 Bảng tin công ty</div>
+          <div class="news-title">Bảng tin</div>
           <button class="news-post-btn" id="newsPostBtn" style="display:none;" onclick="openNewsForm()">+ Đăng tin</button>
         </div>
 
@@ -2944,6 +2974,7 @@ function applyTheme(theme){
 function setTheme(theme){
   applyTheme(theme);
   toggleThemePanel(false);
+  toggleSkinPanel(false);
 }
 function markSelectedTheme(theme){
   document.querySelectorAll('.theme-option').forEach(b=>{
@@ -2958,12 +2989,12 @@ function toggleThemePanel(force){
 }
 function initTheme(){
   let saved='dark';
-  try{saved=localStorage.getItem('llv_theme')||'dark';}catch(e){}
+  try{saved=localStorage.getItem('llv_theme')||'auto';}catch(e){}
   applyTheme(saved);
   try{
     window.matchMedia('(prefers-color-scheme: light)').addEventListener('change',()=>{
       let cur='dark';
-      try{cur=localStorage.getItem('llv_theme')||'dark';}catch(e){}
+      try{cur=localStorage.getItem('llv_theme')||'auto';}catch(e){}
       if(cur==='auto')applyTheme('auto');
     });
   }catch(e){}
@@ -3009,11 +3040,9 @@ function setStyle(st){
   });
 }
 function initSkin(){
-  setStyle(document.documentElement.getAttribute('data-style')||'phang');
-  let saved='aurora';
-  try{saved=localStorage.getItem('llv_skin')||'aurora';}catch(e){}
-  if(saved!=='aurora')document.documentElement.setAttribute('data-skin',saved);
-  markSelectedSkin(saved);
+  // Giao diện 2026 v2: cố định 1 phong cách, bỏ bảng màu (giữ hàm cũ để không vỡ chỗ gọi)
+  document.documentElement.setAttribute('data-style','phang');
+  document.documentElement.removeAttribute('data-skin');
 }
 function toggleSkinPanel(force){
   const p=document.getElementById('skinPanel');
@@ -3202,6 +3231,7 @@ setInterval(kiemTraTuDangXuat, 15000);
 
 function updateUserBadge(){
   try{renderNav();}catch(e){console.error(e);}
+  try{renderHome();}catch(e){console.error(e);}
   if(typeof doChieuCaoHeader==='function')requestAnimationFrame(doChieuCaoHeader);
   const badge=document.getElementById('userBadge');
   const badgeText=document.getElementById('userBadgeText');
@@ -3694,7 +3724,7 @@ function loadDemo(){
 // ============================================================
 // PROCESS & RENDER
 // ============================================================
-function processData(){populateFilters();populateLoginNVSelect();applyFilters();}
+function processData(){populateFilters();populateLoginNVSelect();applyFilters();try{renderHome();}catch(e){console.error(e);}}
 
 // Chuẩn hoá tên VP để so sánh không phân biệt hoa thường/khoảng trắng thừa
 function normVP(s){return String(s||'').trim().toLowerCase().replace(/\s+/g,' ');}
@@ -8699,8 +8729,63 @@ function switchPage(pageId){
   if(btn)btn.classList.add('active');
 
   if(pageId==='lich'&&__lichDirty)renderAll();
-  if(pageId==='tintuc')loadNewsFeed();
+  if(pageId==='tintuc'){loadNewsFeed();renderHome();}
   if(pageId==='chamcong')prepChamCongPage();
+}
+
+
+// ============================================================
+// TRANG CHỦ (Giao diện 2026 v2) — chào theo tên, ca hôm nay / ngày mai, lưới tiện ích.
+// Dùng dữ liệu lịch đã tải sẵn (allData) -> không gọi thêm server.
+// ============================================================
+const HOME_THU=['CN','T2','T3','T4','T5','T6','T7'];
+function homeCaCuaToi(ds){
+  if(!currentUser)return [];
+  const me=normKey(currentUser.nv);
+  return (allData||[]).filter(r=>normKey(r.nv)===me&&(r.ds||fmtDate(r.date))===ds);
+}
+function homeShiftHtml(nhan,d,rows,khoa){
+  const ngay=HOME_THU[d.getDay()]+' '+fmtDisp(d);
+  let main,sub='',cls='';
+  if(khoa){main='🔒 Mở lúc 17:00';sub='Lịch ngày mai chưa công bố';cls='is-lock';}
+  else if(!rows.length){main='Chưa có lịch';sub=allData.length?'Không có ca được xếp':'Đang tải lịch...';cls='is-empty';}
+  else if(rows.every(r=>r.loaiCa==='OFF')){main='Nghỉ (OFF)';sub='Chúc bạn nghỉ ngơi vui vẻ';cls='is-off';}
+  else{
+    const lam=rows.filter(r=>r.loaiCa!=='OFF');
+    main=lam.map(r=>escapeHtml(r.caLam||r.loaiCa)).join(' + ');
+    sub=lam.map(r=>escapeHtml(r.loaiCa)+(r.boPhan&&r.boPhan!=='OFF'?' · '+escapeHtml(shortOffice(r.boPhan)):'')).join(' / ');
+    cls='is-'+getLoaiCaClass(lam[0].loaiCa);
+  }
+  return {cls:cls,html:`<span class="home-shift-label">${nhan} · ${ngay}</span>
+    <span class="home-shift-main">${main}</span><span class="home-shift-sub">${sub}</span>`};
+}
+function renderHome(){
+  const hero=document.getElementById('homeHero'); if(!hero)return;
+  if(!currentUser){hero.style.display='none';return;}
+  hero.style.display='';
+  const now=new Date(), h=now.getHours();
+  const buoi=h<11?'Chào buổi sáng':h<14?'Chào buổi trưa':h<18?'Chào buổi chiều':'Chào buổi tối';
+  document.getElementById('homeHello').textContent=buoi+', '+currentUser.nv;
+  document.getElementById('homeDate').textContent=
+    ['Chủ nhật','Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7'][now.getDay()]+', '+fmtDisp(now)+'/'+now.getFullYear();
+
+  const homNay=new Date(now.getFullYear(),now.getMonth(),now.getDate(),12);
+  const mai=addDays(homNay,1);
+  const rowsMai=homeCaCuaToi(fmtDate(mai));
+  const khoaMai=!currentUser.isSuperManager&&h<17&&!rowsMai.length;
+  const t=document.getElementById('homeShiftToday'), m=document.getElementById('homeShiftTomorrow');
+  const rowsNay=homeCaCuaToi(fmtDate(homNay));
+  const a=homeShiftHtml('Hôm nay',homNay,rowsNay,false), b=homeShiftHtml('Ngày mai',mai,rowsMai,khoaMai);
+  t.innerHTML=a.html; t.className='home-shift is-today '+a.cls;
+  m.innerHTML=b.html; m.className='home-shift '+b.cls;
+
+  const grid=document.getElementById('homeActions');
+  if(grid&&!grid.dataset.done){
+    grid.innerHTML=NAV_FEATURES.filter(f=>f.id!=='tintuc').map(f=>
+      `<button type="button" class="home-act" onclick="navOpen('${f.id}')"><span class="home-act-ico">${f.icon}</span><span class="home-act-lbl">${f.label}</span></button>`
+    ).join('');
+    grid.dataset.done='1';
+  }
 }
 
 // Sheet "Thêm" — lưới chứa các tính năng phụ, mở dạng trượt lên từ đáy màn hình
@@ -9938,7 +10023,7 @@ async function scanSend(){
 // Kéo thả (chuột & cảm ứng: giữ ~0,3s rồi kéo) hoặc chạm-chạm.
 // ============================================================
 const NAV_FEATURES=[
-  {id:'tintuc',  icon:'📰', label:'Tin tức',      page:'tintuc'},
+  {id:'tintuc',  icon:'🏠', label:'Trang chủ',    page:'tintuc'},
   {id:'lich',    icon:'📅', label:'Lịch',         page:'lich'},
   {id:'chamcong',icon:'⏱️', label:'Chấm công',    page:'chamcong'},
   {id:'luong',   icon:'💵', label:'Phiếu lương',  fn:'openPayrollModal'},
