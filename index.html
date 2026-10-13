@@ -4935,7 +4935,7 @@ async function submitPayrollLogin(){
 
   showLoading('Đang tải phiếu lương...');
   try{
-    const url=CONFIG.payrollUrl+'?action=getPayroll&nv='+encodeURIComponent(nv)+'&passcode='+encodeURIComponent(passcode)+'&thang='+curM+'&nam='+curY;
+    const url=CONFIG.payrollUrl+'?action=getPayroll&nv='+encodeURIComponent(nv)+'&passcode='+encodeURIComponent(passcode)+'&thang='+curM+'&nam='+curY+'&xem=luong'; // xem=luong -> server ghi log xem phiếu lương
     const json=await fetchJSONP(url);
     if(json.status!=='ok')throw new Error(json.message||'Không lấy được dữ liệu');
     if(!json.data||!json.data.phieuLuong){
