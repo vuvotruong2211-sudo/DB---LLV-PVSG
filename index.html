@@ -43,6 +43,12 @@
     }catch(e){}
     // Giao diện 2026 v2: chỉ 1 phong cách (phẳng) — bỏ bảng màu & kính mờ cho nhẹ máy
     document.documentElement.setAttribute('data-style','phang');
+    // Hiệu ứng chuyển động: mặc định BẬT, trừ khi máy bật "Giảm chuyển động" hoặc NV đã tắt
+    try{
+      let mo=localStorage.getItem('llv_motion');
+      if(!mo)mo=(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)?'off':'on';
+      document.documentElement.setAttribute('data-motion',mo);
+    }catch(e){document.documentElement.setAttribute('data-motion','on');}
   })();
 </script>
 <style>
@@ -1383,6 +1389,81 @@
   .news-card.pinned{border-color:var(--accent) !important;}
   .news-card-title{font-family:'Manrope',sans-serif;font-weight:800;}
 
+  /* =====================================================================
+     HIỆU ỨNG CHUYỂN ĐỘNG (Motion pack) — chỉ chạy khi data-motion="on".
+     Chỉ dùng transform/opacity (máy vẽ bằng GPU, không làm lag).
+     Tắt/bật trong nút 🌓 -> "Hiệu ứng chuyển động". Máy đang bật chế độ
+     "Giảm chuyển động" của hệ điều hành thì mặc định tắt.
+     ===================================================================== */
+  @keyframes mvPageIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  @keyframes mvFade{from{opacity:0}to{opacity:1}}
+  @keyframes mvPop{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:none}}
+  @keyframes mvRise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+  @keyframes mvNavPop{0%{transform:scale(.8)}55%{transform:scale(1.15)}100%{transform:scale(1)}}
+  @keyframes mvFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+  @keyframes mvShake{0%,100%{transform:none}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+  @keyframes mvSlideMsg{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+  @keyframes mvSheetUp{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
+
+  [data-motion="on"] .app-page.active{animation:mvPageIn .3s cubic-bezier(.2,.8,.2,1);}
+  [data-motion="on"] .modal-overlay.show{animation:mvFade .2s ease;}
+  [data-motion="on"] .modal-overlay.show .modal-box{animation:mvPop .3s cubic-bezier(.2,.9,.3,1.15);}
+  [data-motion="on"] .more-sheet-overlay.show{animation:mvFade .2s ease;}
+  [data-motion="on"] .more-sheet-box{animation:mvSheetUp .32s cubic-bezier(.2,.9,.3,1.1);}
+  [data-motion="on"] .skin-panel.show{animation:mvPop .2s ease;}
+  [data-motion="on"] .home-greet{animation:mvRise .35s ease backwards;}
+  [data-motion="on"] .home-shift{animation:mvRise .4s cubic-bezier(.2,.8,.2,1) backwards;}
+  [data-motion="on"] .home-shift:nth-child(2){animation-delay:.06s;}
+  [data-motion="on"] .home-act{animation:mvPop .38s cubic-bezier(.2,.9,.3,1.2) backwards;}
+  [data-motion="on"] .home-act:nth-child(1){animation-delay:0.10s}
+  [data-motion="on"] .home-act:nth-child(2){animation-delay:0.13s}
+  [data-motion="on"] .home-act:nth-child(3){animation-delay:0.16s}
+  [data-motion="on"] .home-act:nth-child(4){animation-delay:0.19s}
+  [data-motion="on"] .home-act:nth-child(5){animation-delay:0.22s}
+  [data-motion="on"] .home-act:nth-child(6){animation-delay:0.25s}
+  [data-motion="on"] .home-act:nth-child(7){animation-delay:0.28s}
+  [data-motion="on"] .home-act:nth-child(8){animation-delay:0.31s}
+  [data-motion="on"] .home-act:nth-child(9){animation-delay:0.34s}
+  [data-motion="on"] .home-act:nth-child(10){animation-delay:0.37s}
+  [data-motion="on"] .home-act:nth-child(11){animation-delay:0.40s}
+
+  [data-motion="on"] .news-card,[data-motion="on"] .kpi-card{animation:mvRise .4s cubic-bezier(.2,.8,.2,1) backwards;}
+  [data-motion="on"] .news-card:nth-child(2),[data-motion="on"] .kpi-card:nth-child(2){animation-delay:.05s}
+  [data-motion="on"] .news-card:nth-child(3),[data-motion="on"] .kpi-card:nth-child(3){animation-delay:.10s}
+  [data-motion="on"] .news-card:nth-child(4),[data-motion="on"] .kpi-card:nth-child(4){animation-delay:.15s}
+  [data-motion="on"] .news-card:nth-child(n+5),[data-motion="on"] .kpi-card:nth-child(5){animation-delay:.2s}
+  [data-motion="on"] .ks-emp-card,[data-motion="on"] .thuchi-duyet-card{animation:mvRise .35s ease backwards;}
+  [data-motion="on"] .bubble-btn.active .bubble-icon{animation:mvNavPop .4s cubic-bezier(.2,.9,.3,1.3);}
+  [data-motion="on"] .bubble-icon,[data-motion="on"] .home-act-ico{transition:transform .15s ease,border-color .15s,background .2s;}
+  [data-motion="on"] .bubble-btn:active .bubble-icon,[data-motion="on"] .home-act:active .home-act-ico{transform:scale(.88);}
+  [data-motion="on"] .modal-actions button,[data-motion="on"] .thuchi-type-btn,[data-motion="on"] .thuchi-tab,
+  [data-motion="on"] .nghiphep-tab,[data-motion="on"] .tab,[data-motion="on"] .sync-btn,[data-motion="on"] .theme-btn,
+  [data-motion="on"] .news-post-btn,[data-motion="on"] .nghiphep-btn,[data-motion="on"] .thuchi-photo-btn,
+  [data-motion="on"] .home-shift{transition:transform .12s ease,background .2s,color .2s,border-color .2s,filter .2s;}
+  [data-motion="on"] .modal-actions button:active,[data-motion="on"] .thuchi-type-btn:active,[data-motion="on"] .thuchi-tab:active,
+  [data-motion="on"] .nghiphep-tab:active,[data-motion="on"] .tab:active,[data-motion="on"] .sync-btn:active,
+  [data-motion="on"] .theme-btn:active,[data-motion="on"] .news-post-btn:active,[data-motion="on"] .nghiphep-btn:active,
+  [data-motion="on"] .thuchi-photo-btn:active,[data-motion="on"] .home-shift:active{transform:scale(.96);}
+  [data-motion="on"] .logo{animation:mvFloat 3.6s ease-in-out infinite;}
+  [data-motion="on"] .modal-err[style*="block"]{animation:mvShake .4s ease;}
+  [data-motion="on"] .thuchi-msg.success,[data-motion="on"] .thuchi-msg.error,
+  [data-motion="on"] .nghiphep-msg.success,[data-motion="on"] .nghiphep-msg.error,
+  [data-motion="on"] .feedback-msg.success,[data-motion="on"] .feedback-msg.error,
+  [data-motion="on"] .scan-msg.ok,[data-motion="on"] .scan-msg.err{animation:mvSlideMsg .25s ease;}
+  @media (hover:hover){
+    [data-motion="on"] .news-card{transition:transform .2s ease,border-color .15s;}
+    [data-motion="on"] .news-card:hover,[data-motion="on"] .home-shift:hover{transform:translateY(-2px);}
+    [data-motion="on"] .home-act:hover .home-act-ico{transform:translateY(-3px);}
+  }
+  /* Đổi Sáng/Tối: màu mới lan ra theo vòng tròn từ nút 🌓 (trình duyệt hỗ trợ View Transitions) */
+  ::view-transition-old(root),::view-transition-new(root){animation:none;mix-blend-mode:normal;}
+  [data-motion="on"]::view-transition-new(root){animation:mvThemeReveal .5s cubic-bezier(.4,0,.2,1);}
+  @keyframes mvThemeReveal{
+    from{clip-path:circle(0 at var(--vt-x,100%) var(--vt-y,0));}
+    to{clip-path:circle(150vmax at var(--vt-x,100%) var(--vt-y,0));}
+  }
+  .motion-toggle .skin-swatch{display:flex;align-items:center;justify-content:center;font-size:13px;background:var(--surface2);}
+
 </style>
 <link rel="preconnect" href="https://img.vietqr.io" crossorigin>
 <link rel="dns-prefetch" href="https://img.vietqr.io">
@@ -1431,6 +1512,12 @@
           <button class="theme-option skin-option" data-theme-opt="dark" onclick="setTheme('dark')">
             <span class="skin-swatch" style="background:#14171d"></span>
             <span class="skin-name">Tối</span>
+            <span class="skin-check">✓</span>
+          </button>
+          <div class="skin-panel-title skin-panel-sep">Chuyển động</div>
+          <button class="skin-option motion-toggle" id="motionToggleBtn" onclick="toggleMotion()">
+            <span class="skin-swatch">✨</span>
+            <span class="skin-name">Hiệu ứng chuyển động <em>tắt nếu máy yếu</em></span>
             <span class="skin-check">✓</span>
           </button>
         </div>
@@ -2972,10 +3059,29 @@ function applyTheme(theme){
   markSelectedTheme(theme);
 }
 function setTheme(theme){
-  applyTheme(theme);
+  const motionOn=document.documentElement.getAttribute('data-motion')==='on';
+  if(motionOn&&document.startViewTransition){
+    // Màu mới lan ra theo vòng tròn bắt đầu từ nút 🌓
+    const b=document.getElementById('skinBtn');
+    if(b){const r=b.getBoundingClientRect();
+      document.documentElement.style.setProperty('--vt-x',(r.left+r.width/2)+'px');
+      document.documentElement.style.setProperty('--vt-y',(r.top+r.height/2)+'px');}
+    try{document.startViewTransition(()=>applyTheme(theme));}catch(e){applyTheme(theme);}
+  }else applyTheme(theme);
   toggleThemePanel(false);
   toggleSkinPanel(false);
 }
+function markMotionToggle(){
+  const b=document.getElementById('motionToggleBtn');
+  if(b)b.classList.toggle('selected',document.documentElement.getAttribute('data-motion')==='on');
+}
+function toggleMotion(){
+  const next=document.documentElement.getAttribute('data-motion')==='on'?'off':'on';
+  document.documentElement.setAttribute('data-motion',next);
+  try{localStorage.setItem('llv_motion',next);}catch(e){}
+  markMotionToggle();
+}
+document.addEventListener('DOMContentLoaded',markMotionToggle);
 function markSelectedTheme(theme){
   document.querySelectorAll('.theme-option').forEach(b=>{
     b.classList.toggle('selected', b.getAttribute('data-theme-opt')===theme);
