@@ -1457,12 +1457,70 @@
   }
   /* Đổi Sáng/Tối: màu mới lan ra theo vòng tròn từ nút 🌓 (trình duyệt hỗ trợ View Transitions) */
   ::view-transition-old(root),::view-transition-new(root){animation:none;mix-blend-mode:normal;}
-  [data-motion="on"]::view-transition-new(root){animation:mvThemeReveal .5s cubic-bezier(.4,0,.2,1);}
+  html.vt-theme::view-transition-new(root){animation:mvThemeReveal .5s cubic-bezier(.4,0,.2,1);}
   @keyframes mvThemeReveal{
     from{clip-path:circle(0 at var(--vt-x,100%) var(--vt-y,0));}
     to{clip-path:circle(150vmax at var(--vt-x,100%) var(--vt-y,0));}
   }
   .motion-toggle .skin-swatch{display:flex;align-items:center;justify-content:center;font-size:13px;background:var(--surface2);}
+
+  /* =====================================================================
+     LẢ LƯỚT (v2) — mở/đóng hộp thoại mượt cả 2 chiều, chuyển trang trượt
+     ngang theo hướng menu, viên "con trỏ" trượt có độ nảy trên thanh menu.
+     Trình duyệt cũ không hỗ trợ thì tự quay về như bản trước, không lỗi.
+     ===================================================================== */
+  [data-motion="on"]{--ease-fluid:cubic-bezier(.22,1,.36,1);--ease-spring:cubic-bezier(.34,1.45,.64,1);}
+  html[data-motion="on"]{scroll-behavior:smooth;}
+
+  /* Hộp thoại & sheet "Thêm": hiện dần + bật lên khi mở, mờ dần + hạ xuống khi đóng */
+  [data-motion="on"] .modal-overlay:not(#loginGate),[data-motion="on"] .more-sheet-overlay{
+    opacity:0;transition-property:opacity,display,overlay;transition-duration:.34s;
+    transition-timing-function:var(--ease-fluid);transition-behavior:allow-discrete;}
+  [data-motion="on"] .modal-overlay.show:not(#loginGate),[data-motion="on"] .more-sheet-overlay.show{opacity:1;animation:none;}
+  [data-motion="on"] .modal-overlay:not(#loginGate) .modal-box{transform:translateY(28px) scale(.94);transition:transform .5s var(--ease-fluid);}
+  [data-motion="on"] .modal-overlay.show .modal-box{transform:none;animation:none;}
+  [data-motion="on"] .more-sheet-box{transform:translateY(100%);transition:transform .5s var(--ease-fluid);animation:none;}
+  [data-motion="on"] .more-sheet-overlay.show .more-sheet-box{transform:none;}
+  @starting-style{
+    [data-motion="on"] .modal-overlay.show:not(#loginGate),[data-motion="on"] .more-sheet-overlay.show{opacity:0;}
+    [data-motion="on"] .modal-overlay.show .modal-box{transform:translateY(28px) scale(.94);}
+    [data-motion="on"] .more-sheet-overlay.show .more-sheet-box{transform:translateY(100%);}
+  }
+
+  /* Đổi tab trong hộp thoại (Nhập / Báo cáo / Duyệt...) và màn đăng nhập -> nội dung: trượt nhẹ vào */
+  [data-motion="on"] .modal-box [id*="Pane"],[data-motion="on"] .modal-box [id$="ContentView"],
+  [data-motion="on"] .modal-box [id$="LoginView"]{animation:mvRise .42s var(--ease-fluid);}
+
+  /* Thẻ hiện lần lượt: kéo dài & êm hơn */
+  [data-motion="on"] .news-card,[data-motion="on"] .kpi-card,[data-motion="on"] .home-shift,
+  [data-motion="on"] .ks-emp-card,[data-motion="on"] .thuchi-duyet-card{animation-duration:.6s;animation-timing-function:var(--ease-fluid);}
+  [data-motion="on"] .home-act{animation-duration:.55s;animation-timing-function:var(--ease-spring);}
+
+  /* Viên con trỏ trượt theo mục đang chọn trên thanh menu */
+  [data-motion="on"] .mv-static .news-card{animation:none;}
+  .nav-indicator{display:none;}
+  [data-motion="on"] .nav-indicator{display:block;position:absolute;left:0;top:0;border-radius:15px;
+    background:var(--accent-soft);pointer-events:none;z-index:0;opacity:0;
+    transition:transform .55s var(--ease-spring),width .4s var(--ease-fluid),height .4s var(--ease-fluid),opacity .25s;}
+  [data-motion="on"] .app-bottombar .bubble-btn{position:relative;z-index:1;}
+  [data-motion="on"] .app-bottombar .bubble-btn.active .bubble-icon{background:transparent !important;}
+
+  /* Chuyển trang: trang cũ trượt ra, trang mới trượt vào theo hướng (View Transitions) */
+  .has-vt[data-motion="on"] .app-page.active{animation:none;}
+  html.vt-page .header{view-transition-name:vt-hdr;}
+  html.vt-page .app-bottombar{view-transition-name:vt-nav;}
+  html.vt-page::view-transition-group(vt-hdr),html.vt-page::view-transition-group(vt-nav),
+  html.vt-page::view-transition-new(vt-hdr),html.vt-page::view-transition-new(vt-nav){animation:none;}
+  html.vt-page::view-transition-old(vt-hdr),html.vt-page::view-transition-old(vt-nav){display:none;}
+  html.vt-page::view-transition-old(root){animation:vtOutL .38s var(--ease-fluid) both;}
+  html.vt-page::view-transition-new(root){animation:vtInR .5s var(--ease-fluid) both;}
+  html.vt-page.vt-back::view-transition-old(root){animation-name:vtOutR;}
+  html.vt-page.vt-back::view-transition-new(root){animation-name:vtInL;}
+  @keyframes vtOutL{to{opacity:0;transform:translateX(-10%) scale(.98);}}
+  @keyframes vtInR{from{opacity:0;transform:translateX(14%);}}
+  @keyframes vtOutR{to{opacity:0;transform:translateX(10%) scale(.98);}}
+  @keyframes vtInL{from{opacity:0;transform:translateX(-14%);}}
+  @media (prefers-reduced-motion: reduce){html.vt-page::view-transition-old(root),html.vt-page::view-transition-new(root){animation:none;}}
 
 </style>
 <link rel="preconnect" href="https://img.vietqr.io" crossorigin>
@@ -3066,7 +3124,11 @@ function setTheme(theme){
     if(b){const r=b.getBoundingClientRect();
       document.documentElement.style.setProperty('--vt-x',(r.left+r.width/2)+'px');
       document.documentElement.style.setProperty('--vt-y',(r.top+r.height/2)+'px');}
-    try{document.startViewTransition(()=>applyTheme(theme));}catch(e){applyTheme(theme);}
+    try{
+      document.documentElement.classList.add('vt-theme');
+      document.startViewTransition(()=>applyTheme(theme)).finished
+        .finally(()=>document.documentElement.classList.remove('vt-theme'));
+    }catch(e){document.documentElement.classList.remove('vt-theme');applyTheme(theme);}
   }else applyTheme(theme);
   toggleThemePanel(false);
   toggleSkinPanel(false);
@@ -8825,7 +8887,50 @@ function syncNVPickerHiddenSelect(prefix){
 // ============================================================
 // ĐIỀU HƯỚNG SIDEBAR BONG BÓNG (kiểu Messenger)
 // ============================================================
+// Chuyển trang "lả lướt": trượt ngang theo hướng menu (trình duyệt hỗ trợ View Transitions)
+function __pageOrder(id){
+  const pins=(typeof navPins!=='undefined')?navPins:[];
+  const i=pins.indexOf(id); if(i>=0)return i;
+  const j=(typeof NAV_FEATURES!=='undefined')?NAV_FEATURES.findIndex(f=>f.id===id):-1;
+  return j>=0?10+j:99;
+}
 function switchPage(pageId){
+  const cur=document.querySelector('.app-page.active');
+  const curId=cur?cur.id.replace('page-',''):'';
+  const html=document.documentElement;
+  const motionOn=html.getAttribute('data-motion')==='on';
+  // Trang Lịch đang chờ vẽ lại nhiều dữ liệu -> chuyển thẳng, không chạy hiệu ứng trượt,
+  // để phần dựng bảng lịch không phải chen với hiệu ứng (tránh khựng trên máy yếu)
+  const nangDuLieu=(pageId==='lich'&&typeof __lichDirty!=='undefined'&&__lichDirty);
+  if(!motionOn||!document.startViewTransition||!curId||curId===pageId||nangDuLieu){
+    __switchPageCore(pageId);moveNavIndicator();return;
+  }
+  html.classList.add('vt-page');
+  html.classList.toggle('vt-back',__pageOrder(pageId)<__pageOrder(curId));
+  try{
+    const t=document.startViewTransition(()=>{__switchPageCore(pageId);moveNavIndicator();});
+    t.finished.finally(()=>html.classList.remove('vt-page','vt-back'));
+  }catch(e){
+    html.classList.remove('vt-page','vt-back');__switchPageCore(pageId);moveNavIndicator();
+  }
+}
+// Viên con trỏ trượt dưới icon đang chọn trên thanh menu
+function moveNavIndicator(instant){
+  const bar=document.getElementById('appBottombar'); if(!bar)return;
+  let ind=bar.querySelector('.nav-indicator');
+  if(!ind){ind=document.createElement('span');ind.className='nav-indicator';bar.prepend(ind);instant=true;}
+  const ico=bar.querySelector('.bubble-btn.active .bubble-icon');
+  if(!ico){ind.style.opacity='0';return;}
+  const b=bar.getBoundingClientRect(), r=ico.getBoundingClientRect();
+  if(instant)ind.style.transition='none';
+  ind.style.width=r.width+'px';ind.style.height=r.height+'px';
+  ind.style.transform='translate('+(r.left-b.left)+'px,'+(r.top-b.top)+'px)';
+  ind.style.opacity='1';
+  if(instant){void ind.offsetWidth;ind.style.transition='';}
+}
+window.addEventListener('resize',()=>moveNavIndicator(true));
+if(document.startViewTransition)document.documentElement.classList.add('has-vt');
+function __switchPageCore(pageId){
   document.querySelectorAll('.app-page').forEach(el=>el.classList.remove('active'));
   document.querySelectorAll('.bubble-btn').forEach(el=>el.classList.remove('active'));
 
@@ -8950,7 +9055,19 @@ async function __taiNewsFeed(daCoBanLuu){
   }
 }
 
+let __newsSig=null;
 function renderNewsFeed(items){
+  // Bảng tin y hệt lần trước (bản lưu = bản mới tải) -> bỏ qua, khỏi vẽ lại & khỏi chạy lại hiệu ứng
+  let sig=null; try{sig=JSON.stringify(items);}catch(e){}
+  const box=document.getElementById('newsFeedList');
+  const dangKhungXuong=!!(box&&box.querySelector('.skeleton-card'));
+  if(sig&&sig===__newsSig&&!dangKhungXuong)return;
+  const lanDau=(__newsSig===null);
+  __newsSig=sig;
+  if(box)box.classList.toggle('mv-static',!lanDau); // chỉ lần hiện đầu tiên mới trượt lên
+  __renderNewsFeedCore(items);
+}
+function __renderNewsFeedCore(items){
   const listEl=document.getElementById('newsFeedList');
   if(!items.length){
     listEl.innerHTML='<div class="news-empty">Chưa có thông báo nào từ công ty.</div>';
@@ -10180,6 +10297,7 @@ function renderNav(){
       const f=navFeat(id);
       return navBtnHtml(f,`data-fid="${f.id}" ${f.page?`data-page="${f.page}"`:''} onclick="navOpen('${f.id}')"`,f.page&&f.page===act?'active':'');
     }).join('')+navBtnHtml({icon:'☰',label:'Thêm'},'id="moreTabBtn" onclick="openMoreMenu()"','');
+    requestAnimationFrame(()=>moveNavIndicator(true));
   }
   renderMoreGrid();
 }
