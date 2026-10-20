@@ -2100,7 +2100,10 @@
             </div>
             <div class="qr-action-row">
               <button type="button" class="modal-btn-cancel" onclick="printQRReceipt()">🖨️ In khổ giấy nhỏ</button>
-              <button type="button" class="modal-btn-confirm" onclick="copyQRImage()">📋 Sao chép ảnh QR (gửi Zalo)</button>
+            </div>
+            <div style="font-size:12px;color:var(--text2);line-height:1.6;margin-top:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;">
+              📸 <b>Gửi QR qua Zalo:</b> chụp vùng vé QR rồi dán (Ctrl+V / ⌘+V) vào khung chat.<br>
+              • Windows: <b>Win + Shift + S</b> &nbsp;•&nbsp; Mac: <b>⌘ + Ctrl + Shift + 4</b> &nbsp;•&nbsp; Zalo PC: <b>Ctrl + Alt + S</b>
             </div>
             <div class="qr-copy-status" id="qrCopyStatus"></div>
           </div>
@@ -5924,7 +5927,45 @@ let qrLastReport=null;
 // Không phụ thuộc img.vietqr.io -> chạy được cả với số TK có chữ (TK định danh/alias như 10043595QRBADIEM0),
 // không lỗi CORS khi "Sao chép ảnh", nhanh hơn vì không phải tải ảnh qua mạng.
 // Mã BIN ngân hàng theo Napas. Nếu sheet CauHinhQR có cột bin thì ưu tiên dùng cột đó.
-const VIETQR_BIN={ICB:'970415',VCB:'970436',BIDV:'970418',TCB:'970407',MB:'970422',ACB:'970416',VPB:'970432',TPB:'970423',STB:'970403',AGRIBANK:'970405',VBA:'970405'};
+// Cột "bank" trong sheet CauHinhQR: gõ MÃ VIẾT TẮT (cột trái) hoặc TÊN đầy đủ đều được, không phân biệt hoa/thường.
+const VIETQR_BANKS=[
+  // [mã, tên hiển thị, BIN Napas, các tên gọi khác]
+  ['ICB','VietinBank','970415',['VIETINBANK','CTG']],
+  ['VCB','Vietcombank','970436',['VIETCOMBANK']],
+  ['BIDV','BIDV','970418',[]],
+  ['VBA','Agribank','970405',['AGRIBANK','AGR']],
+  ['TCB','Techcombank','970407',['TECHCOMBANK']],
+  ['MB','MB Bank','970422',['MBBANK','MBB']],
+  ['ACB','ACB','970416',[]],
+  ['VPB','VPBank','970432',['VPBANK']],
+  ['TPB','TPBank','970423',['TPBANK']],
+  ['STB','Sacombank','970403',['SACOMBANK']],
+  ['HDB','HDBank','970437',['HDBANK']],
+  ['VIB','VIB','970441',[]],
+  ['SHB','SHB','970443',[]],
+  ['MSB','MSB','970426',['MARITIMEBANK']],
+  ['OCB','OCB','970448',['PHUONGDONG']],
+  ['EIB','Eximbank','970431',['EXIMBANK']],
+  ['SEAB','SeABank','970440',['SEABANK']],
+  ['LPB','LPBank','970449',['LPBANK','LIENVIET','LIENVIETPOSTBANK']],
+  ['NAB','Nam A Bank','970428',['NAMABANK']],
+  ['ABB','ABBANK','970425',['ABBANK']],
+  ['BAB','Bac A Bank','970409',['BACABANK']],
+  ['VAB','VietABank','970427',['VIETABANK']],
+  ['VIETBANK','VietBank','970433',[]],
+  ['PGB','PGBank','970430',['PGBANK']],
+  ['KLB','KienlongBank','970452',['KIENLONGBANK']],
+  ['NCB','NCB','970419',[]],
+  ['SCB','SCB','970429',[]],
+  ['SGICB','SaigonBank','970400',['SAIGONBANK']],
+  ['BVB','BVBank','970454',['BVBANK','VIETCAPITALBANK']],
+  ['CAKE','CAKE by VPBank','546034',[]],
+  ['UBANK','Ubank by VPBank','546035',[]],
+  ['TIMO','Timo','963388',[]]
+];
+const VIETQR_BIN={}, VIETQR_BANK_NAME={};
+VIETQR_BANKS.forEach(([code,name,bin,alias])=>{[code,...alias].forEach(k=>{VIETQR_BIN[k]=bin;VIETQR_BANK_NAME[k]=name;});});
+function vqrBankKey(b){return removeVietnameseTones(String(b||'')).toUpperCase().replace(/[^A-Z0-9]/g,'');}
 function vqrTLV(id,val){val=String(val);return id+String(val.length).padStart(2,'0')+val;}
 function vqrCRC16(str){
   let crc=0xFFFF;
@@ -6220,8 +6261,7 @@ function renderQRAccountInfo(){
   if(!qrConfigCache||!qrConfigCache.accounts.length)return;
   const idx=parseInt(document.getElementById('qrAccountSelect').value,10)||0;
   const acc=qrConfigCache.accounts[idx];
-  const bankNameMap={ICB:'VietinBank',VCB:'Vietcombank',BIDV:'BIDV',TCB:'Techcombank',MB:'MB Bank',ACB:'ACB',VPB:'VPBank',TPB:'TPBank',STB:'Sacombank',AGRIBANK:'Agribank'};
-  const bankLabel=bankNameMap[acc.bank]||acc.bank;
+  const bankLabel=VIETQR_BANK_NAME[vqrBankKey(acc.bank)]||acc.bank;
   boxEl.innerHTML=`
     <div><b>Thương hiệu:</b> ${qrConfigCache.brand}</div>
     <div><b>Ngân hàng:</b> ${bankLabel}</div>
@@ -6229,7 +6269,16 @@ function renderQRAccountInfo(){
     <div><b>Chủ TK:</b> ${acc.tenChu}</div>`;
 }
 
+const QR_CHONG_TRUNG_PHUT=15;
+const qrDaGhiLog={}; // logKey -> thời điểm đã ghi (nhớ nhiều khách cùng lúc, không chỉ khách gần nhất)
+let qrDangTao=false;
 async function generateQRThanhToan(){
+  if(qrDangTao)return; // chặn bấm đúp / Enter + click dồn dập trong 0,8 giây
+  qrDangTao=true;
+  try{ return await _generateQRThanhToan(); }
+  finally{ setTimeout(()=>{qrDangTao=false;},800); }
+}
+async function _generateQRThanhToan(){
   const statusEl=document.getElementById('qrGenStatus');
   statusEl.className='qr-copy-status';
 
@@ -6276,7 +6325,7 @@ async function generateQRThanhToan(){
   // Nội dung = SĐT nhân viên nhập + mẫu soạn sẵn trong Sheet, ví dụ: "0919892211 THANH TOAN VE"
   const addInfo=removeVietnameseTones(`${sdt} ${preset}`);
   // Ưu tiên tự tạo QR trên máy; chỉ khi thư viện QR chưa tải được (mất mạng CDN) mới dùng ảnh img.vietqr.io.
-  const bin=String(acc.bin||VIETQR_BIN[String(bank).toUpperCase()]||'').trim();
+  const bin=String(acc.bin||VIETQR_BIN[vqrBankKey(bank)]||'').trim();
   let qrUrl=null;
   if(bin){
     try{qrUrl=makeVietQRDataURL(buildVietQRPayload(bin,accNo,soTien,addInfo));}catch(e){console.error('Tạo VietQR lỗi',e);qrUrl=null;}
@@ -6313,10 +6362,21 @@ async function generateQRThanhToan(){
 
   // Ghi log lệnh tạo QR theo nhân viên đang đăng nhập -> phục vụ báo cáo kết sổ cuối ngày.
   // Chạy nền, không chặn giao diện; nếu lỗi mạng vẫn không ảnh hưởng tới việc tạo/in/gửi QR.
+  // CHỐNG GHI TRÙNG: cùng tài khoản + SĐT + số tiền + nội dung trong 15 phút (= hạn QR) chỉ ghi 1 dòng.
+  // (NV hay bấm Enter rồi bấm thêm nút "Tạo mã QR", hoặc bấm tạo lại cho cùng 1 khách -> trước đây ra 2-3 dòng.)
+  const logKey=[qrUser.nv,acc.label,sdt,soTien,addInfo].join('|');
+  const nowMs=Date.now();
+  Object.keys(qrDaGhiLog).forEach(k=>{if(nowMs-qrDaGhiLog[k]>=QR_CHONG_TRUNG_PHUT*60000)delete qrDaGhiLog[k];});
+  if(qrDaGhiLog[logKey]){
+    statusEl.textContent='Đã tạo lại mã QR (lệnh này đã ghi báo cáo trước đó — không ghi trùng).';
+    return;
+  }
+  qrDaGhiLog[logKey]=nowMs;
   try{
     const payload={nv:qrUser.nv,passcode:qrUser.passcode,taiKhoan:acc.label,sdtKhach:sdt,soTien:soTien,noiDung:addInfo};
     const logUrl=CONFIG.payrollUrl+'?action=submitQRThanhToan&payload='+encodeURIComponent(JSON.stringify(payload));
     fetchJSONP(logUrl).then(res=>{
+      if(res.status!=='ok'){delete qrDaGhiLog[logKey];} // ghi lỗi -> cho phép lần bấm sau ghi lại
       if(res.status==='ok'){
         statusEl.textContent='Đã tạo mã QR (đã ghi nhận vào báo cáo kết sổ).';
       }else{
@@ -6324,7 +6384,7 @@ async function generateQRThanhToan(){
         statusEl.className='qr-copy-status err';
       }
       qrLastReport=null; // invalidate cache để lần sau mở tab Báo cáo tự tải lại
-    }).catch(()=>{});
+    }).catch(()=>{delete qrDaGhiLog[logKey];});
   }catch(e){}
 }
 
@@ -6343,40 +6403,6 @@ function qrSanSangKhachMoi(){
   document.getElementById('qrSoTienNghin').value='';
   document.getElementById('qrSoTienPreview').textContent='= 0 đ';
   setTimeout(()=>document.getElementById('qrKhachSDT')?.focus(),50);
-}
-
-async function copyQRImage(){
-  const statusEl=document.getElementById('qrCopyStatus');
-  statusEl.className='qr-copy-status';
-  const receipt=document.getElementById('qrReceiptContent');
-  const img=receipt?receipt.querySelector('img'):null;
-  if(!receipt||!img){statusEl.textContent='Vui lòng tạo mã QR trước.';statusEl.className='qr-copy-status err';return;}
-  if(typeof html2canvas==='undefined'){statusEl.textContent='Không tải được thư viện chụp ảnh (kiểm tra mạng), vui lòng thử lại.';statusEl.className='qr-copy-status err';return;}
-
-  statusEl.textContent='Đang tạo ảnh...';
-  try{
-    // Chụp lại ĐÚNG y hệt tấm vé đang hiển thị trên màn hình (không tự vẽ lại chữ bằng canvas nữa)
-    // -> tránh lệch/mất chữ do font hệ điều hành khác nhau (Windows vs macOS).
-    const canvas=await html2canvas(receipt,{backgroundColor:'#ffffff',scale:2,useCORS:true,logging:false});
-    canvas.toBlob(async (blob)=>{
-      if(!blob){statusEl.textContent='Không tạo được ảnh, vui lòng thử lại.';statusEl.className='qr-copy-status err';return;}
-      try{
-        await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);
-        statusEl.textContent='✅ Đã sao chép ảnh — dán (Ctrl+V) vào khung chat Zalo để gửi khách.';
-        statusEl.className='qr-copy-status ok';
-        qrSanSangKhachMoi();
-      }catch(err){
-        // fallback: trình duyệt không cho copy ảnh -> mở ảnh ra tab mới để tải/lưu thủ công
-        const url=URL.createObjectURL(blob);
-        window.open(url,'_blank');
-        statusEl.textContent='Trình duyệt này chưa hỗ trợ copy ảnh trực tiếp — đã mở ảnh ở tab mới, bấm giữ để lưu/gửi Zalo.';
-        statusEl.className='qr-copy-status err';
-      }
-    },'image/png');
-  }catch(err){
-    statusEl.textContent='Lỗi khi tạo ảnh: '+err.message;
-    statusEl.className='qr-copy-status err';
-  }
 }
 
 async function submitThuChiLogin(){
