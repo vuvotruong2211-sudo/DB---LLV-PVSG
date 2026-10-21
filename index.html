@@ -1650,6 +1650,9 @@
   .iv-dot{transform-box:fill-box;transform-origin:center;}
   .ivs.run .iv-dot{animation:ivPop .6s var(--ease-spring,ease) calc(var(--s) + var(--t,0s)) both;}
   .iv-city{font:700 10px 'Inter',sans-serif;fill:#fff;}
+  .iv-coast{fill:none;stroke:rgba(255,255,255,.3);stroke-width:.8;stroke-linejoin:round;}
+  .ivs.run .iv-land,.ivs.run .iv-coast{animation:ivFade 1s ease var(--s) both;}
+  .iv-sea{font:italic 600 8px 'Inter',sans-serif;fill:rgba(255,255,255,.38);text-anchor:middle;letter-spacing:.06em;}
   /* cảnh 3: dịch vụ */
   .iv-svc{display:grid;grid-template-columns:1fr 1fr;gap:3cqw;width:100%;padding:0 8cqw;box-sizing:border-box;}
   .iv-box{border-radius:2.4cqw;padding:3.4cqw 3cqw;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);}
@@ -10873,17 +10876,26 @@ function introFilmHtml(){
       <div class="iv-route" data-a style="--an:ivL;--t:.6s"><b style="background:${c1}"></b>TP.HCM ⇄ Quảng Ngãi</div>
       <div class="iv-route" data-a style="--an:ivL;--t:.8s"><b style="background:${c2}"></b>TP.HCM ⇄ Đà Lạt</div>
     </div>
-    <svg viewBox="0 0 200 170">
-      <path class="iv-path" pathLength="1" style="--t:.4s;stroke:${c1}" d="M40 150 C 62 100, 92 58, 118 24"/>
-      <path class="iv-path" pathLength="1" style="--t:.7s;stroke:${c2}" d="M40 150 Q 108 150 162 116"/>
-      <path class="iv-comet" pathLength="1" style="--t:1.8s" d="M40 150 C 62 100, 92 58, 118 24"/>
-      <path class="iv-comet" pathLength="1" style="--t:2s" d="M40 150 Q 108 150 162 116"/>
-      <circle class="iv-dot" style="--t:.2s" cx="40" cy="150" r="7" fill="#fff"/>
-      <circle class="iv-dot" style="--t:1.9s" cx="118" cy="24" r="6" fill="${c1}"/>
-      <circle class="iv-dot" style="--t:2.1s" cx="162" cy="116" r="6" fill="${c2}"/>
-      <text class="iv-city" x="52" y="166">TP.HCM</text>
-      <text class="iv-city" x="130" y="28">Quảng Ngãi</text>
-      <text class="iv-city" x="148" y="102">Đà Lạt</text>
+    <!-- Bản đồ theo toạ độ thật (kinh/vĩ độ): đất liền bên trái đường bờ biển, Biển Đông bên phải.
+         Tuyến QN men theo QL1A dọc biển; tuyến Đà Lạt đi QL20 lên Tây Nguyên. -->
+    <svg viewBox="0 -8 175 214">
+      <defs><linearGradient id="ivLandG" x1="0" x2="1" y1="0" y2="0">
+        <stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".55" stop-color="#fff" stop-opacity=".05"/>
+        <stop offset="1" stop-color="#fff" stop-opacity=".09"/></linearGradient></defs>
+      <path class="iv-land" fill="url(#ivLandG)" d="M0 -8 L113.5 -8 L113.5,0 L115.9,6.8 L119.3,15.3 L124.4,31.6 L127.8,47.6 L129.8,62.2 L132.2,85.3 L137.3,93.5 L132.2,103.7 L128.8,114.2 L127.4,125.1 L122.7,137.4 L117.2,145.2 L108.4,154.7 L97.5,158.1 L91.4,158.8 L74.4,170 L56.7,178.5 L50.6,176.8 L45.5,181.9 L40.4,190.4 L37,200.6 L37 206 L0 206 Z"/>
+      <path class="iv-coast" d="M113.5,0 L115.9,6.8 L119.3,15.3 L124.4,31.6 L127.8,47.6 L129.8,62.2 L132.2,85.3 L137.3,93.5 L132.2,103.7 L128.8,114.2 L127.4,125.1 L122.7,137.4 L117.2,145.2 L108.4,154.7 L97.5,158.1 L91.4,158.8 L74.4,170 L56.7,178.5 L50.6,176.8 L45.5,181.9 L40.4,190.4 L37,200.6"/>
+      <text class="iv-sea" x="150" y="150">Biển Đông</text>
+      <text class="iv-sea" x="62" y="70">Tây Nguyên</text>
+      <path class="iv-path" pathLength="1" style="--t:.4s;stroke:${c1}" d="M43.8 163.9 L60.8 158.1 L81.2 156.4 L91.4 157.1 L106.7 149.6 L119.6 137.4 L126.1 114.2 L132.2 93.5 L129.5 85.3 L126.1 62.2 L120.3 31.6 L115.2 16.3"/>
+      <path class="iv-path" pathLength="1" style="--t:.7s;stroke:${c2}" d="M43.8 163.9 L64.2 153 L81.2 137.7 L103 124.4"/>
+      <path class="iv-comet" pathLength="1" style="--t:1.8s" d="M43.8 163.9 L60.8 158.1 L81.2 156.4 L91.4 157.1 L106.7 149.6 L119.6 137.4 L126.1 114.2 L132.2 93.5 L129.5 85.3 L126.1 62.2 L120.3 31.6 L115.2 16.3"/>
+      <path class="iv-comet" pathLength="1" style="--t:2s" d="M43.8 163.9 L64.2 153 L81.2 137.7 L103 124.4"/>
+      <circle class="iv-dot" style="--t:.2s" cx="43.8" cy="163.9" r="6" fill="#fff"/>
+      <circle class="iv-dot" style="--t:1.9s" cx="115.2" cy="16.3" r="5" fill="${c1}"/>
+      <circle class="iv-dot" style="--t:2.1s" cx="103" cy="124.4" r="5" fill="${c2}"/>
+      <text class="iv-city" x="36" y="160" text-anchor="end">TP.HCM</text>
+      <text class="iv-city" x="107" y="13" text-anchor="end">Quảng Ngãi</text>
+      <text class="iv-city" x="95" y="121" text-anchor="end">Đà Lạt</text>
     </svg>
   </div></div>
 
