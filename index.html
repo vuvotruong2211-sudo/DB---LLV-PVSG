@@ -5987,10 +5987,36 @@ function buildVietQRPayload(bin,accNo,amount,addInfo){
   s+='6304';
   return s+vqrCRC16(s);
 }
+// LOGO GIỮA MÃ QR: dùng chính logo trong BRAND_CONFIG.logoUrl (đổi logo ở đó là QR đổi theo).
+// QR dùng mức sửa lỗi H (chịu che ~30%), logo chỉ chiếm ~22% chiều rộng -> app ngân hàng vẫn quét tốt.
+// Muốn tắt logo: đặt QR_LOGO_TILE=0.
+const QR_LOGO_TILE=0.22;
+let qrLogoImg=null;
+(function preloadQRLogo(){
+  try{
+    if(typeof BRAND_CONFIG==='undefined'||!BRAND_CONFIG.logoUrl||!QR_LOGO_TILE)return;
+    const im=new Image(); im.src=BRAND_CONFIG.logoUrl; qrLogoImg=im; // ảnh base64 -> giải mã gần như tức thì
+  }catch(e){qrLogoImg=null;}
+})();
 function makeVietQRDataURL(payload){
   if(typeof qrcode==='undefined')return null;
-  const qr=qrcode(0,'M'); qr.addData(payload); qr.make();
-  return qr.createDataURL(8,2);
+  const coLogo=!!(qrLogoImg&&qrLogoImg.complete&&qrLogoImg.naturalWidth);
+  const qr=qrcode(0,coLogo?'H':'M'); qr.addData(payload); qr.make();
+  if(!coLogo)return qr.createDataURL(8,2);
+  try{
+    const n=qr.getModuleCount(), cell=8, margin=2*cell, size=n*cell+margin*2;
+    const cv=document.createElement('canvas'); cv.width=cv.height=size;
+    const ctx=cv.getContext('2d');
+    ctx.fillStyle='#fff'; ctx.fillRect(0,0,size,size);
+    ctx.fillStyle='#000';
+    for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(qr.isDark(r,c))ctx.fillRect(margin+c*cell,margin+r*cell,cell,cell);
+    const d=Math.round(n*cell*QR_LOGO_TILE), cx=size/2, cy=size/2;
+    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(cx,cy,d/2+cell*0.8,0,Math.PI*2); ctx.fill(); // viền trắng quanh logo
+    ctx.drawImage(qrLogoImg,cx-d/2,cy-d/2,d,d);
+    return cv.toDataURL('image/png');
+  }catch(e){
+    return qr.createDataURL(8,2); // lỗi vẽ logo -> vẫn ra QR thường, không chặn nhân viên
+  }
 }
 
 function updateQrSoTienPreview(){
