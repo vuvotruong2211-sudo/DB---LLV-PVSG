@@ -6322,6 +6322,7 @@ function openQRThanhToanModal(){
 }
 
 function closeQRThanhToanModal(){
+  qrHuyHenLamMoi();
   document.getElementById('qrThanhToanModal').classList.remove('show');
 }
 
@@ -6551,13 +6552,13 @@ async function _generateQRThanhToan(){
 
   // CẢNH BÁO NHẦM ĐƠN VỊ: ô nhập tính theo NGÀN đồng (VD: gõ 1.100 = 1.100.000đ).
   // NV hay lỡ gõ dư số 0 (VD: gõ 500.000 tưởng là 500K nhưng thành 500.000.000đ)
-  // -> chặn lại, bắt xác nhận thủ công nếu 1 lệnh vượt 15 triệu để tránh tạo nhầm QR số tiền lớn.
-  const NGUONG_CANH_BAO_QR=15000000;
+  // -> chặn lại, bắt xác nhận thủ công nếu 1 lệnh lớn hơn 10 triệu để tránh tạo nhầm QR số tiền lớn.
+  const NGUONG_CANH_BAO_QR=10000000; // > 10.000.000đ thì bắt xác nhận
   if(soTien>NGUONG_CANH_BAO_QR){
     const xacNhan=confirm(
       '⚠️ CẢNH BÁO SỐ TIỀN LỚN BẤT THƯỜNG\n\n'+
       'Số tiền: '+soTien.toLocaleString('vi-VN')+' đ\n'+
-      '(vượt ngưỡng 15.000.000đ/lệnh)\n\n'+
+      '(lớn hơn ngưỡng 10.000.000đ/lệnh)\n\n'+
       'Ô nhập tính theo NGHÌN đồng — rất có thể anh/chị đã gõ dư số 0 '+
       '(VD: định gõ 500K nhưng lỡ thành 500 triệu).\n\n'+
       'Bấm OK nếu số tiền này CHÍNH XÁC.\n'+
@@ -6607,6 +6608,7 @@ async function _generateQRThanhToan(){
   document.getElementById('qrPrintArea').innerHTML=receiptHTML;
   statusEl.textContent='Đã tạo mã QR.';
   statusEl.className='qr-copy-status ok';
+  qrHenLamMoiForm(sdt, document.getElementById('qrSoTienNghin').value);
 
   // Ghi log lệnh tạo QR theo nhân viên đang đăng nhập -> phục vụ báo cáo kết sổ cuối ngày.
   // Chạy nền, không chặn giao diện; nếu lỗi mạng vẫn không ảnh hưởng tới việc tạo/in/gửi QR.
@@ -6636,6 +6638,31 @@ async function _generateQRThanhToan(){
   }catch(e){}
 }
 
+// TỰ LÀM TRỐNG Ô SĐT + SỐ TIỀN SAU 5 GIÂY kể từ khi tạo QR (vé QR vẫn giữ trên màn hình để in/chụp).
+// An toàn: nếu trong 5 giây NV đã sửa/gõ sang khách khác thì KHÔNG xoá, tránh mất dữ liệu đang nhập.
+const QR_AUTO_CLEAR_GIAY=5;
+let qrAutoClearTimer=null, qrAutoClearTick=null;
+function qrHuyHenLamMoi(){
+  clearTimeout(qrAutoClearTimer); clearInterval(qrAutoClearTick);
+  qrAutoClearTimer=null; qrAutoClearTick=null;
+}
+function qrHenLamMoiForm(sdtLuc, tienLuc){
+  qrHuyHenLamMoi();
+  const st=document.getElementById('qrCopyStatus');
+  let con=QR_AUTO_CLEAR_GIAY;
+  const hien=()=>{ if(st){st.className='qr-copy-status';st.textContent='⏳ Ô SĐT & số tiền tự làm trống sau '+con+' giây...';} };
+  hien();
+  qrAutoClearTick=setInterval(()=>{ con--; if(con>0)hien(); },1000);
+  qrAutoClearTimer=setTimeout(()=>{
+    qrHuyHenLamMoi();
+    const sdtEl=document.getElementById('qrKhachSDT'), tienEl=document.getElementById('qrSoTienNghin');
+    const giuNguyen = sdtEl.value.trim()===String(sdtLuc).trim() && tienEl.value===String(tienLuc);
+    if(!giuNguyen){ if(st)st.textContent=''; return; } // NV đã nhập khách mới -> không đụng vào
+    qrSanSangKhachMoi();
+    if(st){st.className='qr-copy-status ok';st.textContent='✓ Đã làm trống — sẵn sàng nhập giao dịch kế tiếp.';}
+  }, QR_AUTO_CLEAR_GIAY*1000);
+}
+
 function printQRReceipt(){
   const printArea=document.getElementById('qrPrintArea');
   if(!printArea.innerHTML.trim()){alert('Vui lòng tạo mã QR trước khi in.');return;}
@@ -6646,6 +6673,7 @@ function printQRReceipt(){
 // Dọn ô SĐT + số tiền, đưa con trỏ về ô SĐT để phục vụ khách kế tiếp ngay.
 // Vé QR vừa tạo VẪN giữ trên màn hình (in lại / sao chép lại được).
 function qrSanSangKhachMoi(){
+  qrHuyHenLamMoi();
   qrChamPhien();
   document.getElementById('qrKhachSDT').value='';
   document.getElementById('qrSoTienNghin').value='';
